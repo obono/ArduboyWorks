@@ -3,6 +3,7 @@
 
 #include <Arduboy.h>
 #include "module.h"
+#include "column.h"
 
 class GameModule : public IModule
 {
@@ -13,8 +14,17 @@ public:
     virtual void draw();
 
 private:
+    bool isHollow();
     Arduboy *ab;
-    int px, py;
+    Column column[18];
+    int columnOffset;
+    int wavePhase;
+    int caveMaxGap;
+    int caveGap;
+    int score;
+    int px, pc, pa, pd, pj;
+    int cm;
 };
 
 #endif // __GAME_MODULE_H__
+

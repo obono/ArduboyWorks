@@ -54,6 +54,8 @@ void LogoModule::draw()
     if (count == 119) {
         ab->clear();
         ab->drawBitmap(28, 12, imgObnLogo, 72, 40, WHITE);
+        ab->setCursor(16, 56);
+        ab->print(F("OBN-Y01 VER 0.10"));
     }
 }
 
