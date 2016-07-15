@@ -1,35 +1,43 @@
-#include <Arduboy.h>
-#include "logo_module.h"
-#include "title_module.h"
-#include "game_module.h"
+#include "common.h"
 
-Arduboy    arduboy;
-LogoModule  logoModule(arduboy);
-TitleModule titleModule(arduboy);
-GameModule  gameModule(arduboy);
-IModule     *pCurModule;
+typedef struct {
+    void (*initFunc)();
+    bool (*updateFunc)();
+    void (*drawFunc)();
+} MODULE_FUNCS;
+
+enum MODE {
+    LOGO_MODE = 0,
+    TITLE_MODE,
+    GAME_MODE
+};
+
+static const MODULE_FUNCS moduleTable[] = {
+    { initLogo,  updateLogo,  drawLogo  }, 
+    { initTitle, updateTitle, drawTitle }, 
+    { initGame,  updateGame,  drawGame  }, 
+};
+
+Arduboy arduboy;
+
+static MODE mode = LOGO_MODE;
 
 void setup()
 {
     arduboy.begin();
     arduboy.setFrameRate(60);
-    logoModule.init();
-    pCurModule = &logoModule;
+    moduleTable[LOGO_MODE].initFunc();
 }
 
 void loop()
 {
     if (!(arduboy.nextFrame())) return;
-    bool isDone = pCurModule->update();
-    pCurModule->draw();
+    bool isDone = moduleTable[mode].updateFunc();
+    moduleTable[mode].drawFunc();
     arduboy.display();
     if (isDone) {
-        if (pCurModule == &titleModule) {
-            pCurModule = &gameModule;
-        } else {
-            pCurModule = &titleModule;
-        }
-        pCurModule->init();
+        mode = (mode == TITLE_MODE) ? GAME_MODE : TITLE_MODE;
+        moduleTable[mode].initFunc();
     }
 }
 

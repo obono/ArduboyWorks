@@ -1,4 +1,4 @@
-#include "logo_module.h"
+#include "common.h"
 
 PROGMEM static const unsigned char imgObnLogo[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x80, 0x80, 0x80,
@@ -33,29 +33,26 @@ PROGMEM static const unsigned char imgObnLogo[] = {
     0x0D, 0x0D, 0x01, 0x00, 0x01, 0x01, 0x7F, 0x7F, 0x7F, 0x01, 0x01, 0x00,
 };
 
-LogoModule::LogoModule(Arduboy &ab)
-{
-    this->ab = &ab;
-}
+static int count;
 
-void LogoModule::init()
+void initLogo()
 {
     count = 120;
 }
 
-bool LogoModule::update()
+bool updateLogo()
 {
     count--;
     return (count <= 0);
 }
 
-void LogoModule::draw()
+void drawLogo()
 {
     if (count == 119) {
-        ab->clear();
-        ab->drawBitmap(28, 12, imgObnLogo, 72, 40, WHITE);
-        ab->setCursor(16, 56);
-        ab->print(F("OBN-Y01 VER 0.10"));
+        arduboy.clear();
+        arduboy.drawBitmap(28, 12, imgObnLogo, 72, 40, WHITE);
+        arduboy.setCursor(16, 56);
+        arduboy.print(F(APP_INFO));
     }
 }
 
