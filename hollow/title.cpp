@@ -6,7 +6,7 @@ void initTitle()
 
 bool updateTitle()
 {
-    return (arduboy.pressed(A_BUTTON) || arduboy.pressed(B_BUTTON));
+    return (arduboy.pressed(B_BUTTON));
 }
 
 void drawTitle()

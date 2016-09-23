@@ -5,12 +5,12 @@
 
 /*  Defines  */
 
-#define APP_INFO "OBN-Y01 VER 0.12"
+#define APP_INFO "OBN-Y01 VER 0.13"
 
 /*  Typedefs  */
 
-typedef uint8_t     uchar;
-typedef uint16_t    uint;
+typedef unsigned char   uchar;
+typedef unsigned int    uint;
 
 /*  Global Functions  */
 
