@@ -1,10 +1,6 @@
 #include "common.h"
 
-typedef struct {
-    void (*initFunc)();
-    bool (*updateFunc)();
-    void (*drawFunc)();
-} MODULE_FUNCS;
+/*  Defines  */
 
 enum MODE {
     LOGO_MODE = 0,
@@ -12,19 +8,33 @@ enum MODE {
     GAME_MODE
 };
 
+/*  Typedefs  */
+
+typedef struct {
+    void(*initFunc)();
+    bool(*updateFunc)();
+    void(*drawFunc)();
+} MODULE_FUNCS;
+
+/*  Global Variables  */
+
+Arduboy arduboy;
+
+/*  Local Variables  */
+
 static const MODULE_FUNCS moduleTable[] = {
     { initLogo,  updateLogo,  drawLogo  }, 
     { initTitle, updateTitle, drawTitle }, 
     { initGame,  updateGame,  drawGame  }, 
 };
 
-Arduboy arduboy;
-
 static MODE mode = LOGO_MODE;
+
+/*---------------------------------------------------------------------------*/
 
 void setup()
 {
-    arduboy.begin();
+    arduboy.beginNoLogo();
     arduboy.setFrameRate(60);
     moduleTable[LOGO_MODE].initFunc();
 }
@@ -40,4 +50,3 @@ void loop()
         moduleTable[mode].initFunc();
     }
 }
-

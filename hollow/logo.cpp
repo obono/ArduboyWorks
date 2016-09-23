@@ -1,6 +1,6 @@
 #include "common.h"
 
-PROGMEM static const unsigned char imgObnLogo[] = {
+PROGMEM static const uchar imgObnLogo[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x80, 0x80, 0x80,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0xFE, 0xFE, 0xAE, 0x56, 0xAE, 0x56, 0xAE, 0x56, 0xAE, 0x56, 0x06, 0xFE,
@@ -33,26 +33,25 @@ PROGMEM static const unsigned char imgObnLogo[] = {
     0x0D, 0x0D, 0x01, 0x00, 0x01, 0x01, 0x7F, 0x7F, 0x7F, 0x01, 0x01, 0x00,
 };
 
-static int count;
+static int counter;
 
 void initLogo()
 {
-    count = 120;
+    counter = 120; // 2 secs
 }
 
 bool updateLogo()
 {
-    count--;
-    return (count <= 0);
+    counter--;
+    return (counter <= 0);
 }
 
 void drawLogo()
 {
-    if (count == 119) {
+    if (counter == 119) {
         arduboy.clear();
         arduboy.drawBitmap(28, 12, imgObnLogo, 72, 40, WHITE);
         arduboy.setCursor(16, 56);
         arduboy.print(F(APP_INFO));
     }
 }
-

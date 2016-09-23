@@ -1,9 +1,26 @@
 #include "common.h"
 
+/*  Defines  */
+
+#define PI 3.14159
+
+#define rnd(val)        (rand() % (val))
+#define mod(value, div) (((value) + div) % div)
+
+/*  Typedefs  */
+
 typedef struct {
-    uchar top;
-    uchar bottom;
+    uchar   top;
+    uchar   bottom;
 } COLUMN;
+
+/*  Local Functions  */
+
+static bool isHollow();
+static void setColumn(COLUMN &newColumn, uchar top, uchar bottom);
+static void growColumn(COLUMN &newColumn, bool isSpace, COLUMN &lastColumn);
+
+/*  Local Variables  */
 
 PROGMEM static const uchar imgPlayerLeft0[] = {
     0x10, 0x86, 0x89, 0x39, 0x3F, 0xBF, 0x86, 0x10
@@ -35,86 +52,103 @@ static const uchar *imgPlayerAry[] = {
     imgPlayerRight0, imgPlayerRight1, imgPlayerRight2, imgPlayerRight3,
 };
 
-static bool isHollow();
-static void set(COLUMN &newColumn, uchar top, uchar bottom);
-static void grow(COLUMN &newColumn, bool isSpace, COLUMN &lastColumn);
+static COLUMN   column[18];
+static bool     isStart;
+static bool     isOver;
+static int      score;
+static uchar    counter;
+static uchar    caveOffset;  // 0...143
+static int      cavePhase;   // 0...383
+static char     caveHollowCnt;
+static uchar    caveMaxGap;
+static int      caveGap;
+static uchar    playerX;
+static uchar    playerColumn;
+static uchar    playerMove;  // 0...8
+static uchar    playerDir;   // 0:left / 1:right
+static char     playerJump;  // -8...8
 
-static COLUMN column[18];
-static int columnOffset;
-static int wavePhase;
-static int caveMaxGap;
-static int caveGap;
-static int score;
-static int px, pc, pa, pd, pj;
-static int cm;
+/*---------------------------------------------------------------------------*/
 
 void initGame()
 {
     for (int i = 0; i < 9 ; i++) {
-        set(column[i], 32, 40);
+        setColumn(column[i], 32, 40);
     }
     for (int i = 9; i < 18; i++) {
-        grow(column[i], isHollow(), column[i - 1]);
+        growColumn(column[i], isHollow(), column[i - 1]);
     }
-    columnOffset = 0;
-    wavePhase = 0;
-    caveMaxGap = 16;
+    isStart = true;
+    isOver = false;
+    counter = 120; // 2 secs
     score = 0;
-    px = 0;
-    pc = 1;
-    pd = 1;
-    pa = 0;
-    pj = 0;
-    cm = 0;
+    caveOffset = 0;
+    cavePhase = 0;
+    caveHollowCnt = 0;
+    caveMaxGap = 16;
+    playerX = 0;
+    playerColumn = 1;
+    playerDir = 1;
+    playerMove = 0;
+    playerJump = 0;
 }
 
 bool updateGame()
 {
-    wavePhase = (wavePhase + 1) % 384;
-    caveGap = (1.0 - cos(wavePhase * 3.14159 / 192.0)) * 16;
+    if (isStart || isOver) {
+        if (--counter == 0) isStart = false;
+    }
+    if (!isStart) cavePhase = mod(cavePhase + 1, 384);
+    caveGap = (1.0 - cos(cavePhase * PI / 192.0)) * caveMaxGap;
 
-    if (pa == 0) {
+    /*  Key handling  */
+    if (!isOver && playerMove == 0) {
         int vx = 0;
         if (arduboy.pressed(LEFT_BUTTON)) vx--;
-        if (arduboy.pressed(RIGHT_BUTTON)) vx++;
+        if (arduboy.pressed(RIGHT_BUTTON) || isStart) vx++;
         if (vx < 0) {
-            pd = 0;
-            if (px == 0) vx = 0;
+            playerDir = 0;
+            if (playerX == 0) vx = 0;
         } else if (vx > 0) {
-            pd = 1;
+            playerDir = 1;
         }
         if (vx != 0) {
-            int nextCol = (pc + vx + 18) % 18;
-            int gap = min(column[pc].bottom - column[nextCol].top, column[nextCol].bottom - column[pc].top);
-            if (gap + caveGap >= 8) {
-                pj = column[pc].bottom - column[nextCol].bottom;
-                pc = nextCol;
-                pa = 8;
-                if (px + vx > 56) {
-                    int growCol = columnOffset / 8;
-                    grow(column[growCol], isHollow(), column[(growCol > 0) ? growCol - 1 : 17]);
+            int nextCol = mod(playerColumn + vx, 18);
+            int nextGap = min(column[playerColumn].bottom - column[nextCol].top,
+                    column[nextCol].bottom - column[playerColumn].top);
+            if (nextGap + caveGap >= 8) {
+                playerJump = column[playerColumn].bottom - column[nextCol].bottom;
+                playerColumn = nextCol;
+                playerMove = 8;
+                if (playerX + vx > 56) {
+                    int growCol = caveOffset / 8;
+                    growColumn(column[growCol], isHollow(), column[mod(growCol - 1, 18)]);
                     score++;
                 }
             }
         }
     }
 
-    if (pa > 0) {
-        pa--;
-        px += pd * 2 - 1;
-        if (px > 56) {
-            px--;
-            columnOffset = (columnOffset + 1) % 144;
+    /*  Move and scroll  */
+    if (playerMove > 0) {
+        playerMove--;
+        playerX += playerDir * 2 - 1;
+        if (playerX > 56) {
+            playerX--;
+            caveOffset = mod(caveOffset + 1, 144);
         }
     }
 
-    if (wavePhase == 0) {
-        if (column[pc].bottom - column[pc].top < 4) {
-            return true;
+    /*  Judge game over  */
+    if (!isStart && cavePhase == 0) {
+        if (column[playerColumn].bottom - column[playerColumn].top < 4) {
+            isOver = true;
+            counter = 240; // 4 secs
         }
         caveMaxGap++;
     }
-    return false;
+
+    return (isOver && counter == 0);
 }
 
 void drawGame()
@@ -122,45 +156,63 @@ void drawGame()
     arduboy.clear();
 
     /*  Cave  */
-    int sh = (wavePhase > 374) ? wavePhase % 2 : 0;
+    int shake = (cavePhase > 374) ? cavePhase % 2 : 0;
+    int offsetTop = -(caveGap + 1) / 2 + shake;
+    int offsetBottom = caveGap / 2 + shake;
     for (int i = 0; i < 18; i++) {
-        int x = i * 8 - columnOffset - 8;
+        int x = i * 8 - caveOffset - 8;
         if (x <= -8) x += 144;
-        arduboy.drawRect(x, -(caveGap + 1) / 2 + sh, 8, column[i].top, WHITE);
-        arduboy.drawRect(x, column[i].bottom + caveGap / 2 + sh, 8, 64 - column[i].bottom, WHITE);
+        arduboy.drawRect(x, offsetTop, 8, column[i].top, WHITE);
+        arduboy.drawRect(x, column[i].bottom + offsetBottom, 8, 64 - column[i].bottom, WHITE);
     }
 
     /*  Player  */
-    int y = max(column[pc].bottom + pj * pa / 8 + caveGap / 2 - 8, column[pc].top -(caveGap + 1) / 2);
-    if (y > 56) y = 56;
-    arduboy.drawBitmap(px, y + sh, imgPlayerAry[pd * 4 + pa / 2], 8, 8, WHITE);
+    int playerY = column[playerColumn].bottom + playerJump * playerMove / 8 - 8;
+    playerY = max(playerY + offsetBottom, column[playerColumn].top + offsetTop);
+    if (playerY > 56) playerY = 56;
+    if (isOver) playerY = column[playerColumn].top + offsetBottom;
+    arduboy.drawBitmap(playerX, playerY, imgPlayerAry[playerDir * 4 + playerMove / 2], 8, 8, WHITE);
 
     /*  Score  */
-    arduboy.setCursor(0, 0);
-    arduboy.print(score);
+    if (!isStart) {
+        arduboy.setCursor(0, 0);
+        arduboy.print(score);
+    }
+
+    /*  Message  */
+    if (isStart) {
+        arduboy.setCursor(46, 24);
+        arduboy.print(F("Ready?"));
+    } else if (isOver) {
+        arduboy.setCursor(37, 24);
+        arduboy.print(F("Game Over"));
+    }
 }
 
+/*---------------------------------------------------------------------------*/
+
 static bool isHollow() {
-    if (--cm < 0) {
-        cm = ((rand() + 32768) * score >> 22) + 1;
+    if (--caveHollowCnt < 0) {
+        caveHollowCnt = ((rand() + 32768) * score >> 22) + 1;
         return true;
     }
     return false;
 }
 
-static void set(COLUMN &newColumn, uchar top, uchar bottom)
+static void setColumn(COLUMN &newColumn, uchar top, uchar bottom)
 {
     newColumn.top = top;
     newColumn.bottom = bottom;
 }
 
-static void grow(COLUMN &newColumn, bool isSpace, COLUMN &lastColumn)
+static void growColumn(COLUMN &newColumn, bool isSpace, COLUMN &lastColumn)
 {
     int lastDiff = lastColumn.bottom - lastColumn.top;
-    int curDiff = rand() % 3;
+    int curDiff = rnd(3);
+
     if (isSpace) curDiff = 8 - curDiff;
     int adjust = (lastColumn.bottom - 34) / 5;
-    int change = rand() % (17 - abs(curDiff - lastDiff) - abs(adjust)) - 8;
+    int change = rnd(17 - abs(curDiff - lastDiff) - abs(adjust)) - 8;
     if (curDiff > lastDiff) change += curDiff - lastDiff;
     if (adjust < 0) change -= adjust;
     int bottom = lastColumn.bottom + change;
@@ -169,4 +221,3 @@ static void grow(COLUMN &newColumn, bool isSpace, COLUMN &lastColumn)
     newColumn.top = bottom - curDiff;
     newColumn.bottom = bottom; 
 }
-

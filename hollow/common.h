@@ -4,14 +4,15 @@
 #include <Arduboy.h>
 
 /*  Defines  */
-#define APP_INFO "OBN-Y01 VER 0.11"
+
+#define APP_INFO "OBN-Y01 VER 0.12"
 
 /*  Typedefs  */
 
-typedef unsigned char   uchar;
-typedef unsigned int    uint;
+typedef uint8_t     uchar;
+typedef uint16_t    uint;
 
-/*  Functions  */
+/*  Global Functions  */
 
 void initLogo();
 bool updateLogo();
@@ -25,7 +26,7 @@ void initGame();
 bool updateGame();
 void drawGame();
 
-/*  Variables  */
+/*  Global Variables  */
 
 extern Arduboy arduboy;
 
