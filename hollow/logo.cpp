@@ -1,5 +1,11 @@
 #include "common.h"
 
+/*  Defines  */
+
+#define SIGNAL_PTN 0xEEE3AA3AU  // "OBN" in Morse code
+
+/*  Local Variables  */
+
 PROGMEM static const uint8_t imgObnLogo[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x80, 0x80, 0x80,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -35,6 +41,8 @@ PROGMEM static const uint8_t imgObnLogo[] = {
 
 static int counter;
 
+/*---------------------------------------------------------------------------*/
+
 void initLogo()
 {
     counter = 120; // 2 secs
@@ -43,6 +51,8 @@ void initLogo()
 bool updateLogo()
 {
     counter--;
+    bool signalOn = (SIGNAL_PTN >> (counter - 15) / 3) & 1;
+    arduboy.setRGBled(0, 0, signalOn * 127);
     return (counter <= 0);
 }
 
@@ -51,7 +61,7 @@ void drawLogo()
     if (counter == 119) {
         arduboy.clear();
         arduboy.drawBitmap(28, 12, imgObnLogo, 72, 40, WHITE);
-        arduboy.setCursor(16, 56);
+        arduboy.setCursor(16, 58);
         arduboy.print(F(APP_INFO));
     }
 }

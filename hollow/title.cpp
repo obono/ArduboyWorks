@@ -13,5 +13,5 @@ void drawTitle()
 {
     arduboy.clear();
     arduboy.setCursor(0, 0);
-    arduboy.print(F("Hollow Seeker\nTitle Screen"));
+    arduboy.print(F("HOLLOW SEEKER\nTITLE SCREEN"));
 }

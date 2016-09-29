@@ -18,7 +18,7 @@ typedef struct {
 
 /*  Global Variables  */
 
-Arduboy arduboy;
+MyArduboy arduboy;
 
 /*  Local Variables  */
 

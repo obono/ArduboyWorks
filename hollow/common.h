@@ -1,11 +1,11 @@
-#ifndef __COMMON_H__
-#define __COMMON_H__
+#ifndef COMMON_H
+#define COMMON_H
 
-#include <Arduboy.h>
+#include "MyArduboy.h"
 
 /*  Defines  */
 
-#define APP_INFO "OBN-Y01 VER 0.13"
+#define APP_INFO "OBN-Y01 VER 0.14"
 
 /*  Typedefs  */
 
@@ -28,6 +28,6 @@ void drawGame();
 
 /*  Global Variables  */
 
-extern Arduboy arduboy;
+extern MyArduboy arduboy;
 
-#endif // __COMMON_H__
+#endif // COMMON_H

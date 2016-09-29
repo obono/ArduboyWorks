@@ -2,7 +2,7 @@
 
 /*  Defines  */
 
-#define PI 3.14159
+#define PI 3.141592653589793
 
 #define rnd(val)        (rand() % (val))
 #define mod(value, div) (((value) + div) % div)
@@ -35,7 +35,7 @@ PROGMEM static const uint8_t imgPlayer[] = {
     0x20, 0x06, 0x3F, 0xBF, 0xB9, 0x09, 0x26, 0x00, // right 2
     0x10, 0xCC, 0x3E, 0x3E, 0xB2, 0x92, 0x0C, 0x20, // right 3
 };
-static const uint8_t imgCave[] = {
+PROGMEM static const uint8_t imgCave[] = {
     0x3C, 0x3D, 0xBB, 0x9B, 0xDB, 0xC1, 0xCD, 0xDC
 };
 
@@ -99,8 +99,12 @@ bool updateGame()
         }
     } else if (playerMove == 0) {
         int vx = 0;
-        if (arduboy.pressed(LEFT_BUTTON)) vx--;
-        if (arduboy.pressed(RIGHT_BUTTON) || isStart) vx++;
+        if (isStart) {
+            vx = 1;
+        } else {
+            if (arduboy.pressed(LEFT_BUTTON)) vx--;
+            if (arduboy.pressed(RIGHT_BUTTON)) vx++;
+        }
         if (vx < 0) {
             playerDir = false;
             if (playerX == 0) vx = 0;
@@ -157,7 +161,7 @@ void drawGame()
     /*  Cave  */
     for (int i = 0; i < 128; i++) {
         int col = (i + caveOffset + 8) % 144 / 8;
-        uchar ptn = imgCave[(i + caveOffset) & 7];
+        uchar ptn = pgm_read_byte(imgCave + ((i + caveOffset) & 7));
         drawCaveTop(ptn, i, caveColumn[col].top, -offsetTop);
         drawCaveBottom(ptn, i, 64 - caveColumn[col].bottom, offsetBottom);
     }
@@ -178,10 +182,10 @@ void drawGame()
     /*  Message  */
     if (isStart) {
         arduboy.setCursor(46, 24);
-        arduboy.print(F("Ready?"));
+        arduboy.print(F("READY?"));
     } else if (isOver) {
         arduboy.setCursor(37, 24);
-        arduboy.print(F("Game Over"));
+        arduboy.print(F("GAME OVER"));
     }
 }
 
