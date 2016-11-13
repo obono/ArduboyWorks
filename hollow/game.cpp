@@ -14,13 +14,19 @@ typedef struct {
     uchar   bottom;
 } COLUMN;
 
+typedef struct {
+    uchar   t;
+    int8_t  base;
+} DEBRIS;
+
 /*  Local Functions  */
 
 static bool isHollow();
 static void setColumn(COLUMN &newColumn, uchar top, uchar bottom);
 static void growColumn(COLUMN &newColumn, bool isSpace, COLUMN &lastColumn);
-static void drawCaveTop(uchar ptn, int x, int height, int offset);
-static void drawCaveBottom(uchar ptn, int x, int height, int offset);
+static int  calcDotY(int i);
+static void drawCaveTop(uchar ptn, int x, int height, int edge, int offset);
+static void drawCaveBottom(uchar ptn, int x, int height, int edge, int offset);
 static void drawPlayer(int x, int y, bool dir, int anim);
 
 /*  Local Variables  */
@@ -36,7 +42,8 @@ PROGMEM static const uint8_t imgPlayer[] = {
     0x10, 0xCC, 0x3E, 0x3E, 0xB2, 0x92, 0x0C, 0x20, // right 3
 };
 PROGMEM static const uint8_t imgCave[] = {
-    0x3C, 0x3D, 0xBB, 0x9B, 0xDB, 0xC1, 0xCD, 0xDC
+    //0x3C, 0x3D, 0xBB, 0x9B, 0xDB, 0xC1, 0xCD, 0xDC
+    0x3C, 0x3C, 0x99, 0x93, 0xC3, 0xC1, 0x88, 0x1C,
 };
 
 static bool     isStart;
@@ -48,12 +55,15 @@ static int      cavePhase;   // 0...1023
 static char     caveHollowCnt;
 static uchar    caveMaxGap;
 static int      caveGap;
+static int      caveBaseTop;
+static int      caveBaseBottom;
 static COLUMN   caveColumn[18];
 static uchar    playerX;
 static uchar    playerColumn;
 static uchar    playerMove;  // 0...8
 static bool     playerDir;   // false=left / true=right
 static char     playerJump;  // -8...8
+static DEBRIS   debris[144];
 
 /*---------------------------------------------------------------------------*/
 
@@ -74,6 +84,9 @@ void initGame()
     for (int i = 9; i < 18; i++) {
         growColumn(caveColumn[i], isHollow(), caveColumn[i - 1]);
     }
+    for (int i = 0; i < 144; i++) {
+        debris[i].t = 0;
+    }
 
     playerX = 0;
     playerColumn = 1;
@@ -91,6 +104,8 @@ bool updateGame()
         cavePhase = (cavePhase + 2 - isOver) % 1024;
     }
     caveGap = (0.5 - cos(cavePhase * PI / 512.0) / 2.0) * caveMaxGap;
+    caveBaseTop = -(caveGap + 1) / 2;
+    caveBaseBottom = caveGap / 2;
 
     /*  Key handling  */
     if (isOver) {
@@ -138,6 +153,22 @@ bool updateGame()
         }
     }
 
+    /*  Debris  */
+    for (int i = 0, dy; i < 144; i++) {
+        if ((i & 7) == 0) dy = caveColumn[i / 8].bottom + caveBaseBottom;
+        if (debris[i].t > 0) {
+            debris[i].t++;
+            if (calcDotY(i) > dy) debris[i].t = 0;
+        }
+    }
+    if (!isStart && rnd((cavePhase >> 6) + 1) == 0) {
+        int pos = rnd(144);
+        if (debris[pos].t == 0) {
+            debris[pos].t = 1;
+            debris[pos].base = caveColumn[pos / 8].top + caveBaseTop;
+        }
+    }
+
     /*  Judge game over  */
     if (!isStart && cavePhase == 0) {
         if (caveColumn[playerColumn].bottom - caveColumn[playerColumn].top < 4) {
@@ -155,15 +186,40 @@ void drawGame()
     arduboy.clear();
 
     int shake = (cavePhase > 976) ? cavePhase % 4 / 2: 0;
-    int offsetTop = -(caveGap + 1) / 2 + shake;
-    int offsetBottom = caveGap / 2 + shake;
+    int offsetTop = caveBaseTop + shake;
+    int offsetBottom = caveBaseBottom + shake;
 
-    /*  Cave  */
+    /*  Cave & Debris  */
     for (int i = 0; i < 128; i++) {
-        int col = (i + caveOffset + 8) % 144 / 8;
+        int pos = (i + caveOffset + 8) % 144;
+        int col = pos / 8;
+        int odd = pos & 7;
+        int height, edge; 
         uchar ptn = pgm_read_byte(imgCave + ((i + caveOffset) & 7));
-        drawCaveTop(ptn, i, caveColumn[col].top, -offsetTop);
-        drawCaveBottom(ptn, i, 64 - caveColumn[col].bottom, offsetBottom);
+
+        height = caveColumn[col].top;
+        if (odd == 0) {
+            edge = height - caveColumn[mod(col - 1, 18)].top + 1;
+        } else if (odd == 7) {
+            edge = height - caveColumn[mod(col + 1, 18)].top + 1;
+        } else {
+            edge = 1;
+        }
+        drawCaveTop(ptn, i, height, edge, -offsetTop);
+
+        height = caveColumn[col].bottom;
+        if (odd == 0) {
+            edge = caveColumn[mod(col - 1, 18)].bottom - height + 1;
+        } else if (odd == 7) {
+            edge = caveColumn[mod(col + 1, 18)].bottom - height + 1;
+        } else {
+            edge = 1;
+        }
+        drawCaveBottom(ptn, i, 64 - height, edge, offsetBottom);
+
+        if (debris[pos].t > 0) {
+            arduboy.drawPixel(i, calcDotY(pos) + shake, WHITE);
+        }
     }
 
     /*  Player  */
@@ -217,17 +273,26 @@ static void growColumn(COLUMN &newColumn, bool isSpace, COLUMN &lastColumn)
     if (curDiff > lastDiff) change += curDiff - lastDiff;
     if (adjust < 0) change -= adjust;
     int bottom = lastColumn.bottom + change;
-    if (bottom < 16) bottom = 16;
-    if (bottom > 56) bottom = 56;
+    bottom = min(max(bottom, 16), 56);
     newColumn.top = bottom - curDiff;
     newColumn.bottom = bottom; 
 }
 
-static void drawCaveTop(uchar ptn, int x, int height, int offset)
+static int calcDotY(int i)
 {
+    return debris[i].base + (debris[i].t * debris[i].t >> 6);
+}
+
+static void drawCaveTop(uchar ptn, int x, int height, int edge, int offset)
+{
+    height -= offset;
+    if (height < 0) return;
+    edge = min(max(edge, 1), height);
+    arduboy.drawFastVLine(x, height - edge, edge, WHITE);
+    height -= edge;
+
     int shift = -offset & 7;
     ptn = (ptn << shift) | (ptn >> (8 - shift));
-    height -= offset;
     uchar *pBuf = arduboy.getBuffer() + x;
     for (; height > 0; pBuf += WIDTH, height -= 8) {
         uchar mask = (height < 8) ? 0xFF >> (8 - height) : 0xFF;
@@ -235,11 +300,16 @@ static void drawCaveTop(uchar ptn, int x, int height, int offset)
     }
 }
 
-static void drawCaveBottom(uchar ptn, int x, int height, int offset)
+static void drawCaveBottom(uchar ptn, int x, int height, int edge, int offset)
 {
+    height -= offset;
+    if (height < 0) return;
+    edge = min(max(edge, 1), height);
+    arduboy.drawFastVLine(x, 64 - height, edge, WHITE);
+    height -= edge;
+
     int shift = -offset & 7;
     ptn = (ptn >> shift) | (ptn << (8 - shift));
-    height -= offset;
     uchar *pBuf = arduboy.getBuffer() + WIDTH * 7 + x;
     for (; height > 0; pBuf -= WIDTH, height -= 8) {
         uchar mask = (height < 8) ? 0xFF << (8 - height) : 0xFF;
