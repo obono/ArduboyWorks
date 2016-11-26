@@ -11,6 +11,32 @@ PROGMEM static const uint32_t imgFont[] = {
     0x1D184317, 0x0109C107, 0x114D5651, 0x0045F000, 0x0001F000, 0x0001F440, 0x000C1080, 0x10410410,
 };
 
+bool MyArduboy::nextFrame()
+{
+    bool ret = Arduboy::nextFrame();
+    if (ret) {
+        lastButtonState = currentButtonState;
+        currentButtonState = buttonsState();
+    }
+    return ret;
+}
+
+bool MyArduboy::buttonDown(uint8_t buttons)
+{
+    return currentButtonState & ~lastButtonState & buttons;
+}
+
+bool MyArduboy::buttonPressed(uint8_t buttons)
+{
+    return currentButtonState & buttons;
+}
+
+
+bool MyArduboy::buttonUp(uint8_t buttons)
+{
+    return ~currentButtonState & lastButtonState & buttons;
+}
+
 void MyArduboy::setTextColor(uint8_t color)
 {
     setTextColor(color, (color == BLACK) ? WHITE : BLACK);
@@ -62,3 +88,104 @@ void MyArduboy::myDrawChar(int16_t x, int16_t y, unsigned char c, uint8_t color,
         }
     }
 }
+
+void MyArduboy::drawRect2(int16_t x, int16_t y, uint8_t w, int8_t h, uint8_t color)
+{
+    drawFastHLine2(x, y, w, color);
+    drawFastHLine2(x, y + h - 1, w, color);
+    drawFastVLine2(x, y + 1, h - 2, color);
+    drawFastVLine2(x + w - 1, y + 1, h - 2, color);
+}
+
+void MyArduboy::drawFastVLine2(int16_t x, int16_t y, int8_t h, uint8_t color)
+{
+    /*  Check parameters  */
+    if (y < 0) {
+        h += y;
+        y = 0;
+    }
+    if (h < 0 || y >= HEIGHT || x < 0 || x >= WIDTH) return;
+    if (y + h > HEIGHT) h = HEIGHT - y;
+
+    /*  Draw a vertical line  */
+    uint8_t yOdd = y & 7;
+    uchar d = 0xFF << yOdd;
+    y -= yOdd;
+    h += yOdd;
+    for (uchar *p = getBuffer() + x + (y / 8) * WIDTH; h > 0; h -= 8, p += WIDTH) {
+        if (h < 8) d &= 0xFF >> (8 - h);
+        if (color == BLACK) {
+            *p &= ~d;
+        } else {
+            *p |= d;
+        }
+        d = 0xFF;
+    }
+}
+
+void MyArduboy::drawFastHLine2(int16_t x, int16_t y, uint8_t w, uint8_t color)
+{
+    /*  Check parameters  */
+    if (x < 0) {
+        w += x;
+        x = 0;
+    }
+    if (w < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) return;
+    if (x + w > WIDTH) w = WIDTH - x;
+
+    /*  Draw a horizontal line  */
+    uint8_t yOdd = y & 7;
+    uchar d = 1 << yOdd;
+    uchar *p = getBuffer() + x + (y / 8) * WIDTH;
+    if (color == BLACK) {
+        fillBeltBlack(p, d, w);
+    } else {
+        fillBeltWhite(p, d, w);
+    }
+}
+
+void MyArduboy::fillRect2(int16_t x, int16_t y, uint8_t w, int8_t h, uint8_t color)
+{
+    /*  Check parameters  */
+    if (x < 0) {
+        w += x;
+        x = 0;
+    }
+    if (y < 0) {
+        h += y;
+        y = 0;
+    }
+    if (w < 0 || x >= WIDTH || h < 0 || y >= HEIGHT) return;
+    if (x + w > WIDTH) w = WIDTH - x;
+    if (y + h > HEIGHT) h = HEIGHT - y;
+
+    /*  Draw a filled rectangle  */
+    uint8_t yOdd = y & 7;
+    uchar d = 0xFF << yOdd;
+    y -= yOdd;
+    h += yOdd;
+    for (uchar *p = getBuffer() + x + (y / 8) * WIDTH; h > 0; h -= 8, p += WIDTH) {
+        if (h < 8) d &= 0xFF >> (8 - h);
+        if (color == BLACK) {
+            fillBeltBlack(p, d, w);
+        } else {
+            fillBeltWhite(p, d, w);
+        }
+        d = 0xFF;
+    }
+}
+
+void MyArduboy::fillBeltBlack(uchar *p, uchar d, uint8_t w)
+{
+    d = ~d;
+    for (; w > 0; w--) {
+        *p++ &= d;
+    }
+}
+void MyArduboy::fillBeltWhite(uchar *p, uchar d, uint8_t w)
+{
+    for (; w > 0; w--) {
+        *p++ |= d;
+    }
+}
+
