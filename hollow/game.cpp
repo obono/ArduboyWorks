@@ -43,8 +43,7 @@ PROGMEM static const uint8_t imgPlayer[] = {
     0x10, 0xCC, 0x3E, 0x3E, 0xB2, 0x92, 0x0C, 0x20, // right 3
 };
 PROGMEM static const uint8_t imgCave[] = {
-    //0x3C, 0x3D, 0xBB, 0x9B, 0xDB, 0xC1, 0xCD, 0xDC
-    0x3C, 0x3C, 0x99, 0x93, 0xC3, 0xC1, 0x88, 0x1C,
+    0x90, 0x06, 0x4E, 0xE4, 0xC0, 0x88, 0x18, 0x99
 };
 
 PROGMEM static const uint8_t imgReady[] = { // "Ready?" 64x16
@@ -85,6 +84,32 @@ PROGMEM static const uint8_t imgNumber[] = { // 8x16x10
     0xF0, 0xF8, 0xFC, 0x9C, 0x9C, 0xFC, 0xF8, 0xE0, 0x00, 0x39, 0x39, 0x39, 0x3D, 0x1F, 0x1F, 0x07,
 };
 
+PROGMEM static const byte soundStart[] = {
+    0x90, 72, 0, 100, 0x80, 0, 25,
+    0x90, 74, 0, 100, 0x80, 0, 25,
+    0x90, 76, 0, 100, 0x80, 0, 25,
+    0x90, 77, 0, 100, 0x80, 0, 25,
+    0x90, 79, 0, 200, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundMove[] = {
+    0x90, 67, 0, 10, 0x90, 79, 0, 10, 0x90, 76, 0, 10, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundCrush[] = {
+    0x90, 20, 0x91, 19, 1, 244, 0x80, 0x81, 0xF0
+};
+
+PROGMEM static const byte soundGameOver[] = {
+    0x90, 55, 0, 120, 0x80, 0, 10,
+    0x90, 54, 0, 140, 0x80, 0, 20,
+    0x90, 53, 0, 160, 0x80, 0, 30,
+    0x90, 52, 0, 180, 0x80, 0, 40,
+    0x90, 51, 0, 200, 0x80, 0, 50,
+    0x90, 50, 0, 220, 0x80, 0, 60,
+    0x90, 49, 0, 240, 0x80, 0, 70,
+    0x90, 48, 0, 260, 0x80, 0xF0
+};
 
 static bool     isStart;
 static bool     isOver;
@@ -110,7 +135,6 @@ static DEBRIS   debris[144];
 
 void initGame()
 {
-    arduboy.initRandomSeed();
     isStart = true;
     isOver = false;
     counter = 120; // 2 secs
@@ -136,6 +160,7 @@ void initGame()
     playerDir = true;
     playerMove = 0;
     playerJump = 0;
+    arduboy.playScore2(soundStart, 0);
 }
 
 bool updateGame()
@@ -146,6 +171,9 @@ bool updateGame()
     if (!isStart) {
         cavePhase = (cavePhase + 2 - isOver) % 1024;
     }
+    if (cavePhase == 976) {
+        arduboy.playScore2(soundCrush, 2);
+    }
     caveGap = (0.5 - cos(cavePhase * PI / 512.0) / 2.0) * caveMaxGap;
     caveBaseTop = -(caveGap + 1) / 2;
     caveBaseBottom = caveGap / 2;
@@ -153,7 +181,7 @@ bool updateGame()
 
     /*  Key handling  */
     if (isOver) {
-        if (arduboy.buttonDown(B_BUTTON)) {
+        if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
             initGame();
         }
     } else if (playerMove == 0) {
@@ -184,7 +212,9 @@ bool updateGame()
                     score++;
                     scoreDisplay = 60;
                 }
-                //arduboy.tunes.tone(440, 50);
+                if (!isStart) {
+                    arduboy.playScore2(soundMove, 3);
+                }
             }
         }
     }
@@ -220,6 +250,7 @@ bool updateGame()
         if (caveColumn[playerColumn].bottom - caveColumn[playerColumn].top < 4) {
             isOver = true;
             counter = 480; // 8 secs
+            arduboy.playScore2(soundGameOver, 1);
         }
         caveMaxGap++;
     }
@@ -276,24 +307,27 @@ void drawGame()
     drawPlayer(playerX, playerY, playerDir, playerMove / 2);
 
     /*  Score  */
-    if (!isStart && !isOver) {
+    if (scoreDisplay > 0) {
         arduboy.setCursor(0, min(scoreDisplay / 2 - 6, 0));
         arduboy.print(score);
     }
 
     /*  Message  */
     if (isStart) {
-        arduboy.fillRect2(32, 8, 64, 16, BLACK);
-        arduboy.drawBitmap(32, 8, imgReady, 64, 16, WHITE);
+        int y = min(counter - 16, 8);
+        arduboy.fillRect2(32, y, 64, 16, BLACK);
+        arduboy.drawBitmap(32, y, imgReady, 64, 16, WHITE);
     } else if (isOver) {
-        arduboy.fillRect2(20, 0, 88, 16, BLACK);
-        arduboy.drawBitmap(20, 0, imgGameOver, 88, 16, WHITE);
-        arduboy.fillRect2(28, 48, 72, 16, BLACK);
-        arduboy.setCursor(30, 51);
+        int y = min(464 - counter, 0);
+        arduboy.fillRect2(20, y, 88, 16, BLACK);
+        arduboy.drawBitmap(20, y, imgGameOver, 88, 16, WHITE);
+        y = max(counter - 400, 48);
+        arduboy.fillRect2(28, y, 72, 16, BLACK);
+        drawScoreFigure(90, y, score);
+        arduboy.setCursor(30, y + 3);
         arduboy.print(F("YOUR"));
-        arduboy.setCursor(30, 57);
+        arduboy.setCursor(30, y + 9);
         arduboy.print(F("SCORE"));
-        drawScoreFigure(90, 48, score);
     }
 }
 

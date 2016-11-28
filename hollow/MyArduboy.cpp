@@ -189,3 +189,21 @@ void MyArduboy::fillBeltWhite(uchar *p, uchar d, uint8_t w)
     }
 }
 
+void MyArduboy::playScore2(const byte *score, uint8_t priority)
+{
+    if (!audio.enabled()) return;
+    if (tunes.playing()) {
+        if (priority > playScorePriority) {
+            return;
+        }
+        tunes.stopScore();
+    }
+    playScorePriority = priority;
+    tunes.playScore(score);
+}
+
+void MyArduboy::tone2(unsigned int frequency, unsigned long duration)
+{
+    if (!audio.enabled()) return;
+    tunes.tone(frequency, duration);
+}

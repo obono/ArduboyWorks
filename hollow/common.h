@@ -5,7 +5,7 @@
 
 /*  Defines  */
 
-#define APP_INFO "OBN-Y01 VER 0.16"
+#define APP_INFO "OBN-Y01 VER 0.17"
 
 /*  Typedefs  */
 

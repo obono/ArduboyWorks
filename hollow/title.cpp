@@ -4,6 +4,10 @@
 
 /*  Local Functions  */
 
+static void setSound(bool enabled);
+static void playSound1();
+static void playSound2();
+
 /*  Local Variables  */
 
 PROGMEM static const uint8_t imgTitle1[] = { // "Hollow" 84x20
@@ -56,7 +60,7 @@ PROGMEM static const char credit1[] = "NOVEMBER 2016";
 PROGMEM static const char credit2[] = "PROGREMMED BY OBONO";
 PROGMEM static const char credit3[] = "THIS PROGRAM IS";
 PROGMEM static const char credit4[] = "RELEASED UNDER";
-PROGMEM static const char credit5[] = "MIT LICENSE.";
+PROGMEM static const char credit5[] = "THE MIT LICENSE.";
 
 PROGMEM static const char * const creditsTable[] = {
     credit0, NULL, credit1, credit2, NULL, credit3, credit4, credit5
@@ -71,7 +75,7 @@ void initTitle()
 {
     isCredit = false;
     toDraw = true;
-    sound = false;
+    setSound(arduboy.audio.enabled());
     menuPos = 0;
 }
 
@@ -81,29 +85,35 @@ bool updateTitle()
     if (!isCredit) {
         if (arduboy.buttonDown(UP_BUTTON)) {
             if (menuPos-- == 0) menuPos = 2;
+            playSound1();
             toDraw = true;
         }
         if (arduboy.buttonDown(DOWN_BUTTON)) {
             if (menuPos++ == 2) menuPos = 0;
+            playSound1();
             toDraw = true;
         }
-        if (arduboy.buttonDown(B_BUTTON)) {
+        if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
             switch (menuPos) {
             case 0:
                 ret = true;
+                arduboy.audio.saveOnOff();
                 break;
             case 1:
-                sound = !sound;
+                setSound(!sound);
+                playSound2();
                 break;
             case 2:
                 isCredit = true;
+                playSound2();
                 break;
             }
             toDraw = true;
         }
     } else {
-        if (arduboy.buttonDown(B_BUTTON)) {
+        if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
             isCredit = false;
+            playSound2();
             toDraw = true;
         }
     }
@@ -142,3 +152,22 @@ void drawTitle()
     }
 }
 
+static void setSound(bool enabled)
+{
+    if (enabled) {
+        arduboy.audio.on();
+    } else {
+        arduboy.audio.off();
+    }
+    sound = enabled;
+}
+
+static void playSound1()
+{
+    arduboy.tunes.tone(440, 10);
+}
+
+static void playSound2()
+{
+    arduboy.tunes.tone(587, 20);
+}
