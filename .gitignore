@@ -1,0 +1,5 @@
+__vm
+*.sln
+*.vcxproj*
+Debug
+Release
