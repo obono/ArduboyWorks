@@ -4,9 +4,6 @@
 
 #define PI 3.141592653589793
 
-#define rnd(val)        (rand() % (val))
-#define mod(value, div) (((value) + div) % div)
-
 /*  Typedefs  */
 
 typedef struct {
