@@ -48,6 +48,19 @@ void MyArduboy::setTextColor(uint8_t color, uint8_t bg)
     textbg = bg;
 }
 
+size_t MyArduboy::printEx(int16_t x, int16_t y, const char *p)
+{
+    setCursor(x, y);
+    print(p);
+}
+
+size_t MyArduboy::printEx(int16_t x, int16_t y, const __FlashStringHelper *p)
+{
+    setCursor(x, y);
+    print(p);
+}
+
+
 size_t MyArduboy::write(uint8_t c)
 {
     if (c == '\n') {
@@ -58,6 +71,7 @@ size_t MyArduboy::write(uint8_t c)
         cursor_x += textsize * 6;
         if (wrap && (cursor_x > (WIDTH - textsize * 6))) write('\n');
     }
+    return 1; // temporary
 }
 
 void MyArduboy::myDrawChar(int16_t x, int16_t y, unsigned char c, uint8_t color, uint8_t bg, uint8_t size)
@@ -206,4 +220,46 @@ void MyArduboy::tone2(unsigned int frequency, unsigned long duration)
 {
     if (!audio.enabled()) return;
     tunes.tone(frequency, duration);
+}
+
+void MyArduboy::eepSeek(uint16_t pos)
+{
+    if (pos < EEPROM_STORAGE_SPACE_START) pos = EEPROM_STORAGE_SPACE_START;
+    eepAddr = (uint8_t *) pos;
+}
+
+uint8_t MyArduboy::eepRead8(void)
+{
+    eeprom_busy_wait();
+    return eeprom_read_byte(eepAddr++);
+}
+
+uint16_t MyArduboy::eepRead16(void)
+{
+    return eepRead8() | eepRead8() << 8;
+}
+
+uint32_t MyArduboy::eepRead32(void)
+{
+    return eepRead16() | (uint32_t) eepRead16() << 16;
+}
+
+void MyArduboy::eepWrite8(uint8_t val)
+{
+    eeprom_busy_wait();
+    eeprom_write_byte(eepAddr++, val);
+}
+
+void MyArduboy::eepWrite16(uint16_t val)
+{
+    eepWrite8(val & 0xFF);
+    eepWrite8(val >> 8);
+}
+
+void MyArduboy::eepWrite32(uint32_t val)
+{
+    eepWrite8(val & 0xFF);
+    eepWrite8(val >> 8 & 0xFF);
+    eepWrite8(val >> 16 & 0xFF);
+    eepWrite8(val >> 24);
 }

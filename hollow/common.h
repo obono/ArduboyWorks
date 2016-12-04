@@ -5,7 +5,7 @@
 
 /*  Defines  */
 
-#define APP_INFO "OBN-Y01 VER 0.20"
+#define APP_INFO        "OBN-Y01 VER 0.30"
 
 #define rnd(val)        (rand() % (val))
 #define mod(value, div) (((value) + div) % div)
@@ -24,6 +24,7 @@ void drawLogo();
 void initTitle();
 bool updateTitle();
 void drawTitle();
+uint8_t setLastScore(int score, uint32_t time);
 
 void initGame();
 bool updateGame();

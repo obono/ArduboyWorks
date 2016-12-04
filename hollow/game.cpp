@@ -30,15 +30,16 @@ static void drawScoreFigure(int x, int y, int value);
 /*  Local Variables  */
 
 PROGMEM static const uint8_t imgPlayer[] = {
-    0x10, 0x86, 0x89, 0x39, 0x3F, 0xBF, 0x86, 0x10, // left 0
-    0x00, 0x16, 0x49, 0x39, 0xBF, 0xBF, 0x06, 0x20, // left 1
-    0x00, 0x26, 0x09, 0xB9, 0xBF, 0x3F, 0x06, 0x20, // left 2
-    0x20, 0x0C, 0x92, 0xB2, 0x3E, 0x3E, 0xCC, 0x10, // left 3
-    0x10, 0x86, 0xBF, 0x3F, 0x39, 0x89, 0x86, 0x10, // right 0
-    0x20, 0x06, 0xBF, 0xBF, 0x39, 0x49, 0x16, 0x00, // right 1
-    0x20, 0x06, 0x3F, 0xBF, 0xB9, 0x09, 0x26, 0x00, // right 2
-    0x10, 0xCC, 0x3E, 0x3E, 0xB2, 0x92, 0x0C, 0x20, // right 3
+    0x10, 0x83, 0xAC, 0x69, 0x6D, 0xAD, 0x82, 0x10, // left 0
+    0x00, 0x13, 0x6C, 0x69, 0xED, 0xAD, 0x02, 0x20, // left 1
+    0x00, 0x23, 0x2C, 0xE9, 0xED, 0x2D, 0x02, 0x20, // left 2
+    0x20, 0x06, 0xD8, 0xD2, 0x5A, 0x5A, 0xC4, 0x10, // left 3
+    0x10, 0x82, 0xAD, 0x6D, 0x69, 0xAC, 0x83, 0x10, // right 0
+    0x20, 0x02, 0xAD, 0xED, 0x69, 0x6C, 0x13, 0x00, // right 1
+    0x20, 0x02, 0x2D, 0xED, 0xE9, 0x2C, 0x23, 0x00, // right 2
+    0x10, 0xC4, 0x5A, 0x5A, 0xD2, 0xD8, 0x06, 0x20, // right 3
 };
+
 PROGMEM static const uint8_t imgCave[] = {
     0x90, 0x06, 0x4E, 0xE4, 0xC0, 0x88, 0x18, 0x99
 };
@@ -110,12 +111,14 @@ PROGMEM static const byte soundGameOver[] = {
 
 static bool     isStart;
 static bool     isOver;
-static int      score;
+static uint     score;
 static uchar    scoreDisplay;
+static bool     isHiscore;
 static int      counter;
 static uchar    caveOffset;  // 0...143
 static int      cavePhase;   // 0...1023
 static char     caveHollowCnt;
+static int      caveLoopCnt;
 static uchar    caveMaxGap;
 static int      caveGap;
 static int      caveBaseTop;
@@ -141,6 +144,7 @@ void initGame()
     caveOffset = 0;
     cavePhase = 0;
     caveHollowCnt = 0;
+    caveLoopCnt = 0;
     caveMaxGap = 32;
     for (int i = 0; i < 9; i++) {
         setColumn(caveColumn[i], 32, 40);
@@ -244,12 +248,14 @@ bool updateGame()
 
     /*  Judge game over  */
     if (!isStart && cavePhase == 0) {
+        caveLoopCnt++;
+        if (caveMaxGap < 255) caveMaxGap++;
         if (caveColumn[playerColumn].bottom - caveColumn[playerColumn].top < 4) {
             isOver = true;
+            isHiscore = (setLastScore(score, caveLoopCnt * 512) == 0);
             counter = 480; // 8 secs
             arduboy.playScore2(soundGameOver, 1);
         }
-        caveMaxGap++;
     }
 
     return (isOver && counter == 0);
@@ -259,7 +265,7 @@ void drawGame()
 {
     arduboy.clear();
 
-    int shake = (cavePhase > 976) ? cavePhase % 4 / 2: 0;
+    int shake = (cavePhase > 976) ? cavePhase % 4 / 2 : 0;
     int offsetTop = caveBaseTop + shake;
     int offsetBottom = caveBaseBottom + shake;
 
@@ -319,12 +325,13 @@ void drawGame()
         arduboy.fillRect2(20, y, 88, 16, BLACK);
         arduboy.drawBitmap(20, y, imgGameOver, 88, 16, WHITE);
         y = max(counter - 400, 48);
-        arduboy.fillRect2(28, y, 72, 16, BLACK);
+        arduboy.fillRect2(28, y - isHiscore * 8, 72, 16 + isHiscore * 8, BLACK);
         drawScoreFigure(90, y, score);
-        arduboy.setCursor(30, y + 3);
-        arduboy.print(F("YOUR"));
-        arduboy.setCursor(30, y + 9);
-        arduboy.print(F("SCORE"));
+        arduboy.printEx(30, y + 3, F("YOUR"));
+        arduboy.printEx(30, y + 9, F("SCORE"));
+        if (isHiscore && cavePhase % 8 < 4) {
+            arduboy.printEx(34, y - 6, F("NEW RECORD"));
+        }
     }
 }
 

@@ -59,6 +59,5 @@ void drawLogo()
         arduboy.drawBitmap(28 + i * 24, y, imgOBN + i * 96, 24, 32, WHITE);
     }
     arduboy.drawBitmap(68, 44, imgSoft, 32, 8, WHITE);
-    arduboy.setCursor(16, 58);
-    arduboy.print(F(APP_INFO));
+    arduboy.printEx(16, 58, F(APP_INFO));
 }
