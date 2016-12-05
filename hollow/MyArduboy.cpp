@@ -51,13 +51,13 @@ void MyArduboy::setTextColor(uint8_t color, uint8_t bg)
 size_t MyArduboy::printEx(int16_t x, int16_t y, const char *p)
 {
     setCursor(x, y);
-    print(p);
+    return print(p);
 }
 
 size_t MyArduboy::printEx(int16_t x, int16_t y, const __FlashStringHelper *p)
 {
     setCursor(x, y);
-    print(p);
+    return print(p);
 }
 
 

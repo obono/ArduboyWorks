@@ -112,7 +112,7 @@ PROGMEM static const byte soundGameOver[] = {
 static bool     isStart;
 static bool     isOver;
 static uint     score;
-static uchar    scoreDisplay;
+static uchar    scoreTop;
 static bool     isHiscore;
 static int      counter;
 static uchar    caveOffset;  // 0...143
@@ -139,7 +139,7 @@ void initGame(void)
     isOver = false;
     counter = 120; // 2 secs
     score = 0;
-    scoreDisplay = 0;
+    scoreTop = 0;
 
     caveOffset = 0;
     cavePhase = 0;
@@ -178,7 +178,6 @@ bool updateGame(void)
     caveGap = (0.5 - cos(cavePhase * PI / 512.0) / 2.0) * caveMaxGap;
     caveBaseTop = -(caveGap + 1) / 2;
     caveBaseBottom = caveGap / 2;
-    if (scoreDisplay > 0) scoreDisplay--;
 
     /*  Key handling  */
     if (isOver) {
@@ -211,7 +210,6 @@ bool updateGame(void)
                     int growCol = caveOffset / 8;
                     growColumn(caveColumn[growCol], isHollow(), caveColumn[mod(growCol - 1, 18)]);
                     score++;
-                    scoreDisplay = 60;
                 }
                 if (!isStart) {
                     arduboy.playScore2(soundMove, 3);
@@ -256,6 +254,13 @@ bool updateGame(void)
             counter = 480; // 8 secs
             arduboy.playScore2(soundGameOver, 1);
         }
+    }
+
+    /*  Score displaying  */
+    if (playerX < 48 || isStart || isOver) {
+        if (scoreTop > 0) scoreTop--;
+    } else {
+        if (scoreTop < 32) scoreTop++;
     }
 
     return (isOver && counter == 0);
@@ -310,8 +315,8 @@ void drawGame(void)
     drawPlayer(playerX, playerY, playerDir, playerMove / 2);
 
     /*  Score  */
-    if (scoreDisplay > 0) {
-        arduboy.setCursor(0, min(scoreDisplay / 2 - 6, 0));
+    if (scoreTop > 0) {
+        arduboy.setCursor(0, min(scoreTop / 2 - 6, 0));
         arduboy.print(score);
     }
 
