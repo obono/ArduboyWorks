@@ -15,10 +15,10 @@
 
 /*  Local Functions  */
 
-static void readRecord();
+static void readRecord(void);
 static void setSound(bool enabled);
-static void playSound1();
-static void playSound2();
+static void playSound1(void);
+static void playSound2(void);
 
 /*  Local Variables  */
 
@@ -118,7 +118,7 @@ static int8_t   lightColor;
 static bool     lightBlink;
 static uint8_t  lightWait;
 
-void initTitle()
+void initTitle(void)
 {
     state = STATE_MENU;
     toDraw = true;
@@ -135,7 +135,7 @@ void initTitle()
     lightWait = rnd(180) + 60;
 }
 
-bool updateTitle()
+bool updateTitle(void)
 {
     bool ret = false;
     if (state == STATE_MENU) {
@@ -190,7 +190,7 @@ bool updateTitle()
     return ret;
 }
 
-void drawTitle()
+void drawTitle(void)
 {
     if (toDraw) {
         char buf[22];
@@ -300,7 +300,7 @@ uint8_t setLastScore(int score, uint32_t frames)
     return r;
 }
 
-static void readRecord()
+static void readRecord(void)
 {
     bool isRegular = false;
     arduboy.eepSeek(EEPROM_ADDR_BASE);
@@ -342,12 +342,12 @@ static void setSound(bool enabled)
     sound = enabled;
 }
 
-static void playSound1()
+static void playSound1(void)
 {
     arduboy.tunes.tone(440, 10);
 }
 
-static void playSound2()
+static void playSound2(void)
 {
     arduboy.tunes.tone(587, 20);
 }

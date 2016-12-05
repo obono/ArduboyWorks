@@ -11,7 +11,7 @@ PROGMEM static const uint32_t imgFont[] = {
     0x1D184317, 0x0109C107, 0x114D5651, 0x0045F000, 0x0001F000, 0x0001F440, 0x000C1080, 0x10410410,
 };
 
-bool MyArduboy::nextFrame()
+bool MyArduboy::nextFrame(void)
 {
     bool ret = Arduboy::nextFrame();
     if (ret) {

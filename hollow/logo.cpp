@@ -37,12 +37,12 @@ static bool     signalOn;
 
 /*---------------------------------------------------------------------------*/
 
-void initLogo()
+void initLogo(void)
 {
     counter = 120; // 2 secs
 }
 
-bool updateLogo()
+bool updateLogo(void)
 {
     counter--;
     signalOn = (SIGNAL_PTN >> (counter - 15) / 3) & 1;
@@ -50,7 +50,7 @@ bool updateLogo()
     return (counter <= 0);
 }
 
-void drawLogo()
+void drawLogo(void)
 {
     arduboy.clear();
     int shake = (120 - counter) / 40;

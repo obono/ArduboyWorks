@@ -17,18 +17,18 @@ typedef unsigned int    uint;
 
 /*  Global Functions  */
 
-void initLogo();
-bool updateLogo();
-void drawLogo();
+void initLogo(void);
+bool updateLogo(void);
+void drawLogo(void);
 
-void initTitle();
-bool updateTitle();
-void drawTitle();
+void initTitle(void);
+bool updateTitle(void);
+void drawTitle(void);
 uint8_t setLastScore(int score, uint32_t time);
 
-void initGame();
-bool updateGame();
-void drawGame();
+void initGame(void);
+bool updateGame(void);
+void drawGame(void);
 
 /*  Global Variables  */
 

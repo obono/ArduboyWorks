@@ -18,7 +18,7 @@ typedef struct {
 
 /*  Local Functions  */
 
-static bool isHollow();
+static bool isHollow(void);
 static void setColumn(COLUMN &newColumn, uchar top, uchar bottom);
 static void growColumn(COLUMN &newColumn, bool isSpace, COLUMN &lastColumn);
 static int  calcDotY(int i);
@@ -133,7 +133,7 @@ static DEBRIS   debris[144];
 
 /*---------------------------------------------------------------------------*/
 
-void initGame()
+void initGame(void)
 {
     isStart = true;
     isOver = false;
@@ -164,7 +164,7 @@ void initGame()
     arduboy.playScore2(soundStart, 0);
 }
 
-bool updateGame()
+bool updateGame(void)
 {
     if (isStart || isOver) {
         if (--counter == 0) isStart = false;
@@ -261,7 +261,7 @@ bool updateGame()
     return (isOver && counter == 0);
 }
 
-void drawGame()
+void drawGame(void)
 {
     arduboy.clear();
 
@@ -337,7 +337,7 @@ void drawGame()
 
 /*---------------------------------------------------------------------------*/
 
-static bool isHollow()
+static bool isHollow(void)
 {
     if (caveHollowCnt-- < 0) {
         caveHollowCnt = (rand() + 32768) * score >> 22;
