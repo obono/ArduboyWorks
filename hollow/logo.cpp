@@ -37,12 +37,12 @@ static bool     signalOn;
 
 /*---------------------------------------------------------------------------*/
 
-void initLogo()
+void initLogo(void)
 {
     counter = 120; // 2 secs
 }
 
-bool updateLogo()
+bool updateLogo(void)
 {
     counter--;
     signalOn = (SIGNAL_PTN >> (counter - 15) / 3) & 1;
@@ -50,7 +50,7 @@ bool updateLogo()
     return (counter <= 0);
 }
 
-void drawLogo()
+void drawLogo(void)
 {
     arduboy.clear();
     int shake = (120 - counter) / 40;
@@ -59,6 +59,5 @@ void drawLogo()
         arduboy.drawBitmap(28 + i * 24, y, imgOBN + i * 96, 24, 32, WHITE);
     }
     arduboy.drawBitmap(68, 44, imgSoft, 32, 8, WHITE);
-    arduboy.setCursor(16, 58);
-    arduboy.print(F(APP_INFO));
+    arduboy.printEx(16, 58, F(APP_INFO));
 }
