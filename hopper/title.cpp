@@ -120,7 +120,8 @@ void drawTitle(void)
         arduboy.clear();
         switch (state) {
         case STATE_MENU:
-            arduboy.printEx(0, 0, F("HOPPER TITLE SCRREN"));
+            arduboy.printEx(0, 0, F("HOPPER"));
+            arduboy.printEx(0, 6, F("TITLE SCRREN"));
             if (lastScore > 0) {
                 arduboy.printEx(98, 0, F("LAST"));
                 arduboy.printEx(98, 6, F("SCORE"));

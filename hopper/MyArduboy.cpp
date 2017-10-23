@@ -115,10 +115,11 @@ void MyArduboy::drawFastVLine2(int16_t x, int16_t y, int8_t h, uint8_t color)
 {
     /*  Check parameters  */
     if (y < 0) {
+        if (h <= -y) return;
         h += y;
         y = 0;
     }
-    if (h < 0 || y >= HEIGHT || x < 0 || x >= WIDTH) return;
+    if (h <= 0 || y >= HEIGHT || x <= 0 || x >= WIDTH) return;
     if (y + h > HEIGHT) h = HEIGHT - y;
 
     /*  Draw a vertical line  */
@@ -141,10 +142,11 @@ void MyArduboy::drawFastHLine2(int16_t x, int16_t y, uint8_t w, uint8_t color)
 {
     /*  Check parameters  */
     if (x < 0) {
+        if (w <= -x) return;
         w += x;
         x = 0;
     }
-    if (w < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) return;
+    if (w <= 0 || x >= WIDTH || y <= 0 || y >= HEIGHT) return;
     if (x + w > WIDTH) w = WIDTH - x;
 
     /*  Draw a horizontal line  */
@@ -162,14 +164,16 @@ void MyArduboy::fillRect2(int16_t x, int16_t y, uint8_t w, int8_t h, uint8_t col
 {
     /*  Check parameters  */
     if (x < 0) {
+        if (w <= -x) return;
         w += x;
         x = 0;
     }
     if (y < 0) {
+        if (h <= -y) return;
         h += y;
         y = 0;
     }
-    if (w < 0 || x >= WIDTH || h < 0 || y >= HEIGHT) return;
+    if (w <= 0 || x >= WIDTH || h <= 0 || y >= HEIGHT) return;
     if (x + w > WIDTH) w = WIDTH - x;
     if (y + h > HEIGHT) h = HEIGHT - y;
 
@@ -196,6 +200,7 @@ void MyArduboy::fillBeltBlack(uchar *p, uchar d, uint8_t w)
         *p++ &= d;
     }
 }
+
 void MyArduboy::fillBeltWhite(uchar *p, uchar d, uint8_t w)
 {
     for (; w > 0; w--) {

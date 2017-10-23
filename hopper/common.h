@@ -5,7 +5,7 @@
 
 /*  Defines  */
 
-#define APP_INFO        "OBN-Y02 VER 0.10"
+#define APP_INFO        "OBN-Y02 VER 0.11"
 
 #define rnd(val)        (rand() % (val))
 #define mod(value, div) (((value) + div) % div)
