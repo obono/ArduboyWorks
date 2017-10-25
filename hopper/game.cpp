@@ -12,6 +12,9 @@
 #define FLRTYPE_SMALL   4
 #define FLRTYPE_GOAL    5
 
+#define CHIPS           64
+#define CHIP_ZRANGE     1024
+
 #define CENTER_X        64
 #define CENTER_Y        32
 #define PI              3.141592653589793
@@ -33,6 +36,11 @@ typedef struct {
     uint8_t size, sizeBack;
 } FLOOR;
 
+typedef struct
+{
+    int16_t x, y;
+} CHIP;
+
 /*  Local Functions  */
 
 static void initLevel(bool isStart);
@@ -40,9 +48,12 @@ static void movePlayer(void);
 static void springPlayer(FLOOR *pFloor);
 static void moveFloors(int scrollX, int scrollY, int scrollZ);
 static void addFloor(uint8_t type, uint8_t pos, int16_t x, int16_t y, int16_t z);
+static void initChips(void);
+static void moveChips(int scrollX, int scrollY, int scrollZ);
 
-static void drawFloors(void);
 static void drawPlayer(void);
+static void drawFloors(void);
+static void drawChips(void);
 static void drawStrings(void);
 static void fillPatternedRect(int16_t x, int16_t y, uint8_t w, int8_t h, const byte *ptn);
 
@@ -85,6 +96,9 @@ static int8_t   playerJump;
 static FLOOR    floorAry[FLOORS_MANAGE];
 static uint8_t  floorIdxFirst, floorIdxLast;
 static uint8_t  flrTypes[4], flrTypesNum;
+static FLOOR    *pFloorBlur;
+static CHIP     chipAry[CHIPS];
+static uint16_t chipBaseZ;
 
 /*---------------------------------------------------------------------------*/
 
@@ -93,7 +107,9 @@ void initGame(void)
     playerX = 0;
     playerY = 0;
     playerJump = 0;
+    pFloorBlur = NULL;
     initLevel(true);
+    initChips();
 }
 
 bool updateGame(void)
@@ -104,14 +120,17 @@ bool updateGame(void)
     playerX += scrollX;
     playerY += scrollY;
     if (playerJump > -64) {
-        playerJump--;
-        if (state == STATE_CLEAR && playerJump == 0) {
-            initLevel(false);
+        if (--playerJump == 0) {
+            pFloorBlur = NULL;
+            if (state == STATE_CLEAR) {
+                initLevel(false);
+            }
         }
     }
     if (state != STATE_OVER) {
         moveFloors(scrollX, scrollY, playerJump);
     }
+    moveChips(scrollX, scrollY, playerJump);
 
     if (state == STATE_GAME || state == STATE_OVER) {
         movePlayer();
@@ -139,6 +158,7 @@ bool updateGame(void)
 void drawGame(void)
 {
     arduboy.clear();
+    drawChips();
     drawFloors();
     drawPlayer();
     drawStrings();
@@ -190,6 +210,7 @@ static void movePlayer(void)
 static void springPlayer(FLOOR *pFloor)
 {
     score = max(score, level * FLOORS_LEVEL + pFloor->pos);
+    pFloorBlur = pFloor;
     if (pFloor->type == FLRTYPE_GOAL) {
         playerJump = 96;
         state = STATE_CLEAR;
@@ -283,9 +304,35 @@ static void addFloor(uint8_t type, uint8_t pos, int16_t x, int16_t y, int16_t z)
     dprintln(size);
 }
 
+static void initChips(void)
+{
+    for (int i = 0; i < CHIPS; i++) {
+        CHIP *pChip = &chipAry[i];
+        pChip->x = rand() * 2;
+        pChip->y = rand() * 2;
+    }
+    chipBaseZ = 0;
+}
+
+static void moveChips(int scrollX, int scrollY, int scrollZ)
+{
+    for (int i = 0; i < CHIPS; i++) {
+        CHIP *pChip = &chipAry[i];
+        pChip->x += scrollX;
+        pChip->y += scrollY;
+    }
+    chipBaseZ += scrollZ;
+    chipBaseZ %= CHIP_ZRANGE;
+}
+
 /*---------------------------------------------------------------------------*/
 /*                              Draw Functions                               */
 /*---------------------------------------------------------------------------*/
+
+static void drawPlayer(void)
+{
+    arduboy.fillRect(playerX / 256 + CENTER_X - 3, playerY / 256 + CENTER_Y - 3, 7, 7, WHITE);
+}
 
 static void drawFloors(void)
 {
@@ -298,6 +345,11 @@ static void drawFloors(void)
         uint8_t s = pFloor->size * 256 / q;
         int16_t x = pFloor->x / q + CENTER_X - s / 2;
         int16_t y = pFloor->y / q + CENTER_Y - s / 2;
+        if (pFloor == pFloorBlur) {
+            int blur = (playerJump + 16) / 32;
+            x += blur * random(-1, 2);
+            y += blur * random(-1, 2);
+        }
         if (type == FLRTYPE_GOAL) {
             arduboy.fillRect2(x, y, s, s, playerJump % 2);
         } else {
@@ -307,9 +359,18 @@ static void drawFloors(void)
     }
 }
 
-static void drawPlayer(void)
+static void drawChips(void)
 {
-    arduboy.fillRect(playerX / 256 + CENTER_X - 3, playerY / 256 + CENTER_Y - 3, 7, 7, WHITE);
+    for (int i = 0; i < CHIPS; i++) {
+        CHIP *pChip = &chipAry[i];
+        int16_t q1 = 256 + (chipBaseZ + i * (CHIP_ZRANGE / CHIPS)) % CHIP_ZRANGE;
+        int16_t x1 = pChip->x / q1 + CENTER_X;
+        int16_t y1 = pChip->y / q1 + CENTER_Y;
+        int16_t q2 = q1 + abs(playerJump);
+        int16_t x2 = pChip->x / q2 + CENTER_X;
+        int16_t y2 = pChip->y / q2 + CENTER_Y;
+        arduboy.drawLine(x1, y1, x2, y2, WHITE);
+    }
 }
 
 static void drawStrings(void)
