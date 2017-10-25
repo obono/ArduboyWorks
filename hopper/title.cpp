@@ -6,6 +6,11 @@
 #define STATE_RECORD    1
 #define STATE_CREDIT    2
 
+#define MENU_START      0
+#define MENU_SOUND      1
+#define MENU_RECORD     2
+#define MENU_CREDIT     3
+
 #define RECORD_NOT_READ 0
 #define RECORD_INITIAL  1
 #define RECORD_STORED   2
@@ -22,25 +27,9 @@ static void playSound2(void);
 
 /*  Local Variables  */
 
-PROGMEM static const char menuGame[] = "START GAME";
-PROGMEM static const char menuSound[] = "SOUND ";
-PROGMEM static const char menuRecord[] = "RECORD";
-PROGMEM static const char menuCredit[] = "CREDIT";
-
-PROGMEM static const char * const menusTable[] = {
-    menuGame, menuSound, menuRecord, menuCredit
-};
-
-PROGMEM static const char credit0[] = "- HOPPER -";
-PROGMEM static const char credit1[] = "OCTOBER 2017";
-PROGMEM static const char credit2[] = "PROGREMMED BY OBONO";
-PROGMEM static const char credit3[] = "THIS PROGRAM IS";
-PROGMEM static const char credit4[] = "RELEASED UNDER";
-PROGMEM static const char credit5[] = "THE MIT LICENSE.";
-
-PROGMEM static const char * const creditsTable[] = {
-    credit0, NULL, credit1, credit2, NULL, credit3, credit4, credit5
-};
+PROGMEM static const char menuText[] = "START GAME\0SOUND \0RECORD\0CREDIT";
+PROGMEM static const char creditText[] = "- " APP_TITLE " -\0\0" APP_RELEASED \
+        "\0PROGREMMED BY OBONO\0\0THIS PROGRAM IS\0" "RELEASED UNDER\0" "THE MIT LICENSE.";
 
 static uint8_t  state;
 static bool     toDraw;
@@ -52,12 +41,14 @@ static uint16_t hiScore[10];
 static uint16_t playCount;
 static uint32_t playFrames;
 
+/*---------------------------------------------------------------------------*/
+
 void initTitle(void)
 {
     state = STATE_MENU;
+    menuPos = MENU_START;
     toDraw = true;
     setSound(arduboy.audio.enabled());
-    menuPos = 0;
 
     if (recordState == RECORD_NOT_READ) {
         readRecord();
@@ -70,30 +61,30 @@ bool updateTitle(void)
     if (state == STATE_MENU) {
         /*  Button handling  */
         if (arduboy.buttonDown(UP_BUTTON)) {
-            if (menuPos-- == 0) menuPos = 3;
+            if (menuPos-- == MENU_START) menuPos = MENU_CREDIT;
             playSound1();
             toDraw = true;
         }
         if (arduboy.buttonDown(DOWN_BUTTON)) {
-            if (menuPos++ == 3) menuPos = 0;
+            if (menuPos++ == MENU_CREDIT) menuPos = MENU_START;
             playSound1();
             toDraw = true;
         }
         if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
             switch (menuPos) {
-            case 0:
+            case MENU_START:
                 ret = true;
                 arduboy.audio.saveOnOff();
                 break;
-            case 1:
+            case MENU_SOUND:
                 setSound(!sound);
                 playSound2();
                 break;
-            case 2:
+            case MENU_RECORD:
                 state = STATE_RECORD;
                 playSound2();
                 break;
-            case 3:
+            case MENU_CREDIT:
                 state = STATE_CREDIT;
                 playSound2();
                 break;
@@ -107,6 +98,17 @@ bool updateTitle(void)
             toDraw = true;
         }
     }
+
+#ifdef DEBUG
+    if (dbgRecvChar == 'r') {
+        arduboy.eepSeek(EEPROM_ADDR_BASE);
+        for (int i = 0; i < 8; i++) {
+            arduboy.eepWrite32(0);
+        }
+        recordState = RECORD_INITIAL;
+        dprintln("Clean EEPROM");
+    }
+#endif
 
     randomSeed(rand() ^ micros()); // Shuffle random
     return ret;
@@ -128,11 +130,11 @@ void drawTitle(void)
                 sprintf(buf, "%5d", lastScore);
                 arduboy.printEx(98, 14, buf);
             }
+            p = menuText;
             for (int i = 0; i < 4; i++) {
-                p = pgm_read_word(menusTable + i);
                 strcpy_P(buf, p);
-                arduboy.printEx(64 - (i == menuPos) * 4, i * 6 + 40, buf);
-                if (p == menuSound) {
+                p += arduboy.printEx(64 - (i == menuPos) * 4, i * 6 + 40, buf) + 1;
+                if (i == MENU_SOUND) {
                     arduboy.print((sound) ? F("ON") : F("OFF"));
                 }
             }
@@ -140,7 +142,7 @@ void drawTitle(void)
             break;
         case STATE_RECORD:
             arduboy.printEx(22, 4, F("BEST 10 SCORES"));
-            arduboy.drawFastHLine2(0, 12, 127, 12);
+            arduboy.drawFastHLine2(0, 12, 128, WHITE);
             for (int i = 0; i < 2; i++) {
                 for (int j = 0; j < 5; j++) {
                     int r = i * 5 + j;
@@ -150,7 +152,7 @@ void drawTitle(void)
                     arduboy.print(hiScore[r]);
                 }
             }
-            arduboy.drawFastHLine2(0, 44, 127, 44);
+            arduboy.drawFastHLine2(0, 44, 128, WHITE);
             arduboy.printEx(16, 48, F("PLAY COUNT "));
             arduboy.print(playCount);
             arduboy.printEx(16, 54, F("PLAY TIME  "));
@@ -159,13 +161,11 @@ void drawTitle(void)
             arduboy.print(buf);
             break;
         case STATE_CREDIT:
+            p = creditText;
             for (int i = 0; i < 8; i++) {
-                p = pgm_read_word(creditsTable + i);
-                if (p != NULL) {
-                    strcpy_P(buf, p);
-                    uint8_t len = strnlen(buf, sizeof(buf));
-                    arduboy.printEx(64 - len * 3, i * 6 + 8, buf);
-                }
+                strcpy_P(buf, p);
+                uint8_t len = strnlen(buf, sizeof(buf));
+                p += arduboy.printEx(64 - len * 3, i * 6 + 8, buf) + 1;
             }
             break;
         }
@@ -210,6 +210,8 @@ uint8_t setLastScore(int score, uint32_t frames)
     recordState = RECORD_STORED;
     return r;
 }
+
+/*---------------------------------------------------------------------------*/
 
 static void readRecord(void)
 {

@@ -37,9 +37,11 @@ typedef struct {
 
 static void initLevel(bool isStart);
 static void movePlayer(void);
+static void springPlayer(FLOOR *pFloor);
 static void moveFloors(int scrollX, int scrollY, int scrollZ);
+static void addFloor(uint8_t type, uint8_t pos, int16_t x, int16_t y, int16_t z);
+
 static void drawFloors(void);
-static void addFloor(int z, uint8_t pos);
 static void drawPlayer(void);
 static void drawStrings(void);
 static void fillPatternedRect(int16_t x, int16_t y, uint8_t w, int8_t h, const byte *ptn);
@@ -78,9 +80,9 @@ static int      counter;
 static uint     score;
 static uint     level;
 static bool     isHiscore;
-static int      playerX, playerY;
+static int16_t  playerX, playerY;
 static int8_t   playerJump;
-static FLOOR    floorDto[FLOORS_MANAGE];
+static FLOOR    floorAry[FLOORS_MANAGE];
 static uint8_t  floorIdxFirst, floorIdxLast;
 static uint8_t  flrTypes[4], flrTypesNum;
 
@@ -115,11 +117,13 @@ bool updateGame(void)
         movePlayer();
         if (state == STATE_GAME) {
             gameFrames++;
-            if (floorDto[floorIdxFirst].z < 0) {
+            if (floorAry[floorIdxFirst].z < 0) {
                 state = STATE_OVER;
                 isHiscore = (setLastScore(score, gameFrames) == 0);
                 counter = 480; // 8 secs
                 arduboy.playScore2(soundGameOver, 1);
+                dprint("Game Over: score=");
+                dprintln(score);
             }
         } else {
             counter--;
@@ -141,8 +145,10 @@ void drawGame(void)
 }
 
 /*---------------------------------------------------------------------------*/
+/*                             Control Functions                             */
+/*---------------------------------------------------------------------------*/
 
-void initLevel(bool isStart) {
+static void initLevel(bool isStart) {
     if (isStart) {
         state = STATE_START;
         gameFrames = 0;
@@ -152,6 +158,8 @@ void initLevel(bool isStart) {
     } else {
         level++;
     }
+    dprint("Init Level ");
+    dprintln(level);
 
     flrTypesNum = 0;
     if (level < 6) flrTypes[flrTypesNum++] = FLRTYPE_NORMAL;
@@ -160,27 +168,14 @@ void initLevel(bool isStart) {
     if (level & 4 || level == 8) flrTypes[flrTypesNum++] = FLRTYPE_SMALL;
 
     for (int i = 0; i < FLOORS_MANAGE; i++) {
-        floorDto[i].type = FLRTYPE_NONE;
+        floorAry[i].type = FLRTYPE_NONE;
     }
-
     floorIdxFirst = 0;
     floorIdxLast = 0;
-    FLOOR *pFloor = &floorDto[0];
-    pFloor->type = FLRTYPE_NORMAL;
-    pFloor->pos = 0;
-    pFloor->x = playerX;
-    pFloor->y = playerY;
-    pFloor->z = 4096;
-    pFloor->vx = 0;
-    pFloor->vy = 0;
-    pFloor->size = max(64 - level * 3, 16);
-    pFloor->sizeBack = pFloor->size;
+    addFloor(FLRTYPE_NORMAL, 0, playerX, playerY, 4096);
 }
 
-
-/*---------------------------------------------------------------------------*/
-
-void movePlayer(void)
+static void movePlayer(void)
 {
     int vx = 0, vy = 0, vr;
     if (arduboy.buttonPressed(LEFT_BUTTON)) vx--;
@@ -192,11 +187,28 @@ void movePlayer(void)
     playerY += vy * vr;
 }
 
-void moveFloors(int scrollX, int scrollY, int scrollZ)
+static void springPlayer(FLOOR *pFloor)
+{
+    score = max(score, level * FLOORS_LEVEL + pFloor->pos);
+    if (pFloor->type == FLRTYPE_GOAL) {
+        playerJump = 96;
+        state = STATE_CLEAR;
+    } else {
+        playerJump = 64;
+        if (pFloor->type == FLRTYPE_VANISH) {
+            pFloor->size--;
+        }
+        if (state == STATE_START || state == STATE_CLEAR) {
+            state = STATE_GAME;
+        }
+    }
+}
+
+static void moveFloors(int scrollX, int scrollY, int scrollZ)
 {
     FLOOR *pFloor;
     for (int i = 0; i < FLOORS_MANAGE; i++) {
-        pFloor = &floorDto[i];
+        pFloor = &floorAry[i];
         if (pFloor->type != FLRTYPE_NONE) {
             pFloor->x += scrollX + pFloor->vx;
             pFloor->y += scrollY + pFloor->vy;
@@ -212,49 +224,51 @@ void moveFloors(int scrollX, int scrollY, int scrollZ)
             if (scrollZ <= 0 && z >= 0 && z + scrollZ - 1 < 0) {
                 int diff = max(abs(pFloor->x - playerX), abs(pFloor->y - playerY));
                 if (diff < pFloor->size * 128) {
-                    score = max(score, level * FLOORS_LEVEL + pFloor->pos);
-                    if (pFloor->type == FLRTYPE_GOAL) {
-                        playerJump = 96;
-                        state = STATE_CLEAR;
-                    } else {
-                        playerJump = 64;
-                        if (pFloor->type == FLRTYPE_VANISH) {
-                            pFloor->size--;
-                        }
-                        if (state == STATE_START || state == STATE_CLEAR) {
-                            state = STATE_GAME;
-                        }
-                    }
+                    springPlayer(pFloor);
+                    dprint("Spring floor ");
+                    dprintln(i);
                 }
             }
         }
     }
 
-    pFloor = &floorDto[floorIdxFirst];
+    pFloor = &floorAry[floorIdxFirst];
     if (pFloor->z > 4096) {
         pFloor->type = FLRTYPE_NONE;
         floorIdxFirst = nextFloorIdx(floorIdxFirst);
+        dprint("floorIdxFirst=");
+        dprintln(floorIdxFirst);
     }
 
-    int z = floorDto[floorIdxLast].z;
-    if (state == STATE_GAME && z >= 0 && floorDto[floorIdxLast].type != FLRTYPE_GOAL) {
-        addFloor(z, floorDto[floorIdxLast].pos + 1);
+    pFloor = &floorAry[floorIdxLast];
+    int z = pFloor->z;
+    if (state == STATE_GAME && z >= 0 && pFloor->type != FLRTYPE_GOAL) {
+        uint8_t pos = pFloor->pos + 1;
+        uint8_t type = (pos == FLOORS_LEVEL) ? FLRTYPE_GOAL : flrTypes[random(flrTypesNum)];
+        floorIdxLast = nextFloorIdx(floorIdxLast);
+        addFloor(type, pos, rand() * 2, rand() * 2, z - (512 + level * 32));
+        dprint("floorIdxLast=");
+        dprintln(floorIdxLast);
     }
+
+#ifdef DEBUG
+    if (dbgRecvChar == 'z') {
+        pFloor->type = FLRTYPE_GOAL;
+        springPlayer(pFloor);
+    }
+#endif
 }
 
-void addFloor(int z, uint8_t pos)
+static void addFloor(uint8_t type, uint8_t pos, int16_t x, int16_t y, int16_t z)
 {
-    floorIdxLast = nextFloorIdx(floorIdxLast);
-    FLOOR *pFloor = &floorDto[floorIdxLast];
-
-    uint8_t type = (pos == FLOORS_LEVEL) ? FLRTYPE_GOAL : flrTypes[rnd(flrTypesNum)];
+    FLOOR *pFloor = &floorAry[floorIdxLast];
     pFloor->type = type;
     pFloor->pos = pos;
-    pFloor->x = rand() * 2;
-    pFloor->y = rand() * 2;
-    pFloor->z = z - 512 - level * 32;
+    pFloor->x = x;
+    pFloor->y = y;
+    pFloor->z = z;
 
-    double vd = rnd(256) * PI / 128.0;
+    double vd = random(256) * PI / 128.0;
     int vr = (type == FLRTYPE_MOVE) ? 256 + level * 16 : 0;
     pFloor->vx = cos(vd) * vr;
     pFloor->vy = sin(vd) * vr;
@@ -262,14 +276,21 @@ void addFloor(int z, uint8_t pos)
     uint8_t size = (type == FLRTYPE_SMALL) ? 36 - level : 64 - level * 3;
     pFloor->size = max(size, 16);
     pFloor->sizeBack = pFloor->size;
+
+    dprint("New Floor: type=");
+    dprint(type);
+    dprint(" size=");
+    dprintln(size);
 }
 
 /*---------------------------------------------------------------------------*/
+/*                              Draw Functions                               */
+/*---------------------------------------------------------------------------*/
 
-void drawFloors(void)
+static void drawFloors(void)
 {
     for (int i = 0; i < FLOORS_MANAGE; i++) {
-        FLOOR   *pFloor = &floorDto[(floorIdxFirst + i) % FLOORS_MANAGE];
+        FLOOR   *pFloor = &floorAry[(floorIdxFirst + i) % FLOORS_MANAGE];
         uint8_t type = pFloor->type;
         if (pFloor->type == FLRTYPE_NONE) break;
         if (pFloor->z < 0 || pFloor->size == 0) continue;
@@ -286,12 +307,12 @@ void drawFloors(void)
     }
 }
 
-void drawPlayer(void)
+static void drawPlayer(void)
 {
     arduboy.fillRect(playerX / 256 + CENTER_X - 3, playerY / 256 + CENTER_Y - 3, 7, 7, WHITE);
 }
 
-void drawStrings(void)
+static void drawStrings(void)
 {
     if (state == STATE_START) {
         arduboy.printEx(46, 18, F("READY?"));
@@ -314,7 +335,7 @@ void drawStrings(void)
     }
 }
 
-void fillPatternedRect(int16_t x, int16_t y, uint8_t w, int8_t h, const byte *ptn)
+static void fillPatternedRect(int16_t x, int16_t y, uint8_t w, int8_t h, const byte *ptn)
 {
     /*  Check parameters  */
     if (x < 0) {

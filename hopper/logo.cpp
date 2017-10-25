@@ -47,7 +47,11 @@ bool updateLogo(void)
     counter--;
     signalOn = (SIGNAL_PTN >> (counter - 15) / 3) & 1;
     arduboy.setRGBled(0, 0, signalOn * 127);
-    return (counter <= 0);
+    bool ret = (counter == 0);
+    if (ret) {
+        dprintln("Start " APP_TITLE " : " APP_INFO);
+    }
+    return ret;
 }
 
 void drawLogo(void)
