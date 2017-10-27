@@ -7,7 +7,7 @@
 
 //#define DEBUG
 #define APP_TITLE       "HOPPER"
-#define APP_INFO        "OBN-Y02 VER 0.13"
+#define APP_INFO        "OBN-Y02 VER 0.14"
 #define APP_RELEASED    "OCTOBER 2017"
 
 /*  Typedefs  */
@@ -29,6 +29,7 @@ uint8_t setLastScore(int score, uint32_t time);
 void initGame(void);
 bool updateGame(void);
 void drawGame(void);
+void drawPlayerScreen(int8_t x, int8_t y, uint8_t rotate, bool blink);
 
 /*  Global Variables  */
 
