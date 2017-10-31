@@ -2,20 +2,26 @@
 
 /*  Defines  */
 
-#define STATE_START     0
-#define STATE_GAME      1
-#define STATE_CLEAR     2
-#define STATE_OVER      3
+enum {
+    STATE_START = 0,
+    STATE_GAME,
+    STATE_CLEAR,
+    STATE_OVER,
+};
 
 #define FLOORS_MANAGE   10
 #define FLOORS_LEVEL    50
 
-#define FLRTYPE_NONE    0
-#define FLRTYPE_NORMAL  1
-#define FLRTYPE_MOVE    2
-#define FLRTYPE_VANISH  3
-#define FLRTYPE_SMALL   4
-#define FLRTYPE_GOAL    5
+enum {
+    FLRTYPE_NONE = 0,
+    FLRTYPE_NORMAL,
+    FLRTYPE_MOVE,
+    FLRTYPE_VANISH,
+    FLRTYPE_SMALL,
+    FLRTYPE_GOAL,
+};
+
+#define FLOOR_Z_MAX     4096
 
 #define CHIPS           64
 #define CHIP_ZRANGE     1024
@@ -24,9 +30,11 @@
 #define CENTER_Y        32
 #define PI              3.141592653589793
 
-#define ALIGN_LEFT      0
-#define ALIGN_CENTER    1
-#define ALIGN_RIGHT     2
+enum {
+    ALIGN_LEFT = 0,
+    ALIGN_CENTER,
+    ALIGN_RIGHT,
+};
 
 #define nextFloorIdx(i) (((i) + 1) % FLOORS_MANAGE)
 #define mid(a, b, c)    max(min((b), (c)), (a))
@@ -194,6 +202,8 @@ static uint16_t chipBaseZ;
 static bool     isBlink;
 
 /*---------------------------------------------------------------------------*/
+/*                              Main Functions                               */
+/*---------------------------------------------------------------------------*/
 
 void initGame(void)
 {
@@ -292,7 +302,7 @@ static void initLevel(bool isStart) {
     }
     floorIdxFirst = 0;
     floorIdxLast = 0;
-    addFloor(FLRTYPE_NORMAL, 0, playerX, playerY, 4096);
+    addFloor(FLRTYPE_NORMAL, 0, playerX, playerY, FLOOR_Z_MAX);
 }
 
 static void movePlayer(void)
@@ -367,7 +377,7 @@ static void moveFloors(int scrollX, int scrollY, int scrollZ)
     }
 
     pFloor = &floorAry[floorIdxFirst];
-    if (pFloor->z > 4096) {
+    if (pFloor->z > FLOOR_Z_MAX) {
         pFloor->type = FLRTYPE_NONE;
         floorIdxFirst = nextFloorIdx(floorIdxFirst);
         dprint("floorIdxFirst=");
@@ -444,13 +454,11 @@ static void moveChips(int scrollX, int scrollY, int scrollZ)
 
 static void drawPlayer(void)
 {
-    drawPlayerScreen(playerX / 256 + CENTER_X - 4, playerY / 256 + CENTER_Y - 4, playerRotate, isBlink);
-}
+    int8_t  x = playerX / 256 + CENTER_X - 4;
+    int8_t  y = playerY / 256 + CENTER_Y - 4;
+    uint8_t rotate = (playerRotate + 8) / 16 % 16;
 
-void drawPlayerScreen(int8_t x, int8_t y, uint8_t rotate, bool isBorder) // Global
-{
-    rotate = (rotate + 8) / 16 % 16;
-    if (isBorder) {
+    if (isBlink) {
         for (int p = 0; p < 9; p++) {
             arduboy.drawBitmap(x + (p % 3) - 1, y + (p / 3) - 1, imgPlayers[rotate], 8, 8, BLACK);
         }

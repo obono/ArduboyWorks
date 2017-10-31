@@ -15,9 +15,9 @@ enum MODE {
 /*  Typedefs  */
 
 typedef struct {
-    void(*initFunc)(void);
-    bool(*updateFunc)(void);
-    void(*drawFunc)(void);
+    void (*initFunc)(void);
+    bool (*updateFunc)(void);
+    void (*drawFunc)(void);
 } MODULE_FUNCS;
 
 /*  Global Variables  */

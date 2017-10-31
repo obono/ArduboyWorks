@@ -2,18 +2,24 @@
 
 /*  Defines  */
 
-#define STATE_MENU      0
-#define STATE_RECORD    1
-#define STATE_CREDIT    2
+enum {
+    STATE_MENU = 0,
+    STATE_RECORD,
+    STATE_CREDIT,
+};
 
-#define MENU_START      0
-#define MENU_SOUND      1
-#define MENU_RECORD     2
-#define MENU_CREDIT     3
+enum {
+    MENU_START = 0,
+    MENU_SOUND,
+    MENU_RECORD,
+    MENU_CREDIT,
+};
 
-#define RECORD_NOT_READ 0
-#define RECORD_INITIAL  1
-#define RECORD_STORED   2
+enum {
+    RECORD_NOT_READ = 0,
+    RECORD_INITIAL,
+    RECORD_STORED,
+};
 
 #define EEPROM_ADDR_BASE    800
 #define EEPROM_SIGNATURE    0x024E424FUL // "OBN\x02"
@@ -109,7 +115,7 @@ PROGMEM static const uint8_t imgLetterR[] = {
 
 PROGMEM static const TITLE_LETTER letterInfos[] = {
     { imgLetterH, 16 },{ imgLetterO, 13 },{ imgLetterP, 14 },
-    { imgLetterP, 14 },{ imgLetterE, 11 },{ imgLetterR, 11 }
+    { imgLetterP, 14 },{ imgLetterE, 11 },{ imgLetterR, 11 },
 };
 
 PROGMEM static const char menuText[] = "START GAME\0SOUND \0RECORD\0CREDIT";
@@ -129,6 +135,8 @@ static uint16_t hiScore[10];
 static uint16_t playCount;
 static uint32_t playFrames;
 
+/*---------------------------------------------------------------------------*/
+/*                              Main Functions                               */
 /*---------------------------------------------------------------------------*/
 
 void initTitle(void)
@@ -230,6 +238,8 @@ uint8_t setLastScore(int score, uint32_t frames)
     return r;
 }
 
+/*---------------------------------------------------------------------------*/
+/*                             Control Functions                             */
 /*---------------------------------------------------------------------------*/
 
 static void initObjects()
@@ -349,6 +359,8 @@ static void readRecord(void)
     }
 }
 
+/*---------------------------------------------------------------------------*/
+/*                              Draw Functions                               */
 /*---------------------------------------------------------------------------*/
 
 static void drawTitleMenu(void)
