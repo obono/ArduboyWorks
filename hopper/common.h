@@ -7,8 +7,8 @@
 
 //#define DEBUG
 #define APP_TITLE       "HOPPER"
-#define APP_INFO        "OBN-Y02 VER 0.20"
-#define APP_RELEASED    "OCTOBER 2017"
+#define APP_INFO        "OBN-Y02 VER 0.21"
+#define APP_RELEASED    "NOVEMBER 2017"
 
 /*  Typedefs  */
 

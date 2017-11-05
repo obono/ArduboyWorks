@@ -7,6 +7,7 @@ enum {
     STATE_GAME,
     STATE_CLEAR,
     STATE_OVER,
+    STATE_PAUSE,
 };
 
 #define FLOORS_MANAGE   10
@@ -185,8 +186,10 @@ PROGMEM static const byte soundOver[] = {
 };
 
 static uint8_t  state;
+static bool     toDraw;
 static uint32_t gameFrames;
 static int      counter;
+static int8_t   ignoreCnt;
 static uint     score;
 static uint     level;
 static bool     isHiscore;
@@ -207,6 +210,7 @@ static bool     isBlink;
 
 void initGame(void)
 {
+    ignoreCnt = 0;
     playerX = 0;
     playerY = 0;
     playerJump = 0;
@@ -220,9 +224,20 @@ void initGame(void)
 
 bool updateGame(void)
 {
+    /*  In cas of pausing  */
+    if (state == STATE_PAUSE) {
+        if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
+            state = STATE_GAME;
+            ignoreCnt = 30; // 1/2 sec
+            toDraw = true;
+            dprintln("Resume");
+        }
+        return false;
+    }
+
+    /*  Move objects  */
     int scrollX = -playerX / 4;
     int scrollY = -playerY / 4;
-
     playerX += scrollX;
     playerY += scrollY;
     playerRotate += playerTorque;
@@ -239,6 +254,7 @@ bool updateGame(void)
     }
     moveChips(scrollX, scrollY, playerJump);
 
+    /*  Player interaction  */
     if (state == STATE_GAME || state == STATE_OVER) {
         movePlayer();
         if (state == STATE_GAME) {
@@ -250,26 +266,36 @@ bool updateGame(void)
                 arduboy.playScore2(soundOver, 1);
                 dprint("Game Over: score=");
                 dprintln(score);
+            } else if (ignoreCnt == 0 && arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
+                state = STATE_PAUSE;
+                dprintln("Pause");
             }
         } else {
             counter--;
-            if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
+            if (ignoreCnt == 0 && arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
                 initLevel(true);
             }
         }
     }
+    if (ignoreCnt > 0) ignoreCnt--;
+    toDraw = true;
 
     return (state == STATE_OVER && counter == 0);
 }
 
 void drawGame(void)
 {
-    arduboy.clear();
-    drawChips();
-    drawFloors();
-    drawPlayer();
-    drawStrings();
-    isBlink = !isBlink;
+    if (toDraw) {
+        arduboy.clear();
+        if (state != STATE_PAUSE) {
+            drawChips();
+            drawFloors();
+        }
+        drawPlayer();
+        drawStrings();
+        isBlink = !isBlink;
+        toDraw = false;
+    }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -525,7 +551,10 @@ static void drawStrings(void)
             if (isHiscore && counter % 8 < 4) {
                 arduboy.printEx(31, 46, F("NEW RECORD!"));
             }
+        } else if (state == STATE_PAUSE) {
+            arduboy.printEx(49, 46, F("PAUSE"));
         }
+
     }
 }
 
