@@ -261,7 +261,7 @@ static void drawTitleMenu(void)
 {
     /*  Last score  */
     if (lastScore > 0) {
-        arduboy.setCursor(2, 0);
+        arduboy.setCursor(0, 0);
         arduboy.print(lastScore);
     }
 

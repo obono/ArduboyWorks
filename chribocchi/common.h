@@ -7,7 +7,7 @@
 
 //#define DEBUG
 #define APP_TITLE       "CHRI-BOCCHI CAT"
-#define APP_INFO        "OBN-Y03 VER 0.01"
+#define APP_INFO        "OBN-Y03 VER 0.02"
 #define APP_RELEASED    "DECEMBER 2017"
 
 /*  Typedefs  */
