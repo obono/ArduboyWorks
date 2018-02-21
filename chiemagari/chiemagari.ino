@@ -8,28 +8,24 @@
 
 enum MODE {
     LOGO_MODE = 0,
-    TITLE_MODE,
+    MENU_MODE,
     GAME_MODE
 };
 
 /*  Typedefs  */
 
 typedef struct {
-    void(*initFunc)(void);
-    bool(*updateFunc)(void);
-    void(*drawFunc)(void);
+    void (*initFunc)(void);
+    bool (*updateFunc)(void);
+    void (*drawFunc)(void);
 } MODULE_FUNCS;
-
-/*  Global Variables  */
-
-MyArduboy       arduboy;
 
 /*  Local Variables  */
 
 static const MODULE_FUNCS moduleTable[] = {
-    { initLogo,  updateLogo,  drawLogo },
-    { initTitle, updateTitle, drawTitle },
-    { initGame,  updateGame,  drawGame },
+    { initLogo, updateLogo, drawLogo },
+    { initMenu, updateMenu, drawMenu },
+    { initGame, updateGame, drawGame },
 };
 
 static MODE mode = LOGO_MODE;
@@ -56,15 +52,22 @@ static void dbgCheckSerialRecv(void) {
         case 'C':
             dbgCaptureMode = 2;
             break;
+        case 'r':
+            clearRecord();
+            break;
         }
-        if (recv >= ' ' && recv <= '~') dbgRecvChar = recv;
+        if (recv >= ' ' && recv <= '~') {
+            dbgRecvChar = recv;
+        }
     }
 }
 
 static void dbgScreenCapture() {
     if (dbgCaptureMode) {
         Serial.write((const uint8_t *)arduboy.getBuffer(), WIDTH * HEIGHT / 8);
-        if (dbgCaptureMode == 1) dbgCaptureMode = 0;
+        if (dbgCaptureMode == 1) {
+            dbgCaptureMode = 0;
+        }
     }
 }
 #endif
@@ -78,6 +81,7 @@ void setup()
 #endif
     arduboy.beginNoLogo();
     arduboy.setFrameRate(60);
+    readRecord();
     moduleTable[LOGO_MODE].initFunc();
 }
 
@@ -86,7 +90,9 @@ void loop()
 #ifdef DEBUG
     dbgCheckSerialRecv();
 #endif
-    if (!(arduboy.nextFrame())) return;
+    if (!(arduboy.nextFrame())) {
+        return;
+    }
     bool isDone = moduleTable[mode].updateFunc();
     moduleTable[mode].drawFunc();
 #ifdef DEBUG
@@ -95,7 +101,7 @@ void loop()
 #endif
     arduboy.display();
     if (isDone) {
-        mode = (mode == TITLE_MODE) ? GAME_MODE : TITLE_MODE;
+        mode = (mode == MENU_MODE) ? GAME_MODE : MENU_MODE;
         moduleTable[mode].initFunc();
         dprint("mode=");
         dprintln(mode);

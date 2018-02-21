@@ -63,7 +63,7 @@ bool updateLogo(void)
 void drawLogo(void)
 {
     arduboy.clear();
-    int shake = (120 - counter) / 40;
+    int shake = (120 - counter) / 44;
     for (int i = 0; i < 3; i++) {
         int y = 12 + (i == shake) * signalOn;
         arduboy.drawBitmap(28 + i * 24, y, imgOBN[i], 24, 32, WHITE);
