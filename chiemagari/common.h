@@ -7,7 +7,7 @@
 
 //#define DEBUG
 #define APP_TITLE       "CHIE MAGARI ITA"
-#define APP_INFO        "OBN-Y04 VER 0.02"
+#define APP_INFO        "OBN-Y04 VER 0.03"
 #define APP_RELEASED    "MARCH 2018"
 
 /*  Global Functions  */

@@ -210,20 +210,15 @@ static bool onPuzzle(void)
 
 static bool onGallery(void)
 {
-    playSoundClick();
-    state = STATE_GALLERY;
-    return true;
+    //playSoundClick();
+    //state = STATE_GALLERY;
+    return false; // true;
 }
 
 static bool onSound(void)
 {
+    setSound(!isSoundEnable);
     playSoundClick();
-    isSoundEnable = !isSoundEnable;
-    if (isSoundEnable) {
-        arduboy.audio.on();
-    } else {
-        arduboy.audio.off();
-    }
     toDraw = true;
     return false;
 }
@@ -259,7 +254,7 @@ static bool onReset(void)
 static void drawMenuItems(void)
 {
     /*  Clear  */
-    int8_t  menuTop = (state == STATE_TITLE) ? 34 : 30 - menuCount * 3;
+    int8_t  menuTop = (state == STATE_TITLE) ? 34 : 32 - menuCount * 3;
     uint8_t menuHeight = menuCount * 6;
     if (toDrawFrame) {
         if (state == STATE_TITLE) {
