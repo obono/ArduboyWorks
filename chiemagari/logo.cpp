@@ -48,14 +48,14 @@ void initLogo(void)
     counter = 120; // 2 secs
 }
 
-bool updateLogo(void)
+MODE_T updateLogo(void)
 {
     counter--;
     signalOn = (SIGNAL_PTN >> (counter - 15) / 3) & 1;
     arduboy.setRGBled(0, 0, signalOn * 127);
-    bool ret = (counter == 0);
+    MODE_T ret = (counter == 0) ? MODE_MENU : MODE_LOGO;
     if (ret) {
-        dprintln("Start " APP_TITLE " : " APP_INFO);
+        dprintln(F("Start " APP_TITLE " : " APP_INFO));
     }
     return ret;
 }

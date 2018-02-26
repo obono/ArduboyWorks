@@ -2,14 +2,17 @@
 
 /*  Defines  */
 
-enum {
-    STATE_TITLE = 0,
+#define MENU_COUNT_MAX  5
+
+enum STATE_T {
+    STATE_INIT = 0,
+    STATE_TITLE,
     STATE_PUZZLE,
     STATE_GALLERY,
     STATE_CREDIT,
 };
 
-enum {
+enum MENU_T {
     MENU_CONTINUE = 0,
     MENU_PUZZLE,
     MENU_GALLERY,
@@ -23,30 +26,30 @@ enum {
 
 typedef struct
 {
-    uint8_t id;
-    bool (*func)(void);
+    MENU_T id;
+    MODE_T (*func)(void);
     const __FlashStringHelper *label;
 } ITEM_T;
 
 /*  Local Functions  */
 
-static void setupMenuItems(void);
-static void addMenuItem(uint8_t id, const __FlashStringHelper *label, bool(*func)(void));
+static void     setupMenuItems(void);
+static void     addMenuItem(MENU_T id, const __FlashStringHelper *label, MODE_T (*func)(void));
 
-static bool handleButtons(void);
-static void handleWaiting(void);
+static MODE_T   handleButtons(void);
+static void     handleWaiting(void);
 
-static bool onContinue(void);
-static bool onPuzzle(void);
-static bool onGallery(void);
-static bool onSound(void);
-static bool onHelp(void);
-static bool onCredit(void);
-static bool onReset(void);
+static MODE_T   onContinue(void);
+static MODE_T   onPuzzle(void);
+static MODE_T   onGallery(void);
+static MODE_T   onSound(void);
+static MODE_T   onHelp(void);
+static MODE_T   onCredit(void);
+static MODE_T   onReset(void);
 
-static void drawMenuItems(void);
-static void drawMenuOnOff(bool on);
-static void drawCredit(void);
+static void     drawMenuItems(void);
+static void     drawMenuOnOff(bool on);
+static void     drawCredit(void);
 
 /*  Local Variables  */
 
@@ -88,11 +91,11 @@ PROGMEM static const uint8_t imgTitle[512] = { // 128x32
 PROGMEM static const char creditText[] = "- " APP_TITLE " -\0\0" APP_RELEASED \
         "\0PROGREMMED BY OBONO\0\0THIS PROGRAM IS\0" "RELEASED UNDER\0" "THE MIT LICENSE.";
 
-static uint8_t  state = STATE_TITLE;
+static STATE_T  state = STATE_INIT;
 static bool     toDraw;
 static bool     toDrawFrame;
 static int8_t   menuCount;
-static ITEM_T   menuItemAry[5];
+static ITEM_T   menuItemAry[MENU_COUNT_MAX];
 static int8_t   menuPos;
 
 /*---------------------------------------------------------------------------*/
@@ -101,15 +104,19 @@ static int8_t   menuPos;
 
 void initMenu(void)
 {
+    if (state == STATE_INIT) {
+        readRecord();
+        state = STATE_TITLE;
+    }
     setupMenuItems();
     menuPos = 0;
     toDraw = true;
     toDrawFrame = true;
 }
 
-bool updateMenu(void)
+MODE_T updateMenu(void)
 {
-    bool ret = false;
+    MODE_T ret = MODE_MENU;
     if (state == STATE_CREDIT) {
         handleWaiting();
     } else {
@@ -155,7 +162,7 @@ static void setupMenuItems(void)
     }
 }
 
-static void addMenuItem(uint8_t id, const __FlashStringHelper *label, bool(*func)(void))
+static void addMenuItem(MENU_T id, const __FlashStringHelper *label, MODE_T (*func)(void))
 {
     ITEM_T *pItem = &menuItemAry[menuCount];
     pItem->id = id;
@@ -164,9 +171,9 @@ static void addMenuItem(uint8_t id, const __FlashStringHelper *label, bool(*func
     menuCount++;
 }
 
-static bool handleButtons()
+static MODE_T handleButtons()
 {
-    bool ret = false;
+    MODE_T ret = MODE_MENU;
     if (arduboy.buttonDown(UP_BUTTON) && menuPos > 0) {
         menuPos--;
         playSoundTick();
@@ -195,56 +202,61 @@ static void handleWaiting(void)
     }
 }
 
-static bool onContinue(void)
+static MODE_T onContinue(void)
 {
     playSoundTick();
-    return true;
+    return (state == STATE_PUZZLE) ? MODE_PUZZLE : MODE_GALLERY;
 }
 
-static bool onPuzzle(void)
+static MODE_T onPuzzle(void)
 {
     playSoundClick();
     state = STATE_PUZZLE;
-    return true;
+    return MODE_PUZZLE;
 }
 
-static bool onGallery(void)
+static MODE_T onGallery(void)
 {
-    //playSoundClick();
-    //state = STATE_GALLERY;
-    return false; // true;
+    playSoundClick();
+    state = STATE_GALLERY;
+    return MODE_GALLERY;
 }
 
-static bool onSound(void)
+static MODE_T onSound(void)
 {
-    setSound(!isSoundEnable);
+    setSound(!arduboy.audio.enabled());
     playSoundClick();
     toDraw = true;
-    return false;
+    dprint(F("isSoundEnable="));
+    dprintln(arduboy.audio.enabled());
+    return MODE_MENU;
 }
 
-static bool onHelp(void)
+static MODE_T onHelp(void)
 {
     playSoundClick();
     isHelpVisible = !isHelpVisible;
     toDraw = true;
-    return false;
+    dprint(F("isHelpVisible="));
+    dprintln(isHelpVisible);
+    return MODE_MENU;
 }
 
-static bool onCredit(void)
+static MODE_T onCredit(void)
 {
     playSoundClick();
     state = STATE_CREDIT;
     toDraw = true;
-    return false;
+    dprintln(F("Show credit"));
+    return MODE_MENU;
 }
 
-static bool onReset(void)
+static MODE_T onReset(void)
 {
     playSoundClick();
     resetPieces();
     state = STATE_PUZZLE;
-    return true;
+    return MODE_PUZZLE;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -271,8 +283,12 @@ static void drawMenuItems(void)
     ITEM_T *pItem = menuItemAry;
     for (int i = 0; i < menuCount; i++, pItem++) {
         arduboy.printEx(30 - (i == menuPos) * 4, i * 6 + menuTop, pItem->label);
-        if (pItem->id == MENU_SOUND) drawMenuOnOff(isSoundEnable);
-        if (pItem->id == MENU_HELP)  drawMenuOnOff(isHelpVisible);
+        if (pItem->id == MENU_SOUND) {
+            drawMenuOnOff(arduboy.audio.enabled());
+        }
+        if (pItem->id == MENU_HELP) {
+            drawMenuOnOff(isHelpVisible);
+        }
     }
     arduboy.fillRect2(20, menuPos * 6 + menuTop, 5, 5, WHITE);
 }

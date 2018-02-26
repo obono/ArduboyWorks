@@ -9,9 +9,6 @@
 #define EMPTY   -1
 #define COLUMN  -2
 
-#define PAD_REPEAT_DELAY    15
-#define PAD_REPEAT_INTERVAL 5
-
 #define HELP_W  32
 #define HELP_H  11
 #define HELP_TOP_LIMIT  (HEIGHT - HELP_H)
@@ -138,7 +135,6 @@ PROGMEM static const uint8_t imgHelpIcon[4][7] = { // 7x5 x4
 static STATE_T  state;
 static bool     toDrawAll;
 static int8_t   cursorX, cursorY;
-static int8_t   padX, padY, padRepeatCount;
 static int8_t   focusPieceIdx;
 static PIECE_T  pieceAry[PIECES];
 static int8_t   pieceOrder[PIECES];
@@ -150,7 +146,7 @@ static bool     isNew;
 /*                              Main Functions                               */
 /*---------------------------------------------------------------------------*/
 
-void initGame(void)
+void initPuzzle(void)
 {
     if (state == STATE_INIT) {
         if (!readRecordPieces((uint16_t *) pieceAry)) {
@@ -162,6 +158,7 @@ void initGame(void)
         cursorX = 8;
         cursorY = 4;
         helpX = HELP_RIGHT_POS;
+        dprintln(F("Initialize puzzle"));
     }
 
     putPieces();
@@ -171,7 +168,7 @@ void initGame(void)
     helpY = HEIGHT;
 }
 
-bool updateGame(void)
+MODE_T updatePuzzle(void)
 {
     handleDPad();
     if (state == STATE_FREE) {
@@ -188,10 +185,10 @@ bool updateGame(void)
         }
     }
     adjustHelpPosition();
-    return (state == STATE_LEAVE);
+    return (state == STATE_LEAVE) ? MODE_MENU : MODE_PUZZLE;
 }
 
-void drawGame(void)
+void drawPuzzle(void)
 {
     if (toDrawAll) {
         arduboy.clear();
@@ -221,6 +218,7 @@ void drawGame(void)
 void resetPieces(void)
 {
     memcpy_P(pieceAry, pieceAryDefault, sizeof(PIECE_T) * PIECES);
+    dprintln(F("Reset pieces"));
 }
 
 static bool putPieces(void)
@@ -305,24 +303,6 @@ static void focusPiece(int8_t x, int8_t y) {
     }
 }
 
-static void handleDPad(void)
-{
-    padX = padY = 0;
-    if (arduboy.buttonPressed(LEFT_BUTTON | RIGHT_BUTTON | UP_BUTTON | DOWN_BUTTON)) {
-        if (++padRepeatCount >= (PAD_REPEAT_DELAY + PAD_REPEAT_INTERVAL)) {
-            padRepeatCount = PAD_REPEAT_DELAY;
-        }
-        if (padRepeatCount == 1 || padRepeatCount == PAD_REPEAT_DELAY) {
-            if (arduboy.buttonPressed(LEFT_BUTTON))  padX--;
-            if (arduboy.buttonPressed(RIGHT_BUTTON)) padX++;
-            if (arduboy.buttonPressed(UP_BUTTON))    padY--;
-            if (arduboy.buttonPressed(DOWN_BUTTON))  padY++;
-        }
-    } else {
-        padRepeatCount = 0;
-    }
-}
-
 static void moveCursor(int8_t vx, int8_t vy)
 {
     if (cursorX + vx < 0 || cursorX + vx >= BOARD_W) vx = 0;
@@ -337,6 +317,8 @@ static void moveCursor(int8_t vx, int8_t vy)
         playSoundClick();
         state = STATE_PICKED;
         toDrawAll = true;
+        dprint(F("Pick piece="));
+        dprintln(focusPieceIdx);
     } else if (arduboy.buttonDown(A_BUTTON)) {
         saveRecord((uint16_t *)pieceAry);
         state = STATE_LEAVE;
@@ -360,6 +342,10 @@ static void movePiece(int8_t vx, int8_t vy)
             p->rot = flipPiece(focusPieceIdx, p->rot);
             toDrawAll = true;
         }
+        if (toDrawAll) {
+            dprint(F("Rotate rot="));
+            dprintln(p->rot);
+        }
     } else {
         int g = (focusPieceIdx < 3) ? 0 : 1;
         if (p->x + vx < g || p->x + vx >= BOARD_W - g) vx = 0;
@@ -373,9 +359,12 @@ static void movePiece(int8_t vx, int8_t vy)
             playSoundClick();
             if (putPieces()) {
                 state = STATE_FREE;
+                dprintln(F("Release"));
             } else {
                 isNew = registerPieces();
                 state = STATE_CLEAR;
+                dprint(F("Completed! isNew="));
+                dprintln(isNew);
             }
             cursorX = p->x;
             cursorY = p->y;
@@ -522,6 +511,7 @@ static void encodePieces(PIECE_T *pPieces, CODE_T *pCode)
         pCode->xy = (p->x - 4) / 2 + p->y / 2 * 5;
         pCode->rot = p->rot;
     }
+    dprintln(F("Encoded pieces"));
 }
 
 static void decodePieces(PIECE_T *pPieces, CODE_T *pCode)
@@ -546,6 +536,7 @@ static void decodePieces(PIECE_T *pPieces, CODE_T *pCode)
     uint8_t rot = pPieces->rot;
     pPieces->rot = 0;
     rotatePieces(pPieces, rot);
+    dprintln(F("Decoded pieces"));
 }
 
 static void rotatePieces(PIECE_T *pPieces, uint8_t rot)
@@ -562,7 +553,7 @@ static void rotatePieces(PIECE_T *pPieces, uint8_t rot)
         for (int i = 0; i < PIECES; i++, p++) {
             uint8_t x = p->x;
             p->x = 12 - p->y;
-            p->y = x + 4;
+            p->y = x - 4;
             p->rot = rotatePiece(i, p->rot, 1);
         }
     }

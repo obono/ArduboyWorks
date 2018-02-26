@@ -2,12 +2,6 @@
 
 /*  Defines  */
 
-enum {
-    RECORD_NOT_READ = 0,
-    RECORD_INITIAL,
-    RECORD_STORED,
-};
-
 #define EEPROM_ADDR_BASE    864
 #define EEPROM_SIGNATURE    0x044E424FUL // "OBN\x04"
 #define EEPROM_INIT_CHECKSUM ((EEPROM_SIGNATURE & 0xFFFF) + (EEPROM_SIGNATURE >> 16) * 3)
@@ -16,17 +10,27 @@ enum {
 #define EEPROM_SIZE_PIECES  20
 #define EEPROM_ADDR_CONFIGS (EEPROM_ADDR_PIECES + EEPROM_SIZE_PIECES)
 
+#define PAD_REPEAT_DELAY    15
+#define PAD_REPEAT_INTERVAL 5
+
+enum RECORD_T {
+    RECORD_NOT_READ = 0,
+    RECORD_INITIAL,
+    RECORD_STORED,
+};
+
 /*  Global Variables  */
 
 MyArduboy   arduboy;
-uint8_t     recordState = RECORD_NOT_READ;
-bool        isSoundEnable;
+RECORD_T    recordState = RECORD_NOT_READ;
 bool        isHelpVisible;
 uint8_t     clearCount;
 uint32_t    playFrames;
+int8_t      padX, padY, padRepeatCount;
 
 /*  Local Variables  */
-static int  eepAddr = EEPROM_STORAGE_SPACE_START;
+
+static int16_t  eepAddr = EEPROM_STORAGE_SPACE_START;
 
 /*---------------------------------------------------------------------------*/
 /*                             Common Functions                              */
@@ -50,6 +54,7 @@ void readRecord(void)
         clearCount = eepRead8();
         playFrames = eepRead32();
         recordState = RECORD_STORED;
+        dprintln(F("Read record from EEPROM"));
     } else {
         isHelpVisible = true;
         clearCount = 0;
@@ -93,6 +98,7 @@ void saveRecord(uint16_t *pPiece)
 
     arduboy.audio.saveOnOff(); // Save Sound ON/OFF
     recordState = RECORD_STORED;
+    dprintln(F("Write record to EEPROM"));
 }
 
 void clearRecord(void)
@@ -102,7 +108,25 @@ void clearRecord(void)
         eepWrite32(0);
     }
     recordState = RECORD_INITIAL;
-    dprintln("Clean EEPROM");
+    dprintln(F("Clear EEPROM"));
+}
+
+void handleDPad(void)
+{
+    padX = padY = 0;
+    if (arduboy.buttonPressed(LEFT_BUTTON | RIGHT_BUTTON | UP_BUTTON | DOWN_BUTTON)) {
+        if (++padRepeatCount >= (PAD_REPEAT_DELAY + PAD_REPEAT_INTERVAL)) {
+            padRepeatCount = PAD_REPEAT_DELAY;
+        }
+        if (padRepeatCount == 1 || padRepeatCount == PAD_REPEAT_DELAY) {
+            if (arduboy.buttonPressed(LEFT_BUTTON))  padX--;
+            if (arduboy.buttonPressed(RIGHT_BUTTON)) padX++;
+            if (arduboy.buttonPressed(UP_BUTTON))    padY--;
+            if (arduboy.buttonPressed(DOWN_BUTTON))  padY++;
+        }
+    } else {
+        padRepeatCount = 0;
+    }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -116,7 +140,6 @@ void setSound(bool on)
     } else {
         arduboy.audio.off();
     }
-    isSoundEnable = on;
 }
 
 void playSoundTick(void)

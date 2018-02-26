@@ -4,31 +4,24 @@
 #error Unexpected version of Arduboy Library
 #endif // It may work even if you use other version. So comment out the above line.
 
-/*  Defines  */
-
-enum MODE {
-    LOGO_MODE = 0,
-    MENU_MODE,
-    GAME_MODE
-};
-
 /*  Typedefs  */
 
 typedef struct {
-    void (*initFunc)(void);
-    bool (*updateFunc)(void);
-    void (*drawFunc)(void);
+    void    (*initFunc)(void);
+    MODE_T  (*updateFunc)(void);
+    void    (*drawFunc)(void);
 } MODULE_FUNCS;
 
 /*  Local Variables  */
 
 static const MODULE_FUNCS moduleTable[] = {
-    { initLogo, updateLogo, drawLogo },
-    { initMenu, updateMenu, drawMenu },
-    { initGame, updateGame, drawGame },
+    { initLogo,     updateLogo,     drawLogo    },
+    { initMenu,     updateMenu,     drawMenu    },
+    { initPuzzle,   updatePuzzle,   drawPuzzle  },
+    { initGallery,  updateGallery,  drawGallery },
 };
 
-static MODE mode = LOGO_MODE;
+static MODE_T mode;
 
 /*  For Debugging  */
 
@@ -81,8 +74,8 @@ void setup()
 #endif
     arduboy.beginNoLogo();
     arduboy.setFrameRate(60);
-    readRecord();
-    moduleTable[LOGO_MODE].initFunc();
+    mode = MODE_LOGO;
+    moduleTable[mode].initFunc();
 }
 
 void loop()
@@ -93,17 +86,17 @@ void loop()
     if (!(arduboy.nextFrame())) {
         return;
     }
-    bool isDone = moduleTable[mode].updateFunc();
+    MODE_T nextMode = moduleTable[mode].updateFunc();
     moduleTable[mode].drawFunc();
 #ifdef DEBUG
     dbgScreenCapture();
     dbgRecvChar = '\0';
 #endif
     arduboy.display();
-    if (isDone) {
-        mode = (mode == MENU_MODE) ? GAME_MODE : MENU_MODE;
-        moduleTable[mode].initFunc();
-        dprint("mode=");
+    if (mode != nextMode) {
+        mode = nextMode;
+        dprint(F("mode="));
         dprintln(mode);
+        moduleTable[mode].initFunc();
     }
 }
