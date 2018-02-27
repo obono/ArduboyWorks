@@ -7,8 +7,11 @@
 #define EEPROM_INIT_CHECKSUM ((EEPROM_SIGNATURE & 0xFFFF) + (EEPROM_SIGNATURE >> 16) * 3)
 
 #define EEPROM_ADDR_PIECES  (EEPROM_ADDR_BASE + 4)
-#define EEPROM_SIZE_PIECES  20
+#define EEPROM_SIZE_PIECES  (PIECES * 2)
 #define EEPROM_ADDR_CONFIGS (EEPROM_ADDR_PIECES + EEPROM_SIZE_PIECES)
+
+#define EEPROM_ADDR_PATTERN 32
+#define EEPROM_SIZE_PATTERN PIECES
 
 #define PAD_REPEAT_DELAY    15
 #define PAD_REPEAT_INTERVAL 5
@@ -23,14 +26,18 @@ enum RECORD_T {
 
 MyArduboy   arduboy;
 RECORD_T    recordState = RECORD_NOT_READ;
+bool        isDirty = false;
+PIECE_T     pieceAry[PIECES];
 bool        isHelpVisible;
 uint8_t     clearCount;
 uint32_t    playFrames;
 int8_t      padX, padY, padRepeatCount;
+int8_t      helpX, helpY;
 
 /*  Local Variables  */
 
-static int16_t  eepAddr = EEPROM_STORAGE_SPACE_START;
+static int16_t  eepAddr;
+static uint16_t encPiecesCheckSum;
 
 /*---------------------------------------------------------------------------*/
 /*                             Common Functions                              */
@@ -49,33 +56,64 @@ void readRecord(void)
     }
 
     if (isVerified) {
-        eepSeek(EEPROM_ADDR_CONFIGS);
+        readPieces();
+        //eepSeek(EEPROM_ADDR_CONFIGS);
         isHelpVisible = eepRead8();
         clearCount = eepRead8();
         playFrames = eepRead32();
         recordState = RECORD_STORED;
         dprintln(F("Read record from EEPROM"));
+        dprint(F("clearCount="));
+        dprintln(clearCount);
+        dprint(F("playFrames="));
+        dprintln(playFrames);
+        verifyEncodedPieces();
     } else {
+        resetPieces();
         isHelpVisible = true;
         clearCount = 0;
         playFrames = 0;
         recordState = RECORD_INITIAL;
+        isDirty = true;
     }
+    setGalleryIndex(clearCount - 1);
     setSound(arduboy.audio.enabled()); // Load Sound ON/OFF
 }
 
-bool readRecordPieces(uint16_t *pPiece)
+void readPieces(void)
 {
-    bool ret = false;
-    if (recordState == RECORD_STORED) {
-        eepSeek(EEPROM_ADDR_PIECES);
-        eepReadBlock(pPiece, EEPROM_SIZE_PIECES);
-        ret = true;
-    }
-    return ret;
+    eepSeek(EEPROM_ADDR_PIECES);
+    eepReadBlock(pieceAry, EEPROM_SIZE_PIECES);
+    dprintln(F("Read pieces from EEPROM"));
 }
 
-void saveRecord(uint16_t *pPiece)
+void readEncodedPieces(uint8_t idx, CODE_T *pCode)
+{
+    eepSeek(EEPROM_ADDR_PATTERN + idx * EEPROM_SIZE_PATTERN);
+    eepReadBlock(pCode, EEPROM_SIZE_PATTERN);
+    dprint(F("Read encoded pieces from EEPROM: idx="));
+    dprintln(idx);
+}
+
+void verifyEncodedPieces(void)
+{
+    encPiecesCheckSum = 0;
+    if (clearCount == 0) {
+        return;
+    }
+    eepSeek(EEPROM_ADDR_PATTERN);
+    for (int i = 0; i < clearCount * (EEPROM_SIZE_PATTERN / 2); i++) {
+        encPiecesCheckSum += eepRead16() * (i * 2 + 1);
+    }
+    if (eepRead16() != encPiecesCheckSum) {
+        clearCount = 0;
+        encPiecesCheckSum = 0;
+        isDirty = true;
+        dprintln(F("Encoded pieces verification failed!"));
+    }
+}
+
+void writeRecord(void)
 {
     if (recordState == RECORD_INITIAL) {
         eepSeek(EEPROM_ADDR_BASE);
@@ -83,13 +121,14 @@ void saveRecord(uint16_t *pPiece)
     } else {
         eepSeek(EEPROM_ADDR_PIECES);
     }
-    eepWriteBlock(pPiece, EEPROM_SIZE_PIECES);
+    eepWriteBlock(pieceAry, EEPROM_SIZE_PIECES);
     eepWrite8(isHelpVisible);
     eepWrite8(clearCount);
     eepWrite32(playFrames);
 
     uint16_t checkSum = EEPROM_INIT_CHECKSUM;
-    for (int i = 0; i < 10; i++) {
+    uint16_t *pPiece = (uint16_t *) pieceAry;
+    for (int i = 0; i < PIECES; i++) {
         checkSum += *pPiece++ * (i * 2 + 5);
     }
     checkSum += (isHelpVisible | clearCount << 8) * 25;
@@ -98,7 +137,21 @@ void saveRecord(uint16_t *pPiece)
 
     arduboy.audio.saveOnOff(); // Save Sound ON/OFF
     recordState = RECORD_STORED;
+    isDirty = false;
     dprintln(F("Write record to EEPROM"));
+}
+
+void writeEncodedPieces(uint8_t idx, CODE_T *pCode)
+{
+    eepSeek(EEPROM_ADDR_PATTERN + idx * EEPROM_SIZE_PATTERN);
+    eepWriteBlock(pCode, EEPROM_SIZE_PATTERN);
+    uint16_t *p = (uint16_t *) pCode;
+    for (int i = 0; i < (EEPROM_SIZE_PATTERN / 2); i++, p++) {
+        encPiecesCheckSum += *p * (idx * EEPROM_SIZE_PATTERN + i * 2 + 1);
+    }
+    eepWrite16(encPiecesCheckSum); // Update check-sum
+    dprint(F("Write encoded pieces to EEPROM: idx="));
+    dprintln(idx);
 }
 
 void clearRecord(void)

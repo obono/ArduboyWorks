@@ -12,21 +12,10 @@ enum STATE_T {
     STATE_CREDIT,
 };
 
-enum MENU_T {
-    MENU_CONTINUE = 0,
-    MENU_PUZZLE,
-    MENU_GALLERY,
-    MENU_SOUND,
-    MENU_HELP,
-    MENU_CREDIT,
-    MENU_RESET,
-};
-
 /*  Typedefs  */
 
 typedef struct
 {
-    MENU_T id;
     MODE_T (*func)(void);
     const __FlashStringHelper *label;
 } ITEM_T;
@@ -34,7 +23,7 @@ typedef struct
 /*  Local Functions  */
 
 static void     setupMenuItems(void);
-static void     addMenuItem(MENU_T id, const __FlashStringHelper *label, MODE_T (*func)(void));
+static void     addMenuItem(const __FlashStringHelper *label, MODE_T (*func)(void));
 
 static MODE_T   handleButtons(void);
 static void     handleWaiting(void);
@@ -145,27 +134,26 @@ static void setupMenuItems(void)
 {
     menuCount = 0;
     if (state != STATE_TITLE) {
-        addMenuItem(MENU_CONTINUE, F("CONTINUE"), onContinue);
+        addMenuItem(F("CONTINUE"), onContinue);
     }
     if (state != STATE_PUZZLE) {
-        addMenuItem(MENU_PUZZLE, F("PLAY PUZZLE"), onPuzzle);
+        addMenuItem(F("PLAY PUZZLE"), onPuzzle);
     }
     if (state != STATE_GALLERY && clearCount > 0) {
-        addMenuItem(MENU_GALLERY, F("GALLERY"), onGallery);
+        addMenuItem(F("GALLERY"), onGallery);
     }
-    addMenuItem(MENU_SOUND, F("SOUND"), onSound);
-    addMenuItem(MENU_HELP, F("SHOW HELP"), onHelp);
+    addMenuItem(F("SOUND"), onSound);
+    addMenuItem( F("SHOW HELP"), onHelp);
     if (state == STATE_TITLE) {
-        addMenuItem(MENU_CREDIT, F("CREDIT"), onCredit);
+        addMenuItem(F("CREDIT"), onCredit);
     } else if (state == STATE_PUZZLE) {
-        addMenuItem(MENU_RESET, F("RESET"), onReset);
+        addMenuItem(F("RESET"), onReset);
     }
 }
 
-static void addMenuItem(MENU_T id, const __FlashStringHelper *label, MODE_T (*func)(void))
+static void addMenuItem(const __FlashStringHelper *label, MODE_T (*func)(void))
 {
     ITEM_T *pItem = &menuItemAry[menuCount];
-    pItem->id = id;
     pItem->label = label;
     pItem->func = func;
     menuCount++;
@@ -211,6 +199,9 @@ static MODE_T onContinue(void)
 static MODE_T onPuzzle(void)
 {
     playSoundClick();
+    if (state == STATE_GALLERY) {
+        readPieces();
+    }
     state = STATE_PUZZLE;
     return MODE_PUZZLE;
 }
@@ -218,6 +209,9 @@ static MODE_T onPuzzle(void)
 static MODE_T onGallery(void)
 {
     playSoundClick();
+    if (isDirty) {
+        writeRecord();
+    }
     state = STATE_GALLERY;
     return MODE_GALLERY;
 }
@@ -227,6 +221,7 @@ static MODE_T onSound(void)
     setSound(!arduboy.audio.enabled());
     playSoundClick();
     toDraw = true;
+    isDirty = true;
     dprint(F("isSoundEnable="));
     dprintln(arduboy.audio.enabled());
     return MODE_MENU;
@@ -237,6 +232,7 @@ static MODE_T onHelp(void)
     playSoundClick();
     isHelpVisible = !isHelpVisible;
     toDraw = true;
+    isDirty = true;
     dprint(F("isHelpVisible="));
     dprintln(isHelpVisible);
     return MODE_MENU;
@@ -255,6 +251,7 @@ static MODE_T onReset(void)
 {
     playSoundClick();
     resetPieces();
+    isDirty = true;
     state = STATE_PUZZLE;
     return MODE_PUZZLE;
 }
@@ -283,10 +280,10 @@ static void drawMenuItems(void)
     ITEM_T *pItem = menuItemAry;
     for (int i = 0; i < menuCount; i++, pItem++) {
         arduboy.printEx(30 - (i == menuPos) * 4, i * 6 + menuTop, pItem->label);
-        if (pItem->id == MENU_SOUND) {
+        if (pItem->func == onSound) {
             drawMenuOnOff(arduboy.audio.enabled());
         }
-        if (pItem->id == MENU_HELP) {
+        if (pItem->func == onHelp) {
             drawMenuOnOff(isHelpVisible);
         }
     }
@@ -301,11 +298,10 @@ static void drawMenuOnOff(bool on)
 static void drawCredit(void)
 {
     arduboy.clear();
-    char buf[20];
     const char *p = creditText;
     for (int i = 0; i < 8; i++) {
-        strcpy_P(buf, p);
-        uint8_t len = strnlen(buf, sizeof(buf));
-        p += arduboy.printEx(64 - len * 3, i * 6 + 8, buf) + 1;
+        uint8_t len = strnlen_P(p, 20);
+        arduboy.printEx(64 - len * 3, i * 6 + 8, (const __FlashStringHelper *) p);
+        p += len + 1;
     }
 }

@@ -2,17 +2,15 @@
 
 /*  Defines  */
 
-#define PIECES  10
 #define BOARD_W 17
 #define BOARD_H 9
 
 #define EMPTY   -1
 #define COLUMN  -2
 
-#define HELP_W  32
-#define HELP_H  11
-#define HELP_TOP_LIMIT  (HEIGHT - HELP_H)
-#define HELP_RIGHT_POS  (WIDTH - HELP_W)
+#define FRAMES_5SECS    (60 * 5)
+#define FRAMES_30SECS   (60 * 20)
+#define FRAMES_2MINS    (60 * 60 * 2)
 
 enum STATE_T {
     STATE_INIT = 0,
@@ -25,15 +23,11 @@ enum STATE_T {
 /*  Typedefs  */
 
 typedef struct {
-    uint16_t    x : 6;
-    uint16_t    y : 6;
-    uint16_t    rot : 4;
-} PIECE_T;
-
-typedef struct {
-    uint8_t xy : 5;
-    uint8_t rot : 3;
-} CODE_T;
+    uint8_t iconIdx1;
+    char    label1[5];
+    uint8_t iconIdx2;
+    char    label2[5];
+} HELPLBL_T;
 
 /*  Local Functions  */
 
@@ -46,18 +40,15 @@ static void handleDPad(void);
 static void moveCursor(int8_t vx, int8_t vy);
 static void movePiece(int8_t vx, int8_t vy);
 static void adjustHelpPosition(void);
+static void saveAndResetCreep(void);
 
-static void drawBoard(void);
 static void drawDottedVLine(int16_t x);
 static void drawCursor(void);
 static void drawPieces(void);
-static void drawPiece(int8_t idx);
 static bool drawPiecePart(int8_t idx, int8_t x, int8_t y, int8_t c);
-static void drawHelp(void);
 
 static bool registerPieces(void);
-static void encodePieces(PIECE_T *pPieces, CODE_T *pCode);
-static void decodePieces(PIECE_T *pPieces, CODE_T *pCode);
+static void encodePieces(CODE_T *pCode);
 static void rotatePieces(PIECE_T *pPieces, uint8_t rot);
 static uint8_t rotatePiece(int8_t idx, uint8_t rot, int8_t vr);
 static uint8_t flipPiece(int8_t idx, uint8_t rot);
@@ -132,14 +123,18 @@ PROGMEM static const uint8_t imgHelpIcon[4][7] = { // 7x5 x4
     { 0x00, 0x04, 0x0E, 0x00, 0x0E, 0x04, 0x00 },{ 0x00, 0x00, 0x0A, 0x1B, 0x0A, 0x00, 0x00 },
 };
 
-static STATE_T  state;
+PROGMEM static const HELPLBL_T helpAry[] = {
+    { 0, "MENU", 1, "PICK" }, { 0, "HOLD", 1, "PUT"  },
+    { 2, "ROT",  3, "FLIP" }, { 2, "PAGE", 0, "MENU" },
+};
+
+static STATE_T  state = STATE_INIT;
 static bool     toDrawAll;
 static int8_t   cursorX, cursorY;
 static int8_t   focusPieceIdx;
-static PIECE_T  pieceAry[PIECES];
 static int8_t   pieceOrder[PIECES];
 static int8_t   board[BOARD_H][BOARD_W];
-static int8_t   helpX, helpY;
+static uint16_t creepFrames, quietFrames;
 static bool     isNew;
 
 /*---------------------------------------------------------------------------*/
@@ -149,15 +144,13 @@ static bool     isNew;
 void initPuzzle(void)
 {
     if (state == STATE_INIT) {
-        if (!readRecordPieces((uint16_t *) pieceAry)) {
-            resetPieces();
-        }
         for (int i = 0; i < PIECES; i++) {
             pieceOrder[i] = i;
         }
         cursorX = 8;
         cursorY = 4;
         helpX = HELP_RIGHT_POS;
+        creepFrames = 0;
         dprintln(F("Initialize puzzle"));
     }
 
@@ -166,6 +159,10 @@ void initPuzzle(void)
     state = STATE_FREE;
     padRepeatCount = 0;
     helpY = HEIGHT;
+    if (!isDirty) {
+        creepFrames = 0;
+    }
+    quietFrames = 0;
 }
 
 MODE_T updatePuzzle(void)
@@ -185,6 +182,20 @@ MODE_T updatePuzzle(void)
         }
     }
     adjustHelpPosition();
+
+    if (creepFrames < FRAMES_2MINS) {
+        creepFrames++;
+    }
+    if (padRepeatCount == 0) {
+        if (quietFrames < FRAMES_5SECS) {
+            quietFrames++;
+        } else if (isDirty && creepFrames >= FRAMES_2MINS) {
+            saveAndResetCreep();
+            dprintln(F("Auto save"));
+        }
+    } else {
+        quietFrames = 0;
+    }
     return (state == STATE_LEAVE) ? MODE_MENU : MODE_PUZZLE;
 }
 
@@ -192,7 +203,7 @@ void drawPuzzle(void)
 {
     if (toDrawAll) {
         arduboy.clear();
-        drawBoard();
+        drawBoard(0);
         drawPieces();
         toDrawAll = false;
     } else {
@@ -207,7 +218,13 @@ void drawPuzzle(void)
         arduboy.printEx(0, 0, (isNew) ? F("NEW PATTERN !") : F("ALREADY FOUND"));
     }
     if (isHelpVisible && (state == STATE_FREE || state == STATE_PICKED)) {
-        drawHelp();
+        HELP_T idx;
+        if (state == STATE_FREE) {
+            idx = HELP_FREE;
+        } else {
+            idx = (arduboy.buttonPressed(A_BUTTON)) ? HELP_HOLD : HELP_PICK;
+        }
+        drawHelp(idx, helpX, helpY);
     }
 }
 
@@ -320,11 +337,11 @@ static void moveCursor(int8_t vx, int8_t vy)
         dprint(F("Pick piece="));
         dprintln(focusPieceIdx);
     } else if (arduboy.buttonDown(A_BUTTON)) {
-        saveRecord((uint16_t *)pieceAry);
-        state = STATE_LEAVE;
-        if (isHelpVisible) {
-            toDrawAll = true;
+        if (isDirty && creepFrames >= FRAMES_30SECS) {
+            saveAndResetCreep();
         }
+        state = STATE_LEAVE;
+        toDrawAll = true;
     }
 }
 
@@ -337,9 +354,11 @@ static void movePiece(int8_t vx, int8_t vy)
         if (arduboy.buttonDown(RIGHT_BUTTON)) vr++;
         if (vr != 0) {
             p->rot = rotatePiece(focusPieceIdx, p->rot, vr);
+            isDirty = true;
             toDrawAll = true;
         } else if (arduboy.buttonDown(UP_BUTTON | DOWN_BUTTON)) {
             p->rot = flipPiece(focusPieceIdx, p->rot);
+            isDirty = true;
             toDrawAll = true;
         }
         if (toDrawAll) {
@@ -353,6 +372,7 @@ static void movePiece(int8_t vx, int8_t vy)
         if (vx != 0 || vy != 0) {
             p->x += vx;
             p->y += vy;
+            isDirty = true; 
             toDrawAll = true;
         }
         if (arduboy.buttonDown(B_BUTTON)) {
@@ -362,6 +382,10 @@ static void movePiece(int8_t vx, int8_t vy)
                 dprintln(F("Release"));
             } else {
                 isNew = registerPieces();
+                if (isNew) {
+                    saveAndResetCreep();
+                    setGalleryIndex(clearCount - 1);
+                }
                 state = STATE_CLEAR;
                 dprint(F("Completed! isNew="));
                 dprintln(isNew);
@@ -397,17 +421,25 @@ static void adjustHelpPosition(void)
     }
 }
 
+static void saveAndResetCreep(void)
+{
+    writeRecord();
+    creepFrames = 0;
+}
+
+
 /*---------------------------------------------------------------------------*/
 /*                              Draw Functions                               */
 /*---------------------------------------------------------------------------*/
 
-static void drawBoard(void)
+void drawBoard(int16_t offsetX)
 {
-    drawDottedVLine(31);
-    drawDottedVLine(95);
+    drawDottedVLine(31 + offsetX);
+    drawDottedVLine(95 + offsetX);
+    offsetX += 39;
     for (int y = 0; y < 4; y++) {
         for (int x = 0; x < 4; x++) {
-            arduboy.drawBitmap(x * 14 + 39, y * 14 + 7, imgColumn, 7, 7, WHITE);
+            arduboy.drawBitmap(x * 14 + offsetX, y * 14 + 7, imgColumn, 7, 7, WHITE);
         }
     }
 }
@@ -432,11 +464,11 @@ static void drawCursor(void)
 static void drawPieces(void)
 {
     for (int i = 0; i < PIECES; i++) {
-        execPiece(pieceOrder[i], &drawPiecePart);
+        drawPiece(pieceOrder[i]);
     }
 }
 
-static void drawPiece(int8_t idx)
+void drawPiece(int8_t idx)
 {
     execPiece(idx, &drawPiecePart);
 }
@@ -455,58 +487,44 @@ static bool drawPiecePart(int8_t idx, int8_t x, int8_t y, int8_t c)
     return false;
 }
 
-static void drawHelp(void)
+void drawHelp(HELP_T idx, int16_t x, int16_t y)
 {
-    int iconIdx = 0;
-    const __FlashStringHelper *label1, *label2;
-    if (state == STATE_PICKED) {
-        if (arduboy.buttonPressed(A_BUTTON)) {
-            iconIdx = 2;
-            label1 = F("ROT");
-            label2 = F("FLIP");
-        } else {
-            label1 = F("HOLD");
-            label2 = F("PUT");
-        }
-    } else {
-        label1 = F("MENU");
-        label2 = F("PICK");
-    }
-    arduboy.fillRect2(helpX - 1, helpY - 1, HELP_W + 1, HELP_H + 1, BLACK);
-    arduboy.drawBitmap(helpX, helpY, imgHelpIcon[iconIdx], 7, 5, WHITE);
-    arduboy.drawBitmap(helpX, helpY + 6, imgHelpIcon[iconIdx + 1], 7, 5, WHITE);
-    arduboy.printEx(helpX + 8, helpY, label1);
-    arduboy.printEx(helpX + 8, helpY + 6, label2);
+    uint8_t *p = (uint8_t *) &helpAry[idx];
+    arduboy.fillRect2(x - 1, y - 1, HELP_W + 1, HELP_H + 1, BLACK);
+    arduboy.drawBitmap(x, y,     imgHelpIcon[pgm_read_byte(p)],     7, 5, WHITE);
+    arduboy.drawBitmap(x, y + 6, imgHelpIcon[pgm_read_byte(p + 6)], 7, 5, WHITE);
+    arduboy.printEx(x + 8, y,     (const __FlashStringHelper *) (p + 1));
+    arduboy.printEx(x + 8, y + 6, (const __FlashStringHelper *) (p + 7));
 }
 
 /*---------------------------------------------------------------------------*/
-/*                            Pattern Management                             */
+/*                       Completed Pattern Management                        */
 /*---------------------------------------------------------------------------*/
 
 static bool registerPieces(void)
 {
     CODE_T code[PIECES], work[PIECES];
-    encodePieces(pieceAry, code);
-    eepSeek(EEPROM_STORAGE_SPACE_START);
+    encodePieces(code);
+    dprintln(F("Checking history..."));
     for (int i = 0; i < clearCount; i++) {
-        eepReadBlock(work, PIECES);
+        readEncodedPieces(i, work);
         if (code[0].xy == work[0].xy && memcmp(code + 1, work + 1, PIECES - 1) == 0) {
             return false;
         }
     }
-    eepWriteBlock(code, PIECES);
+    writeEncodedPieces(clearCount, code);
     clearCount++;
     return true;
 }
 
-static void encodePieces(PIECE_T *pPieces, CODE_T *pCode)
+static void encodePieces(CODE_T *pCode)
 {
     PIECE_T pieceWorkAry[PIECES];
-    memcpy(pieceWorkAry, pPieces, sizeof(PIECE_T) * PIECES);
-    PIECE_T *p = &pieceWorkAry[0];
-    uint8_t rot = p->rot;
+    memcpy(pieceWorkAry, pieceAry, sizeof(PIECE_T) * PIECES);
+    uint8_t rot = pieceWorkAry[0].rot;
+    PIECE_T *p = pieceWorkAry;
     rotatePieces(p, 0);
-    p->rot = rot;
+    pieceWorkAry[0].rot = rot;
     for (int i = 0; i < PIECES; i++, p++, pCode++) {
         pCode->xy = (p->x - 4) / 2 + p->y / 2 * 5;
         pCode->rot = p->rot;
@@ -514,9 +532,9 @@ static void encodePieces(PIECE_T *pPieces, CODE_T *pCode)
     dprintln(F("Encoded pieces"));
 }
 
-static void decodePieces(PIECE_T *pPieces, CODE_T *pCode)
+void decodePieces(CODE_T *pCode)
 {
-    PIECE_T *p = pPieces;
+    PIECE_T *p = pieceAry;
     for (int i = 0; i < PIECES; i++, p++, pCode++) {
         p->x = pCode->xy % 5 * 2 + 4;
         p->y = pCode->xy / 5 * 2;
@@ -533,22 +551,22 @@ static void decodePieces(PIECE_T *pPieces, CODE_T *pCode)
         }
 
     }
-    uint8_t rot = pPieces->rot;
-    pPieces->rot = 0;
-    rotatePieces(pPieces, rot);
+    uint8_t rot = pieceAry[0].rot;
+    pieceAry[0].rot = 0;
+    rotatePieces(pieceAry, rot);
     dprintln(F("Decoded pieces"));
 }
 
 static void rotatePieces(PIECE_T *pPieces, uint8_t rot)
 {
-    if ((pPieces->rot ^ rot) & 4) {
+    if ((pPieces[0].rot ^ rot) & 4) {
         PIECE_T *p = pPieces;
         for (int i = 0; i < PIECES; i++, p++) {
             p->y = 8 - p->y;
             p->rot = flipPiece(i, p->rot);
         }
     }
-    while (pPieces->rot != rot) {
+    while (pPieces[0].rot != rot) {
         PIECE_T *p = pPieces;
         for (int i = 0; i < PIECES; i++, p++) {
             uint8_t x = p->x;
