@@ -37,6 +37,7 @@ public:
     void    drawFastHLine2(int16_t x, int16_t y, uint8_t w, uint8_t color);
     void    fillRect2(int16_t x, int16_t y, uint8_t w, int8_t h, uint8_t color);
     void    playScore2(const byte *score, uint8_t priority);
+    void    stopScore2(void);
     void    tone2(unsigned int frequency, unsigned long duration);
 
 private:

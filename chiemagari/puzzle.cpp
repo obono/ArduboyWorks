@@ -23,6 +23,11 @@ enum STATE_T {
 /*  Typedefs  */
 
 typedef struct {
+    int8_t  idx:7;
+    int8_t  isCorner:1;
+} BOARD_T;
+
+typedef struct {
     uint8_t iconIdx1;
     char    label1[5];
     uint8_t iconIdx2;
@@ -46,8 +51,9 @@ static void drawDottedVLine(int16_t x);
 static void drawCursor(void);
 static void drawPieces(void);
 static bool drawPiecePart(int8_t idx, int8_t x, int8_t y, int8_t c);
+static void drawClearEffect(void);
 
-static bool registerPieces(void);
+static uint8_t checkAndRegisterPieces(void);
 static void encodePieces(CODE_T *pCode);
 static void rotatePieces(PIECE_T *pPieces, uint8_t rot);
 static uint8_t rotatePiece(int8_t idx, uint8_t rot, int8_t vr);
@@ -118,6 +124,23 @@ PROGMEM static const uint8_t imgCursorFrame[7] = { // 7x7
     0x3F, 0x21, 0x11, 0x21, 0x45, 0x2B, 0x10,
 };
 
+PROGMEM static const uint8_t imgClear[216] = { // "A New Pattern" 108x16
+    0x00, 0x00, 0x00, 0x00, 0xE0, 0x18, 0x3C, 0xF8, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x04, 0x0C, 0xFC, 0x38, 0x70, 0xE0, 0xC0, 0x00, 0x04, 0x04, 0xFC, 0x04, 0x04, 0x00, 0x80,
+    0x40, 0x40, 0xC0, 0x80, 0x00, 0x40, 0xC0, 0xC0, 0x40, 0x00, 0x40, 0xC0, 0xC0, 0x40, 0x00, 0x40,
+    0xC0, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x04, 0xFC, 0xFC, 0x04, 0x04, 0x04, 0x8C, 0xF8,
+    0x70, 0x00, 0x80, 0xC0, 0x40, 0x40, 0xC0, 0x80, 0x00, 0x40, 0xE0, 0xF8, 0x40, 0x40, 0x40, 0xE0,
+    0xF8, 0x40, 0x40, 0x00, 0x00, 0x80, 0x40, 0x40, 0xC0, 0x80, 0x00, 0x80, 0xC0, 0xC0, 0x80, 0x40,
+    0xC0, 0x00, 0x80, 0xC0, 0xC0, 0x80, 0x40, 0x40, 0xC0, 0x80, 0x00, 0x00, 0x20, 0x30, 0x3C, 0x23,
+    0x02, 0x02, 0x02, 0x23, 0x3F, 0x3E, 0x30, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x20, 0x3F,
+    0x20, 0x20, 0x00, 0x01, 0x07, 0x0E, 0x1C, 0x3F, 0x00, 0x00, 0x0F, 0x1F, 0x39, 0x31, 0x31, 0x19,
+    0x00, 0x00, 0x01, 0x07, 0x1E, 0x38, 0x0C, 0x03, 0x07, 0x1E, 0x38, 0x0E, 0x01, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x20, 0x20, 0x3F, 0x3F, 0x21, 0x21, 0x01, 0x01, 0x00, 0x00, 0x00, 0x39, 0x3D,
+    0x24, 0x22, 0x3F, 0x3F, 0x20, 0x00, 0x1F, 0x3F, 0x20, 0x10, 0x00, 0x1F, 0x3F, 0x20, 0x10, 0x00,
+    0x0F, 0x1F, 0x39, 0x31, 0x31, 0x19, 0x00, 0x20, 0x3F, 0x3F, 0x20, 0x00, 0x00, 0x00, 0x20, 0x3F,
+    0x3F, 0x20, 0x00, 0x20, 0x3F, 0x3F, 0x20, 0x00,
+};
+
 PROGMEM static const uint8_t imgHelpIcon[4][7] = { // 7x5 x4
     { 0x1E, 0x1E, 0x1E, 0x1F, 0x09, 0x09, 0x0F },{ 0x1E, 0x12, 0x12, 0x1F, 0x0F, 0x0F, 0x0F },
     { 0x00, 0x04, 0x0E, 0x00, 0x0E, 0x04, 0x00 },{ 0x00, 0x00, 0x0A, 0x1B, 0x0A, 0x00, 0x00 },
@@ -128,13 +151,43 @@ PROGMEM static const HELPLBL_T helpAry[] = {
     { 2, "ROT",  3, "FLIP" }, { 2, "PAGE", 0, "MENU" },
 };
 
+PROGMEM static const byte soundPick[] = {
+    0x90, 65, 0, 40, 0x90, 69, 0, 40, 0x90, 72, 0, 40, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundPut[] = {
+    0x90, 72, 0, 40, 0x90, 69, 0, 40, 0x90, 65, 0, 40, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundRotate[] = {
+    0x90, 88, 0, 10, 0x90, 86, 0, 10, 0x90, 84, 0, 10,
+    0x90, 82, 0, 10, 0x90, 80, 0, 10, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundFlip[] = {
+    0x90, 70, 0, 10, 0x90, 80, 0, 10, 0x90, 75, 0, 10,
+    0x90, 85, 0, 10, 0x90, 80, 0, 10, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundNewPattern[] = {
+    0x90, 81, 0, 40, 0x80, 0, 40,
+    0x90, 86, 0, 40, 0x80, 0, 40,
+    0x90, 90, 0, 40, 0x80, 0, 40, 0xE0
+};
+
+PROGMEM static const byte soundExistedPattern[] = {
+    0x90, 60, 0, 64, 0x80, 0, 64, 0xE0
+};
+
 static STATE_T  state = STATE_INIT;
 static bool     toDrawAll;
 static int8_t   cursorX, cursorY;
 static int8_t   focusPieceIdx;
 static int8_t   pieceOrder[PIECES];
-static int8_t   board[BOARD_H][BOARD_W];
+static BOARD_T  board[BOARD_H][BOARD_W];
 static uint16_t creepFrames, quietFrames;
+static uint8_t  lastPatternIdx;
+static uint8_t  clearEffectCount;
 static bool     isNew;
 
 /*---------------------------------------------------------------------------*/
@@ -151,6 +204,7 @@ void initPuzzle(void)
         cursorY = 4;
         helpX = HELP_RIGHT_POS;
         creepFrames = 0;
+        lastPatternIdx = 255; // trick!
         dprintln(F("Initialize puzzle"));
     }
 
@@ -175,7 +229,9 @@ MODE_T updatePuzzle(void)
         movePiece(padX, padY);
         playFrames++;
     } else if (state == STATE_CLEAR) {
-        if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
+        clearEffectCount--;
+        if (clearEffectCount == 0) {
+            arduboy.stopScore2();
             state = STATE_FREE;
             helpY = HEIGHT;
             toDrawAll = true;
@@ -201,23 +257,23 @@ MODE_T updatePuzzle(void)
 
 void drawPuzzle(void)
 {
+    bool isPlaying = (state == STATE_FREE || state == STATE_PICKED);
     if (toDrawAll) {
         arduboy.clear();
         drawBoard(0);
         drawPieces();
         toDrawAll = false;
-    } else {
-        if (focusPieceIdx >= 0) {
-            drawPiece(focusPieceIdx);
-        }
+    } else if (isPlaying && focusPieceIdx >= 0) {
+        drawPiece(focusPieceIdx);
     }
+
     if (state == STATE_FREE) {
         drawCursor();
     }
     if (state == STATE_CLEAR) {
-        arduboy.printEx(0, 0, (isNew) ? F("NEW PATTERN !") : F("ALREADY FOUND"));
+        drawClearEffect();
     }
-    if (isHelpVisible && (state == STATE_FREE || state == STATE_PICKED)) {
+    if (isHelpVisible && isPlaying) {
         HELP_T idx;
         if (state == STATE_FREE) {
             idx = HELP_FREE;
@@ -242,7 +298,8 @@ static bool putPieces(void)
 {
     for (int y = 0; y < BOARD_H; y++) {
         for (int x = 0; x < BOARD_W; x++) {
-            board[y][x] = (x < 4 || x > 12 || (x & y & 1)) ? COLUMN : EMPTY;
+            board[y][x].idx = (x < 4 || x > 12 || (x & y & 1)) ? COLUMN : EMPTY;
+            board[y][x].isCorner = false;
         }
     }
     bool ret = false;
@@ -293,17 +350,16 @@ static bool putPiecePart(int8_t idx, int8_t x, int8_t y, int8_t c)
         if (x < 0 || y < 0 || x >= BOARD_W || y >= BOARD_H) {
             ret = true;
         } else {
-            ret = (board[y][x] != EMPTY);
-            if (c >= 5) {
-                board[y][x] = idx;
-            }
+            ret = (!board[y][x].isCorner && board[y][x].idx != EMPTY);
+            board[y][x].idx = idx;
+            board[y][x].isCorner = (c < 5);
         }
     }
     return ret;
 }
 
 static void focusPiece(int8_t x, int8_t y) {
-    focusPieceIdx = board[y][x];
+    focusPieceIdx = board[y][x].idx;
     if (focusPieceIdx >= 0) {
         int i = 9;
         while (pieceOrder[i] != focusPieceIdx) {
@@ -331,12 +387,13 @@ static void moveCursor(int8_t vx, int8_t vy)
         toDrawAll = true;
     }
     if (arduboy.buttonDown(B_BUTTON) && focusPieceIdx >= 0) {
-        playSoundClick();
+        arduboy.playScore2(soundPick, 2);
         state = STATE_PICKED;
         toDrawAll = true;
         dprint(F("Pick piece="));
         dprintln(focusPieceIdx);
     } else if (arduboy.buttonDown(A_BUTTON)) {
+        playSoundClick();
         if (isDirty && creepFrames >= FRAMES_30SECS) {
             saveAndResetCreep();
         }
@@ -353,10 +410,12 @@ static void movePiece(int8_t vx, int8_t vy)
         if (arduboy.buttonDown(LEFT_BUTTON))  vr--;
         if (arduboy.buttonDown(RIGHT_BUTTON)) vr++;
         if (vr != 0) {
+            arduboy.playScore2(soundRotate, 3);
             p->rot = rotatePiece(focusPieceIdx, p->rot, vr);
             isDirty = true;
             toDrawAll = true;
         } else if (arduboy.buttonDown(UP_BUTTON | DOWN_BUTTON)) {
+            arduboy.playScore2(soundFlip, 3);
             p->rot = flipPiece(focusPieceIdx, p->rot);
             isDirty = true;
             toDrawAll = true;
@@ -370,30 +429,44 @@ static void movePiece(int8_t vx, int8_t vy)
         if (p->x + vx < g || p->x + vx >= BOARD_W - g) vx = 0;
         if (p->y + vy < g || p->y + vy >= BOARD_H - g) vy = 0;
         if (vx != 0 || vy != 0) {
+            playSoundTick();
             p->x += vx;
             p->y += vy;
             isDirty = true; 
             toDrawAll = true;
         }
         if (arduboy.buttonDown(B_BUTTON)) {
-            playSoundClick();
             if (putPieces()) {
+                arduboy.playScore2(soundPut, 2);
                 state = STATE_FREE;
                 dprintln(F("Release"));
             } else {
-                isNew = registerPieces();
-                if (isNew) {
-                    saveAndResetCreep();
-                    setGalleryIndex(clearCount - 1);
+                uint8_t idx = checkAndRegisterPieces();
+                isNew = (idx == clearCount);
+                if (idx == lastPatternIdx) {
+                    arduboy.playScore2(soundPut, 2);
+                    state = STATE_FREE;
+                } else {
+                    lastPatternIdx = idx;
+                    if (isNew) {
+                        arduboy.playScore2(soundNewPattern, 1);
+                        clearCount++;
+                        saveAndResetCreep();
+                        setGalleryIndex(idx);
+                        clearEffectCount = 120;
+                    } else {
+                        arduboy.playScore2(soundExistedPattern, 1);
+                        clearEffectCount = 60;
+                    }
+                    state = STATE_CLEAR;
                 }
-                state = STATE_CLEAR;
                 dprint(F("Completed! isNew="));
                 dprintln(isNew);
             }
             cursorX = p->x;
             cursorY = p->y;
-            if (board[p->y][p->x] != focusPieceIdx) {
-                cursorY += (board[p->y - 1][p->x] == focusPieceIdx) ? -1 : 1;
+            if (board[p->y][p->x].idx != focusPieceIdx) {
+                cursorY += (board[p->y - 1][p->x].idx == focusPieceIdx) ? -1 : 1;
             }
             toDrawAll = true;
         }
@@ -487,6 +560,39 @@ static bool drawPiecePart(int8_t idx, int8_t x, int8_t y, int8_t c)
     return false;
 }
 
+static void drawClearEffect(void)
+{
+    if (isNew) {
+        if (clearEffectCount > 104) {
+            int h = 121 - clearEffectCount;
+            int y = (64 - h) / 2;
+            arduboy.fillRect(0, y, 128, h, WHITE);
+        } else {
+            int d, v;
+            if (clearEffectCount >= 88) {
+                d = clearEffectCount - 88;
+                v = 1;
+            } else if (clearEffectCount <= 16) {
+                d = 17 - clearEffectCount;
+                v = -1;
+            } else {
+                return;
+            }
+            arduboy.fillRect(0, 24, 128, 16, WHITE);
+            arduboy.drawBitmap(10 + d * (d + 1) / 2 * v, 24, imgClear, 108, 16, BLACK);
+        }
+    } else {
+        if (clearEffectCount > 51) {
+            int h = 61 - clearEffectCount;
+            int y = (64 - h) / 2;
+            arduboy.fillRect(0, y, 128, h, BLACK);
+            arduboy.drawRect(-1, y, 130, h, WHITE);
+        } else if (clearEffectCount == 51) {
+            arduboy.printEx(25, 29, F("ALREADY FOUND"));
+        }
+    }
+}
+
 void drawHelp(HELP_T idx, int16_t x, int16_t y)
 {
     uint8_t *p = (uint8_t *) &helpAry[idx];
@@ -501,20 +607,22 @@ void drawHelp(HELP_T idx, int16_t x, int16_t y)
 /*                       Completed Pattern Management                        */
 /*---------------------------------------------------------------------------*/
 
-static bool registerPieces(void)
+static uint8_t checkAndRegisterPieces(void)
 {
     CODE_T code[PIECES], work[PIECES];
     encodePieces(code);
     dprintln(F("Checking history..."));
-    for (int i = 0; i < clearCount; i++) {
-        readEncodedPieces(i, work);
-        if (code[0].xy == work[0].xy && memcmp(code + 1, work + 1, PIECES - 1) == 0) {
-            return false;
+    for (int i = -1; i < clearCount; i++) {
+        uint8_t idx = (i == -1) ? lastPatternIdx : i;
+        if (idx < clearCount && i != lastPatternIdx) {
+            readEncodedPieces(idx, work);
+            if (code[0].xy == work[0].xy && memcmp(code + 1, work + 1, PIECES - 1) == 0) {
+                return idx;
+            }
         }
     }
     writeEncodedPieces(clearCount, code);
-    clearCount++;
-    return true;
+    return clearCount;
 }
 
 static void encodePieces(CODE_T *pCode)

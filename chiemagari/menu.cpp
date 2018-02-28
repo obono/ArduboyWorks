@@ -80,6 +80,18 @@ PROGMEM static const uint8_t imgTitle[512] = { // 128x32
 PROGMEM static const char creditText[] = "- " APP_TITLE " -\0\0" APP_RELEASED \
         "\0PROGREMMED BY OBONO\0\0THIS PROGRAM IS\0" "RELEASED UNDER\0" "THE MIT LICENSE.";
 
+PROGMEM static const byte soundStart[] = {
+    0x90, 72, 0, 100, 0x80, 0, 25,
+    0x90, 74, 0, 100, 0x80, 0, 25,
+    0x90, 76, 0, 100, 0x80, 0, 25,
+    0x90, 77, 0, 100, 0x80, 0, 25,
+    0x90, 79, 0, 200, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundReset[] = {
+    0x90, 100, 0, 30, 0x90, 93, 0, 30, 0x90, 86, 0, 30, 0x90, 79, 0, 30, 0x90, 72, 0, 30, 0x80, 0xF0
+};
+
 static STATE_T  state = STATE_INIT;
 static bool     toDraw;
 static bool     toDrawFrame;
@@ -198,9 +210,13 @@ static MODE_T onContinue(void)
 
 static MODE_T onPuzzle(void)
 {
-    playSoundClick();
-    if (state == STATE_GALLERY) {
-        readPieces();
+    if (state == STATE_TITLE) {
+        arduboy.playScore2(soundStart, 0);
+    } else {
+        playSoundClick();
+        if (state == STATE_GALLERY) {
+            readPieces();
+        }
     }
     state = STATE_PUZZLE;
     return MODE_PUZZLE;
@@ -249,7 +265,7 @@ static MODE_T onCredit(void)
 
 static MODE_T onReset(void)
 {
-    playSoundClick();
+    arduboy.playScore2(soundReset, 2);
     resetPieces();
     isDirty = true;
     state = STATE_PUZZLE;

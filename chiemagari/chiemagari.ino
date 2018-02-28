@@ -4,6 +4,12 @@
 #error Unexpected version of Arduboy Library
 #endif // It may work even if you use other version. So comment out the above line.
 
+/*  Defines  */
+
+#define callInitFunc(idx)   ((void (*)(void)) pgm_read_word((uint16_t) &moduleTable[idx]))()
+#define callUpdateFunc(idx) ((MODE_T (*)(void)) pgm_read_word((uint16_t) &moduleTable[idx] + 2))()
+#define callDrawFunc(idx)   ((void (*)(void)) pgm_read_word((uint16_t) &moduleTable[idx] + 4))()
+
 /*  Typedefs  */
 
 typedef struct {
@@ -14,7 +20,7 @@ typedef struct {
 
 /*  Local Variables  */
 
-static const MODULE_FUNCS moduleTable[] = {
+PROGMEM static const MODULE_FUNCS moduleTable[] = {
     { initLogo,     updateLogo,     drawLogo    },
     { initMenu,     updateMenu,     drawMenu    },
     { initPuzzle,   updatePuzzle,   drawPuzzle  },
@@ -75,7 +81,7 @@ void setup()
     arduboy.beginNoLogo();
     arduboy.setFrameRate(60);
     mode = MODE_LOGO;
-    moduleTable[mode].initFunc();
+    callInitFunc(mode);
 }
 
 void loop()
@@ -86,8 +92,8 @@ void loop()
     if (!(arduboy.nextFrame())) {
         return;
     }
-    MODE_T nextMode = moduleTable[mode].updateFunc();
-    moduleTable[mode].drawFunc();
+    MODE_T nextMode = callUpdateFunc(mode);
+    callDrawFunc(mode);
 #ifdef DEBUG
     dbgScreenCapture();
     dbgRecvChar = '\0';
@@ -97,6 +103,6 @@ void loop()
         mode = nextMode;
         dprint(F("mode="));
         dprintln(mode);
-        moduleTable[mode].initFunc();
+        callInitFunc(mode);
     }
 }

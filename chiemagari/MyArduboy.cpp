@@ -247,6 +247,11 @@ void MyArduboy::playScore2(const byte *score, uint8_t priority)
     pTunes->playScore(score);
 }
 
+void MyArduboy::stopScore2(void)
+{
+    pTunes->stopScore();
+}
+
 void MyArduboy::tone2(unsigned int frequency, unsigned long duration)
 {
     if (!audio.enabled()) return;
