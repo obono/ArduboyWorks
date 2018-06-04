@@ -1,0 +1,17 @@
+div.item {
+	width: auto;
+	height: 64px;
+	display: block;
+}
+
+img.item_image {
+	float: left;
+}
+
+span.item_title {
+	text-indent: 0.5em;
+}
+
+div.item_info span {
+	text-indent: 0.5em;
+}

@@ -1,0 +1,39 @@
+{
+	"repository": "OBONO\u0027s Arduboy Works",
+	"api-version": "0.5",
+	"maintainer": "OBONO",
+	"items" : [
+		{
+			"name" : "Hollow Seeker",
+			"description" : "Go forward in right direction. Seek a hollow as refuge not to be crushed.",
+			"version" : "0.31",
+			"author" : "OBONO",
+			"cover" : "https://obono.github.io/ArduboyWorks/img/hollow2.gif",
+			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/hollow_v0.31.hex"
+		},
+		{
+			"name" : "Hopper",
+			"description" : "Jump on panels and go up (foreground side). If you fall toward bottom, the game is over.",
+			"version" : "0.21",
+			"author" : "OBONO",
+			"cover" : "https://obono.github.io/ArduboyWorks/img/hopper2.gif",
+			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/hopper_v0.21.hex"
+		},
+		{
+			"name" : "Chri-Bocchi Cat",
+			"description" : "Move the cat and bounce gift boxes for 2 minutes.",
+			"version" : "0.03",
+			"author" : "OBONO",
+			"cover" : "https://obono.github.io/ArduboyWorks/img/chribocchi2.gif",
+			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/chribocchi_v0.03.hex"
+		},
+		{
+			"name" : "Chie Magari Ita",
+			"description" : "Place 10 different pieces into the frame without overlapping.",
+			"version" : "0.10",
+			"author" : "OBONO",
+			"cover" : "https://obono.github.io/ArduboyWorks/img/chiemagari2.gif",
+			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/chiemagari_v0.10.hex"
+		}
+	]
+}

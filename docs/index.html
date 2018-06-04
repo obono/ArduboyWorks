@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1">
+	<meta name="theme-color" content="#ddddee">
+	<link rel="stylesheet" type="text/css" href="css/style.css">
+	<link rel="stylesheet" type="text/css" href="css/style_list.css" disabled="true" id="style_list">
+	<script type="text/javascript" src="js/script.js"></script>
+	<title>Arduboy Repository Viewer</title>
+</head>
+
+<body>
+	<template id="item_template">
+		<div class="item">
+			<img class="item_image" alt="image">
+			<span class="item_title"></span>
+			<div class="item_info"></div>
+			<div class="item_actions">
+				<a class="item_link_binary"><img src="img/act_dl.gif" alt="download"></a>
+				<a class="item_link_arduboy"><img src="img/act_tr.gif" alt="transfer"></a>
+			</div>
+		</div>
+	</template>
+	<h1 id="header">Arduboy Repository Viewer</h1>
+	<div class="result" id="result">
+		<ul>
+			<li><a href="?repo.json">OBONO's Arduboy Works</a></li>
+			<li><a href="?http://www.crait.net/arduboy/repo2.json">Arduboy Manager Repo</a></li>
+			<li><a href="?http://arduboy.ried.cl/repo.json">Erwin's Arduboy Collection</a></li>
+			<li><a href="?https://raw.githubusercontent.com/felipemanga/ProjectABE/master/res/repo.json">Unofficial TeamARG Repository</a></li>
+			<li><a href="?https://www.arduboy.com/a/GameJam3.json">Arduboy Game Jam 3.0</a></li>
+		</ul>
+	</div>
+	<p>
+		URL of repository information:
+		<input id="text_url" type="text" placeholder="(Enter URL)">
+		<input id="button_get" type="submit" value="Get">
+	</p>
+	<script>
+		setElements();
+		window.onresize = switchStyle;
+		$("button_get").onclick = executeProcedure;
+		switchStyle(true);
+		checkQueryParams();
+	</script>
+</body>
+
+</html>

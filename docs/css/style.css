@@ -1,0 +1,60 @@
+body {
+	background: #bbc;
+}
+
+div.result {
+	font-size: 0;
+}
+
+div.result ul li {
+	font-size: medium;
+}
+
+div.item {
+	width: 128px;
+	height: 160px;
+	margin: 4px;
+	padding: 4px;
+	background: #dde;
+	display: inline-block;
+	position:relative;
+	vertical-align: top;
+}
+
+img.item_image {
+	width: 128px;
+	height: 64px;
+	display: block;
+}
+
+span.item_title {
+	font-size: medium;
+	font-weight: bold;
+	line-height: 1.25em;
+	color: #334;
+	display: block;
+}
+
+div.item_info span {
+	font-size: small;
+	line-height: 1.25em;
+	color: #778;
+	display: block;
+}
+
+div.item_actions {
+	font-size: medium;
+	position: absolute;
+	bottom: 0px;
+	right: 8px;
+}
+
+div.item_actions a img {
+	width: 16px;
+	height: 16px;
+}
+
+input#text_url {
+	width: 85%;
+	max-width: 520px;
+}
