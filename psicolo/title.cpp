@@ -2,40 +2,26 @@
 
 /*  Defines  */
 
-#define TITLE_COUNT_MAX  4
-
 enum STATE_T {
     STATE_INIT = 0,
     STATE_TITLE,
     STATE_RECORD,
     STATE_CREDIT,
+    STATE_STARTED,
 };
-
-/*  Typedefs  */
-
-typedef struct
-{
-    MODE_T (*func)(void);
-    const __FlashStringHelper *label;
-} ITEM_T;
 
 /*  Local Functions  */
 
-static void     setupTitleItems(void);
-static void     addTitleItem(const __FlashStringHelper *label, MODE_T (*func)(void));
+static void onStartEndless(void);
+static void onStartLimited(void);
+static void onStartPuzzle(void);
+static void onRecord(void);
+static void onCredit(void);
+static void handleAnyButton(void);
 
-static MODE_T   handleButtons(void);
-static void     handleWaiting(void);
-
-static MODE_T   onStart(void);
-static MODE_T   onSound(void);
-static MODE_T   onRecord(void);
-static MODE_T   onCredit(void);
-
-static void     drawTitleItems(void);
-static void     drawTitleItemOnOff(bool on);
-static void     drawRecord(void);
-static void     drawCredit(void);
+static void drawTitleImage(void);
+static void drawRecord(void);
+static void drawCredit(void);
 
 /*  Local Variables  */
 
@@ -54,11 +40,6 @@ PROGMEM static const byte soundStart[] = {
 };
 
 static STATE_T  state = STATE_INIT;
-static bool     toDraw;
-static bool     toDrawImage;
-static int8_t   itemCount;
-static ITEM_T   itemAry[TITLE_COUNT_MAX];
-static int8_t   itemPos;
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -68,21 +49,31 @@ void initTitle(void)
 {
     if (state == STATE_INIT) {
         readRecord();
-        state = STATE_TITLE;
     }
-    setupTitleItems();
-    itemPos = 0;
-    toDraw = true;
-    toDrawImage = true;
+
+    clearMenuItems();
+    addMenuItem(F("ENDLESS"), onStartEndless);
+    addMenuItem(F("TIME LIMITED"), onStartLimited);
+    addMenuItem(F("PUZZLE"), onStartPuzzle);
+    addMenuItem(F("RECORD"), onRecord);
+    addMenuItem(F("CREDIT"), onCredit);
+    setMenuCoords(44, 34, 84, 30, false, true);
+    setMenuItemPos(gameMode);
+
+    state = STATE_TITLE;
+    isInvalid = true;
 }
 
 MODE_T updateTitle(void)
 {
     MODE_T ret = MODE_TITLE;
-    if (state == STATE_RECORD || state == STATE_CREDIT) {
-        handleWaiting();
+    if (state == STATE_TITLE) {
+        handleMenu();
+        if (state == STATE_STARTED) {
+            ret = MODE_GAME;
+        }
     } else {
-        ret = handleButtons();
+        handleAnyButton();
     }
     randomSeed(rand() ^ micros()); // Shuffle random
     return ret;
@@ -90,7 +81,8 @@ MODE_T updateTitle(void)
 
 void drawTitle(void)
 {
-    if (toDraw) {
+    if (isInvalid) {
+        arduboy.clear();
         switch (state) {
         case STATE_RECORD:
             drawRecord();
@@ -99,140 +91,110 @@ void drawTitle(void)
             drawCredit();
             break;
         default:
-            drawTitleItems();
+            drawTitleImage();
         }
-        toDraw = false;
     }
+    if (state == STATE_TITLE || state == STATE_STARTED) {
+        drawMenuItems(isInvalid);
+    }
+    isInvalid = false;
 }
 
 /*---------------------------------------------------------------------------*/
 /*                             Control Functions                             */
 /*---------------------------------------------------------------------------*/
 
-static void setupTitleItems(void)
+static void onStartEndless(void)
 {
-    itemCount = 0;
-    addTitleItem(F("START GAME"), onStart);
-    addTitleItem(F("SOUND"), onSound);
-    addTitleItem(F("RECORD"), onRecord);
-    addTitleItem(F("CREDIT"), onCredit);
+    arduboy.playScore2(soundStart, 0);
+    state = STATE_STARTED;
+    gameMode = GAME_MODE_ENDLESS;
+    dprintln(F("Start Endless"));
 }
 
-static void addTitleItem(const __FlashStringHelper *label, MODE_T (*func)(void))
+static void onStartLimited(void)
 {
-    ITEM_T *pItem = &itemAry[itemCount];
-    pItem->label = label;
-    pItem->func = func;
-    itemCount++;
+    arduboy.playScore2(soundStart, 0);
+    state = STATE_STARTED;
+    gameMode = GAME_MODE_LIMITED;
+    dprintln(F("Start Time Limited"));
 }
 
-static MODE_T handleButtons()
+static void onStartPuzzle(void)
 {
-    MODE_T ret = MODE_TITLE;
-    if (arduboy.buttonDown(UP_BUTTON) && itemPos > 0) {
-        itemPos--;
-        playSoundTick();
-        toDraw = true;
-    }
-    if (arduboy.buttonDown(DOWN_BUTTON) && itemPos < itemCount - 1) {
-        itemPos++;
-        playSoundTick();
-        toDraw = true;
-    }
-    if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
-        ret = itemAry[itemPos].func();
-    }
-    return ret;
+#if 0
+    arduboy.playScore2(soundStart, 0);
+    state = STATE_STARTED;
+    gameMode = GAME_MODE_PUZZLE;
+    dprintln(F("Start Puzzle"));
+#endif
 }
 
-static void handleWaiting(void)
+static void onRecord(void)
+{
+    playSoundClick();
+    state = STATE_RECORD;
+    isInvalid = true;
+    dprintln(F("Show record"));
+}
+
+static void onCredit(void)
+{
+    playSoundClick();
+    state = STATE_CREDIT;
+    isInvalid = true;
+    dprintln(F("Show credit"));
+}
+
+static void handleAnyButton(void)
 {
     if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
         playSoundClick();
         state = STATE_TITLE;
-        toDraw = true;
-        toDrawImage = true;
+        isInvalid = true;
     }
-}
-
-static MODE_T onStart(void)
-{
-    arduboy.playScore2(soundStart, 0);
-    return MODE_GAME;
-}
-
-static MODE_T onSound(void)
-{
-    setSound(!arduboy.audio.enabled());
-    playSoundClick();
-    toDraw = true;
-    isDirty = true;
-    dprint(F("isSoundEnable="));
-    dprintln(arduboy.audio.enabled());
-    return MODE_TITLE;
-}
-
-static MODE_T onRecord(void)
-{
-    playSoundClick();
-    state = STATE_RECORD;
-    toDraw = true;
-    dprintln(F("Show recoed"));
-    return MODE_TITLE;
-}
-
-static MODE_T onCredit(void)
-{
-    playSoundClick();
-    state = STATE_CREDIT;
-    toDraw = true;
-    dprintln(F("Show credit"));
-    return MODE_TITLE;
 }
 
 /*---------------------------------------------------------------------------*/
 /*                              Draw Functions                               */
 /*---------------------------------------------------------------------------*/
 
-static void drawTitleItems(void)
+static void drawTitleImage(void)
 {
-    /*  Title image  */
-    uint8_t itemsHeight = itemCount * 6;
-    if (toDrawImage) {
-        arduboy.clear();
-        arduboy.printEx(0, 0, F(APP_TITLE));
-        arduboy.printEx(0, 6, F("TITLE SCREEN"));
-        //arduboy.drawBitmap(0, 0, imgTitle, 128, 32, WHITE);
-        toDrawImage = false;
-    } else {
-        arduboy.fillRect(56, 40, 72, itemsHeight, BLACK);
-    }
+    arduboy.printEx(0, 0, F(APP_TITLE));
+    arduboy.printEx(0, 6, F("TITLE SCREEN"));
 
-    /*  Items  */
-    ITEM_T *pItem = itemAry;
-    for (int i = 0; i < itemCount; i++, pItem++) {
-        arduboy.printEx(68 - (i == itemPos) * 4, i * 6 + 40, pItem->label);
-        if (pItem->func == onSound) {
-            drawTitleItemOnOff(arduboy.audio.enabled());
-        }
-    }
-    arduboy.fillRect2(56, itemPos * 6 + 40, 5, 5, WHITE);
-}
-
-static void drawTitleItemOnOff(bool on)
-{
-    arduboy.print((on) ? F(" ON") : F(" OFF"));
+    //arduboy.drawBitmap(0, 0, imgTitle, 128, 32, WHITE);
 }
 
 static void drawRecord(void)
 {
-    arduboy.clear();
-    arduboy.printEx(0, 0, F("RECORD"));
+    arduboy.printEx(34, 0, F("[ RECORD ]"));
+    arduboy.printEx(16, 10, F("ENDLESS"));
+    arduboy.printEx(16, 23, F("TIME"));
+    arduboy.printEx(22, 29, F("LIMITED"));
+    arduboy.printEx(16, 42, F("PUZZLE"));
+    arduboy.printEx(1, 52, F("PLAY TIME"));
+    arduboy.printEx(1, 58, F("ERASED DICE"));
+
+    arduboy.drawBitmap(88, 16, imgLblLevel, 19, 5, WHITE);
+    arduboy.drawBitmap(88, 32, imgLblChain, 17, 5, WHITE);
+
+    drawNumber(73, 10, record.endlessHiscore);
+    drawNumber(112, 16, record.endlessMaxLevel);
+    drawNumber(73, 26, record.limitedHiscore);
+    drawNumber(110, 32, record.limitedMaxChain);
+    drawNumber(73, 42, record.puzzleClearCount);
+    arduboy.print('/');
+    arduboy.print((record.puzzleClearCount < 50) ? 50 : 250);
+    drawTime(73, 52, record.playFrames);
+    drawNumber(73, 58, record.erasedDice);
+ 
+    arduboy.drawRect(-1, 6, 130, 45, WHITE);
 }
 
 static void drawCredit(void)
 {
-    arduboy.clear();
     const char *p = creditText;
     for (int i = 0; i < 8; i++) {
         uint8_t len = strnlen_P(p, 20);

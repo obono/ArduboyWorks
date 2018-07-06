@@ -5,7 +5,7 @@
 
 enum STATE_T {
     STATE_INIT = 0,
-    STATE_GAME,
+    STATE_PLAYING,
     STATE_OVER,
     STATE_LEAVE,
 };
@@ -33,7 +33,14 @@ enum OBJ_MODE
 #define FIELD_H     5
 #define DEPTH_MAX   (FPS * 8)
 #define DEPTH_PIXEL 4
+#define LEVEL_MAX   99
 #define CHAIN_MAX   999
+#define SCORE_MAX   9999999
+
+#define COUNT_DICE_INITIAL      15
+#define FRAMES_3MINUTES         (FPS * 60 * 3)
+#define VANISH_FLASH_FRAMES_MAX 6
+#define SHOW_CHAIN_FRAMES_MAX   (FPS * 5)
 
 /*  Typedefs  */
 
@@ -48,25 +55,34 @@ typedef struct {
 
 /*  Local Functions  */
 
-static void updateField();
+static void initTrialField(void);
+static void initPuzzleField(void);
+static void updateField(void);
 static void updateObject(OBJ_T *pObj);
-static OBJ_T *chooseFloor(void);
+static OBJ_T *pickFloorObject(void);
 static void setDie(OBJ_T *pDie, OBJ_MODE mode);
-static inline void rotateDie(OBJ_T *pDie, int vx, int vy);
+
 static void moveCursor(void);
+static void rotateDie(OBJ_T *pDie, int vx, int vy);
 static void judgeVanish(int x, int y);
 static bool judgeHappyOne(int x, int y);
 static int  judgeLinkedDice(int x, int y, uint16_t type, uint16_t *pMaxChain);
 static int  vanishHappyOne(void);
 static void vanishLinkedDice(uint16_t chain);
+static void vanishDie(OBJ_T *pObj, uint16_t chain);
+
+static void setLevel(int level);
+static bool isGameOver(void);
+static void checkHiscore(void);
 
 static void drawField(void);
 static void drawObject(int x, int y, OBJ_T obj);
-static inline void drawFloor(int16_t dx, int16_t dy);
-static inline void drawDie(int16_t dx, int16_t dy, uint16_t type, uint16_t rotate, boolean isWhite);
-static inline void drawObjectBitmap(int16_t x, int16_t y, int id, uint8_t c);
+static void drawFloor(int16_t dx, int16_t dy);
+static void drawDie(int16_t dx, int16_t dy, uint16_t type, uint16_t rotate, boolean isWhite);
+static void drawObjectBitmap(int16_t x, int16_t y, int id, uint8_t c);
 static void drawCursor(void);
 static void drawStrings(void);
+static void drawLargeLabel(void);
 
 /*  Local Variables  */
 
@@ -98,25 +114,31 @@ PROGMEM static const uint8_t dieRotateMap[6 * 4 * 4] = {
 };
 
 PROGMEM static const uint8_t imgObjIdMap[6 * 2] = {
-     IMG_OBJ_DIE_W_1,  IMG_OBJ_DIE_W_1,     IMG_OBJ_DIE_W_2A, IMG_OBJ_DIE_W_2B,
-     IMG_OBJ_DIE_W_3A, IMG_OBJ_DIE_W_3B,    IMG_OBJ_DIE_W_4,  IMG_OBJ_DIE_W_4,
-     IMG_OBJ_DIE_W_5,  IMG_OBJ_DIE_W_5,     IMG_OBJ_DIE_W_6A, IMG_OBJ_DIE_W_6B,
-};
-
-PROGMEM static const byte soundScore[] = {
-    0x90, 80, 0, 20, 0x90, 84, 0, 40, 0x90, 88, 0, 40, 0x80, 0xF0
+     IMG_OBJ_DIE_W_1,  IMG_OBJ_DIE_W_1,  // 1
+     IMG_OBJ_DIE_W_2A, IMG_OBJ_DIE_W_2B, // 2
+     IMG_OBJ_DIE_W_3A, IMG_OBJ_DIE_W_3B, // 3
+     IMG_OBJ_DIE_W_4,  IMG_OBJ_DIE_W_4,  // 4
+     IMG_OBJ_DIE_W_5,  IMG_OBJ_DIE_W_5,  // 5
+     IMG_OBJ_DIE_W_6A, IMG_OBJ_DIE_W_6B, // 6
 };
 
 static STATE_T  state = STATE_INIT;
 static OBJ_T    field[FIELD_H][FIELD_W];
 static uint8_t  vanishFlg[FIELD_H];
 
-static int8_t   cursorX, cursorY;
-static uint8_t  countDice;
-static uint8_t  vanishFlash;
-static uint16_t appearInterval;
-static uint32_t gameFrames;
 static uint32_t score;
+static uint32_t gameFrames;
+
+static int16_t  elaspedFrames;
+static uint16_t maxChain;
+static uint16_t currentChain;
+
+static int8_t   cursorX, cursorY;
+static int8_t   level, norm;
+static uint8_t  countDice, countValidDice;
+static uint8_t  countDiceMin, countDiceUsual, countDiceMax;
+static uint8_t  intervalDieUsual, intervalDieMax;
+static uint8_t  vanishFlashFrames, showChainFrames;
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -124,81 +146,134 @@ static uint32_t score;
 
 void initGame(void)
 {
-    OBJ_T floor;
-    floor.type = OBJ_TYPE_FLOOR;
-    floor.depth = DEPTH_MAX;
-    for (int y = 0; y < FIELD_H; y++) {
-        for (int x = 0; x < FIELD_W; x++) {
-            field[y][x] = floor;
-        }
-        vanishFlg[y] = 0;
-    }
-
-    countDice = 0;
-    for (int i = 0; i < 15/*TODO*/; i++) {
-        setDie(chooseFloor(), OBJ_MODE_NORMAL);
+    switch (gameMode) {
+    case GAME_MODE_ENDLESS:
+        initTrialField();
+        setLevel(1);
+        break;
+    case GAME_MODE_LIMITED:
+        initTrialField();
+        countDiceMin = 15;
+        countDiceUsual = 22;
+        countDiceMax = 30;
+        intervalDieUsual = FPS * 3;
+        intervalDieMax = FPS * 5;
+        break;
+    case GAME_MODE_PUZZLE:
+        initPuzzleField();
+        break;
     }
 
     cursorX = (FIELD_W - 1) / 2;
     cursorY = (FIELD_H - 1) / 2;
-    vanishFlash = 0;
-    appearInterval = FPS * 3; // TODO
+    vanishFlashFrames = 0;
+    elaspedFrames = 0;
     gameFrames = 0;
+    maxChain = 0;
+    showChainFrames = 0;
     score = 0;
-    state = STATE_GAME;
+    state = STATE_PLAYING;
+    isInvalid = true;
+    isRecordDirty = true;
 }
 
 MODE_T updateGame(void)
 {
-    handleDPad();
-    updateField();
-    moveCursor();
-
-    if (vanishFlash) vanishFlash--;
-    if (arduboy.buttonDown(A_BUTTON)) {
-        state = STATE_LEAVE;
+    if (state == STATE_PLAYING) {
+        handleDPad();
+        updateField();
+        moveCursor();
+        if (gameMode == GAME_MODE_ENDLESS) {
+            if (level < LEVEL_MAX && norm <= 0) setLevel(level + 1);
+        }
+        if (vanishFlashFrames > 0) vanishFlashFrames--;
+        if (showChainFrames > 0) showChainFrames--;
+        gameFrames++;
+        record.playFrames++;
+        if (isGameOver()) {
+            state = STATE_OVER;
+            checkHiscore();
+            writeRecord();
+        }
+        isInvalid = true;
     }
-    gameFrames++;
-    playFrames++;
 
+    if (arduboy.buttonDown(A_BUTTON)) { // TODO
+        state = STATE_LEAVE;
+        writeRecord();
+    }
     return (state == STATE_LEAVE) ? MODE_TITLE : MODE_GAME;
 }
 
 void drawGame(void)
 {
-    arduboy.clear();
-    drawField();
-    drawCursor();
-    drawStrings();
+    if (isInvalid) {
+        arduboy.clear();
+        drawField();
+        if (state == STATE_PLAYING) {
+            drawStrings();
+            drawCursor();
+        }
+        drawLargeLabel();
+        isInvalid = false;
+    }
 }
 
 /*---------------------------------------------------------------------------*/
 /*                             Control Functions                             */
 /*---------------------------------------------------------------------------*/
 
-static void updateField()
+static void initTrialField(void)
+{
+    for (int y = 0; y < FIELD_H; y++) {
+        for (int x = 0; x < FIELD_W; x++) {
+            OBJ_T *pObj = &field[y][x];
+            pObj->type = OBJ_TYPE_FLOOR;
+            pObj->depth = DEPTH_MAX;
+        }
+    }
+    countDice = countValidDice = 0;
+    for (int i = 0; i < COUNT_DICE_INITIAL; i++) {
+        setDie(pickFloorObject(), OBJ_MODE_NORMAL);
+    }
+    dprintln(F("Field initialized"));
+}
+
+static void initPuzzleField(void)
+{
+    // TODO
+    countDice = countValidDice = 0;
+    dprintln(F("Puzzle initialized"));
+}
+
+static void updateField(void)
 {
     for (int y = 0; y < FIELD_H; y++) {
         for (int x = 0; x < FIELD_W; x++) {
             updateObject(&field[y][x]);
         }
     }
-    if (countDice < 8 || countDice < 30 && --appearInterval == 0) {
-        setDie(chooseFloor(), OBJ_MODE_APPEAR);
-        appearInterval = FPS * 3; // TODO
+
+    if (gameMode != GAME_MODE_PUZZLE) {
+        if (elaspedFrames < intervalDieMax) elaspedFrames++;
+        if (countDice < countDiceMin ||
+                countDice < countDiceUsual && elaspedFrames >= intervalDieUsual ||
+                countDice < countDiceMax && elaspedFrames >= intervalDieMax) {
+            setDie(pickFloorObject(), OBJ_MODE_APPEAR);
+            elaspedFrames = min(elaspedFrames, 0);
+        }
     }
 }
 
 static void updateObject(OBJ_T *pObj)
 {
-    if (pObj->type == OBJ_TYPE_FLOOR || pObj->type == OBJ_TYPE_BLANK) {
-        return;
-    }
+    if (pObj->type == OBJ_TYPE_FLOOR || pObj->type == OBJ_TYPE_BLANK) return;
     switch (pObj->mode) {
     case OBJ_MODE_APPEAR:
         pObj->depth -= 4;
         if (pObj->depth == 0) {
             pObj->mode = OBJ_MODE_NORMAL;
+            countValidDice++;
         }
         break;
     case OBJ_MODE_VANISH:
@@ -215,7 +290,7 @@ static void updateObject(OBJ_T *pObj)
     }
 }
 
-static OBJ_T *chooseFloor(void)
+static OBJ_T *pickFloorObject(void)
 {
     OBJ_T *pObj;
     do {
@@ -232,14 +307,7 @@ static void setDie(OBJ_T *pDie, OBJ_MODE mode)
     pDie->depth = (mode == OBJ_MODE_APPEAR) ? DEPTH_MAX : 0;
     pDie->chain = 0;
     countDice++;
-}
-
-static inline void rotateDie(OBJ_T *pDie, int vx, int vy)
-{
-    int idx = (pDie->type - OBJ_TYPE_1) * 16 + pDie->rotate * 4 + (vy * 3 + vx + 3) / 2;
-    int tmpId = pgm_read_byte(dieRotateMap + idx);
-    pDie->type = tmpId / 4 + OBJ_TYPE_1;
-    pDie->rotate = tmpId % 4;
+    if (mode != OBJ_MODE_APPEAR) countValidDice++;
 }
 
 static void moveCursor(void)
@@ -250,7 +318,13 @@ static void moveCursor(void)
         OBJ_T cursorObj = field[cursorY][cursorX];
         if (arduboy.buttonPressed(B_BUTTON) && cursorObj.type >= OBJ_TYPE_1 &&
                 cursorObj.type <= OBJ_TYPE_6 && cursorObj.depth == 0) {
-            if (padX != 0 && padY != 0) padY = 0; // TODO
+            if (padX != 0 && padY != 0) {
+                if (gameFrames % 2) {
+                    padX = 0;
+                } else {
+                    padY = 0;
+                }
+            }
             OBJ_T destObj = field[cursorY + padY][cursorX + padX];
             if (cursorObj.mode == OBJ_MODE_NORMAL && (
                     destObj.type == OBJ_TYPE_FLOOR ||
@@ -274,6 +348,14 @@ static void moveCursor(void)
     }
 }
 
+static void rotateDie(OBJ_T *pDie, int vx, int vy)
+{
+    int idx = (pDie->type - OBJ_TYPE_1) * 16 + pDie->rotate * 4 + (vy * 3 + vx + 3) / 2;
+    int tmpId = pgm_read_byte(dieRotateMap + idx);
+    pDie->type = tmpId / 4 + OBJ_TYPE_1;
+    pDie->rotate = tmpId % 4;
+}
+
 static void judgeVanish(int x, int y)
 {
     memset(vanishFlg, 0, FIELD_H);
@@ -282,16 +364,24 @@ static void judgeVanish(int x, int y)
         if (judgeHappyOne(x, y)) {
             int link = vanishHappyOne();
             score += link;
+            dprint(F("Happy one "));
+            dprintln(link);
         }
     } else {
-        uint16_t maxChain;
-        int link = judgeLinkedDice(x, y, die.type, &maxChain);
+        uint16_t chain;
+        int link = judgeLinkedDice(x, y, die.type, &chain);
         if (link >= die.type) {
-            if (maxChain < CHAIN_MAX) maxChain++;
-            vanishLinkedDice(maxChain);
-            score += die.type * link * maxChain;
+            if (chain < CHAIN_MAX) chain++;
+            vanishLinkedDice(chain);
+            score += die.type * link * chain;
+            maxChain = max(maxChain, chain);
+            dprint(F("Valnish "));
+            dprint(die.type * link);
+            dprint(F(" x "));
+            dprintln(chain);
         }
     }
+    score = min(score, SCORE_MAX);
 }
 
 static bool judgeHappyOne(int x, int y)
@@ -309,12 +399,12 @@ static bool judgeHappyOne(int x, int y)
     return false;
 }
 
-static int judgeLinkedDice(int x, int y, uint16_t type, uint16_t *pMaxChain)
+static int judgeLinkedDice(int x, int y, uint16_t type, uint16_t *pChain)
 {
     int link = 0, stackPos = 0;
     uint8_t stack[FIELD_W * FIELD_H + 1];
     uint8_t dir = 1;
-    *pMaxChain = 0;
+    *pChain = 0;
     while (stackPos >= 0) {
         if (x < 0 || x >= FIELD_W || y < 0 || y >= FIELD_H ||
             (vanishFlg[y] & 1 << x) || field[y][x].type != type) {
@@ -329,7 +419,7 @@ static int judgeLinkedDice(int x, int y, uint16_t type, uint16_t *pMaxChain)
             dir += 2;
         } else {
             link++;
-            *pMaxChain = max(*pMaxChain, field[y][x].chain);
+            *pChain = max(*pChain, field[y][x].chain);
             vanishFlg[y] |= 1 << x;
         }
         x += dir % 3 - 1;
@@ -349,14 +439,13 @@ static int vanishHappyOne(void)
             OBJ_T *pObj = &field[y][x];
             if (pObj->type == OBJ_TYPE_1 &&
                     (pObj->mode == OBJ_MODE_NORMAL || pObj->mode == OBJ_MODE_FIXED)) {
-                count++;
-                pObj->mode = OBJ_MODE_VANISH;
-                pObj->chain = 1;
+                vanishDie(pObj, 1);
                 vanishFlg[y] |= 1 << x;
+                count++;
             }
         }
     }
-    vanishFlash = 5;
+    vanishFlashFrames = VANISH_FLASH_FRAMES_MAX;
     return count;
 }
 
@@ -366,13 +455,72 @@ static void vanishLinkedDice(uint16_t chain)
         for (int x = 0; x < FIELD_W; x++) {
             if (vanishFlg[y] & 1 << x) {
                 OBJ_T *pObj = &field[y][x];
-                pObj->mode = OBJ_MODE_VANISH;
+                vanishDie(pObj, chain);
                 pObj->depth = (pObj->depth < DEPTH_MAX / 10) ? 0 : pObj->depth - DEPTH_MAX / 10;
-                pObj->chain = chain;
             }
         }
     }
-    vanishFlash = 5;
+    vanishFlashFrames = VANISH_FLASH_FRAMES_MAX;
+    currentChain = chain;
+    showChainFrames = SHOW_CHAIN_FRAMES_MAX;
+}
+
+static void vanishDie(OBJ_T *pObj, uint16_t chain) {
+    if (pObj->mode != OBJ_MODE_VANISH) {
+        record.erasedDice++;
+        norm--;
+        if (pObj->mode != OBJ_MODE_APPEAR) countValidDice--;
+    }
+    pObj->mode = OBJ_MODE_VANISH;
+    pObj->chain = chain;
+}
+
+static void setLevel(int newLevel)
+{
+    level = newLevel;
+    if (level == 1) norm = 0;
+
+    uint8_t grade = level / 5;
+    uint8_t gradeStep = level % 5;
+    countDiceMin = min(12 + grade + gradeStep, 28);
+    countDiceUsual = min(18 + grade * 2, 29) + gradeStep;
+    countDiceMax = 35;
+    intervalDieUsual = max(FPS * 4 - grade * 12 - gradeStep * 16, FPS / 2);
+    intervalDieMax = FPS * 6 - grade * 5;
+    norm += grade * 2 + 6;
+    elaspedFrames = min(FPS * (grade - 10) / 2, 0);
+    if (gradeStep == 0) elaspedFrames -= FPS * 4;
+    dprint(F("Level "));
+    dprintln(level);
+}
+
+static bool isGameOver(void)
+{
+    switch (gameMode) {
+    case GAME_MODE_ENDLESS:
+        return (countValidDice >= FIELD_H * FIELD_W);
+    case GAME_MODE_LIMITED:
+        return (gameFrames >= FRAMES_3MINUTES);
+    case GAME_MODE_PUZZLE:
+        return false;
+    }
+}
+
+static void checkHiscore(void)
+{
+    if (gameMode == GAME_MODE_ENDLESS) {
+        if (record.endlessHiscore < score) {
+            record.endlessHiscore = score;
+            record.endlessMaxLevel = level;
+            dprintln(F("New record! (Endless)"));
+        }
+    } else if (gameMode == GAME_MODE_LIMITED) {
+        if (record.limitedHiscore < score) {
+            record.limitedHiscore = score;
+            record.limitedMaxChain = maxChain;
+            dprintln(F("New record! (Time Limited)"));
+        }
+    }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -386,26 +534,25 @@ static void drawField(void)
             drawObject(x, y, field[y][x]);
         }
     }
+    arduboy.fillRect(106, 0, 4, HEIGHT, BLACK);
 }
 
 static void drawObject(int x, int y, OBJ_T obj)
 {
-    if (obj.type == OBJ_TYPE_BLANK) {
-        return;
-    }
+    if (obj.type == OBJ_TYPE_BLANK) return;
 
-    int dx = x * 11 + 21;
+    int dx = x * 11 + 24;
     int dy = y * 11 + 4;
-    bool isFlash = (vanishFlash > 0 && (vanishFlg[y] & 1 << x));
+    bool isFlash = (vanishFlashFrames > 0 && (vanishFlg[y] & 1 << x));
 
-    /* Floor */
+    /*  Floor  */
     if (obj.type == OBJ_TYPE_FLOOR || gameFrames % 2 && !isFlash && obj.depth >= DEPTH_MAX / 2 &&
             (obj.mode == OBJ_MODE_APPEAR || obj.mode == OBJ_MODE_VANISH)) {
         drawFloor(dx + DEPTH_PIXEL, dy + DEPTH_PIXEL);
         return;
     }
 
-    /* Die */
+    /*  Die  */
     int d = min(obj.depth / (DEPTH_MAX / (DEPTH_PIXEL + 1)), DEPTH_PIXEL);
     dx += d;
     dy += d;
@@ -417,13 +564,13 @@ static void drawObject(int x, int y, OBJ_T obj)
     }
 }
 
-static inline void drawFloor(int16_t dx, int16_t dy)
+static void drawFloor(int16_t dx, int16_t dy)
 {
     drawObjectBitmap(dx, dy, IMG_OBJ_FLOOR_MASK, BLACK);
     drawObjectBitmap(dx, dy, IMG_OBJ_FLOOR, WHITE);
 }
 
-static inline void drawDie(int16_t dx, int16_t dy, uint16_t type, uint16_t rotate, boolean isWhite)
+static void drawDie(int16_t dx, int16_t dy, uint16_t type, uint16_t rotate, boolean isWhite)
 {
     drawObjectBitmap(dx, dy, IMG_OBJ_DIE_MASK, BLACK);
     int imgId;
@@ -435,15 +582,14 @@ static inline void drawDie(int16_t dx, int16_t dy, uint16_t type, uint16_t rotat
     drawObjectBitmap(dx, dy, imgId, WHITE);
 }
 
-static inline void drawObjectBitmap(int16_t dx, int16_t dy, int imgId, uint8_t c)
+static void drawObjectBitmap(int16_t dx, int16_t dy, int imgId, uint8_t c)
 {
     arduboy.drawBitmap(dx, dy, imgObj[imgId], IMG_OBJ_W, IMG_OBJ_H, c);
 }
 
-
 static void drawCursor(void)
 {
-    int dx = cursorX * 11 + 19;
+    int dx = cursorX * 11 + 22;
     int dy = cursorY * 11 - 1;
     int imgId = gameFrames % 10;
     if (imgId >= 5) imgId = 10 - imgId;
@@ -454,13 +600,42 @@ static void drawCursor(void)
     if (obj.type >= OBJ_TYPE_1 && obj.type <= OBJ_TYPE_6) {
         drawDie(108, 0, obj.type, obj.rotate, false);
     }
+    arduboy.drawBitmap(109, 17, imgLblInfo, 13, 5, WHITE);
 }
 
 static void drawStrings(void)
 {
-    arduboy.setCursor(0, 0);
-    arduboy.print(score);
-    arduboy.setCursor(0, 59);
-    arduboy.print(gameFrames / FPS);
+    /*  Score  */
+    arduboy.drawBitmap(0, 6, imgLblScore, 19, 5, WHITE);
+    drawNumber(0, 0, score);
+
+    if (gameMode == GAME_MODE_LIMITED) {
+        /*  Time  */
+        arduboy.drawBitmap(0, 53, imgLblTime, 13, 5, WHITE);
+        drawTime(0, 59, FRAMES_3MINUTES - gameFrames);
+    } else {
+        /*  Level  */
+        arduboy.drawBitmap(0, 53, imgLblLevel, 19, 5, WHITE);
+        drawNumber(0, 59, level);
+    }
+
+    if (state == STATE_PLAYING && showChainFrames > 0) {
+        /*  Chain  */
+        arduboy.drawBitmap(111, 53, imgLblChain, 17, 5, WHITE);
+        if (showChainFrames / 4 % 2) {
+            int16_t x = 111 + ((currentChain < 100) + (currentChain < 10)) * 6;
+            drawNumber(x, 59, currentChain);
+        }
+    }
 }
 
+static void drawLargeLabel(void)
+{
+#if 0
+    arduboy.setTextColor(BLACK);
+    arduboy.setTextSize(2);
+    arduboy.printEx(10, 26, F("GAME OVER"));
+    arduboy.setTextColor(WHITE);
+    arduboy.setTextSize(1);
+#endif
+}

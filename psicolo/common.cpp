@@ -4,16 +4,11 @@
 
 #define EEPROM_ADDR_BASE    896
 #define EEPROM_SIGNATURE    0x054E424FUL // "OBN\x05"
-#define EEPROM_INIT_CHECKSUM ((EEPROM_SIGNATURE & 0xFFFF) + (EEPROM_SIGNATURE >> 16) * 3)
-
-#define EEPROM_ADDR_DATA    (EEPROM_ADDR_BASE + 4)
 
 #define PAD_REPEAT_DELAY    15
 #define PAD_REPEAT_INTERVAL 5
 
-#define calcCheckSum32(var, factor)  (((var) & 0xFFFF) * (factor) + ((var) >> 16) * ((factor) + 2))
-
-enum RECORD_T {
+enum RECORD_STATE_T {
     RECORD_NOT_READ = 0,
     RECORD_INITIAL,
     RECORD_STORED,
@@ -22,14 +17,45 @@ enum RECORD_T {
 /*  Global Variables  */
 
 MyArduboy   arduboy;
-RECORD_T    recordState = RECORD_NOT_READ;
-bool        isDirty = false;
-
-uint32_t    playFrames;
-uint32_t    shotCount;
-uint32_t    bombCount;
-uint32_t    killCount;
+RECORD_T    record;
+bool        isRecordDirty;
 int8_t      padX, padY, padRepeatCount;
+GAME_MODE_T gameMode = GAME_MODE_ENDLESS;
+bool        isInvalid;
+
+PROGMEM const uint8_t imgLblScore[19] = { // 19x5
+    0x16, 0x15, 0x0D, 0x00, 0x1E, 0x11, 0x11, 0x00, 0x1E, 0x11, 0x0F, 0x00, 0x1F, 0x05, 0x1B, 0x00, 0x1F, 0x15, 0x11,
+};
+
+PROGMEM const uint8_t imgLblChain[17] = { // 17x5
+    0x1E, 0x11, 0x11, 0x00, 0x1F, 0x04, 0x1F, 0x00, 0x1E, 0x09, 0x1F, 0x00, 0x1F, 0x00, 0x1E, 0x01, 0x1F,
+};
+
+PROGMEM const uint8_t imgLblLevel[19] = { // 17x5
+    0x1F, 0x10, 0x10, 0x00, 0x1F, 0x15, 0x11, 0x00, 0x1F, 0x10, 0x0F, 0x00, 0x1F, 0x15, 0x11, 0x00, 0x1F, 0x10, 0x10,
+};
+
+PROGMEM const uint8_t imgLblTime[13] = { // 13x5
+    0x01, 0x1F, 0x01, 0x00, 0x1F, 0x00, 0x1F, 0x03, 0x1F, 0x00, 0x1F, 0x15, 0x11,
+};
+
+PROGMEM const uint8_t imgLblInfo[13] = { // 13x5
+    0x1F, 0x00, 0x1E, 0x01, 0x1F, 0x00, 0x1F, 0x05, 0x01, 0x00, 0x1E, 0x11, 0x0F,
+};
+
+/*  Local Functions  */
+
+static uint16_t calcCheckSum();
+
+static void     eepSeek(int addr);
+static uint8_t  eepRead8(void);
+static uint16_t eepRead16(void);
+static uint32_t eepRead32(void);
+static void     eepReadBlock(void *p, size_t n);
+static void     eepWrite8(uint8_t val);
+static void     eepWrite16(uint16_t val);
+static void     eepWrite32(uint32_t val);
+static void     eepWriteBlock(const void *p, size_t n);
 
 /*  Local Variables  */
 
@@ -41,8 +67,8 @@ PROGMEM static const byte soundClick[] = {
     0x90, 74, 0, 20, 0x80, 0xF0 // arduboy.tone2(587, 20);
 };
 
-static int16_t  eepAddr;
-static uint16_t encPiecesCheckSum;
+static RECORD_STATE_T   recordState = RECORD_NOT_READ;
+static int16_t          eepAddr;
 
 /*---------------------------------------------------------------------------*/
 /*                             Common Functions                              */
@@ -53,63 +79,53 @@ void readRecord(void)
     bool isVerified = false;
     eepSeek(EEPROM_ADDR_BASE);
     if (eepRead32() == EEPROM_SIGNATURE) {
-        uint16_t checkSum = EEPROM_INIT_CHECKSUM;
-        for (int i = 0; i < 8; i++) {
-            checkSum += eepRead16() * (i * 2 + 5);
-        }
-        isVerified = (eepRead16() == checkSum);
+        eepReadBlock(&record, sizeof(record));
+        isVerified = (eepRead16() == calcCheckSum());
     }
 
     if (isVerified) {
-        killCount = eepRead32();
-        shotCount = eepRead32();
-        bombCount = eepRead32();
-        playFrames = eepRead32();
         recordState = RECORD_STORED;
+        isRecordDirty = false;
         dprintln(F("Read record from EEPROM"));
-        dprint(F("playFrames="));
-        dprintln(playFrames);
     } else {
-        killCount = 0;
-        shotCount = 0;
-        bombCount = 0;
-        playFrames = 0;
+        memset(&record, 0, sizeof(record));
         recordState = RECORD_INITIAL;
-        isDirty = true;
+        isRecordDirty = true;
     }
     setSound(arduboy.audio.enabled()); // Load Sound ON/OFF
 }
 
 void writeRecord(void)
 {
+    if (!isRecordDirty) return;
     if (recordState == RECORD_INITIAL) {
         eepSeek(EEPROM_ADDR_BASE);
         eepWrite32(EEPROM_SIGNATURE);
     } else {
-        eepSeek(EEPROM_ADDR_DATA);
+        eepSeek(EEPROM_ADDR_BASE + 4);
     }
-    eepWrite32(killCount);
-    eepWrite32(shotCount);
-    eepWrite32(bombCount);
-    eepWrite32(playFrames);
-
-    uint16_t checkSum = EEPROM_INIT_CHECKSUM;
-    checkSum += calcCheckSum32(killCount, 5);
-    checkSum += calcCheckSum32(shotCount, 9);
-    checkSum += calcCheckSum32(bombCount, 13);
-    checkSum += calcCheckSum32(playFrames, 17);
-    eepWrite16(checkSum);
-
+    eepWriteBlock(&record, sizeof(record));
+    eepWrite16(calcCheckSum());
     arduboy.audio.saveOnOff(); // Save Sound ON/OFF
     recordState = RECORD_STORED;
-    isDirty = false;
+    isRecordDirty = false;
     dprintln(F("Write record to EEPROM"));
+}
+
+static uint16_t calcCheckSum()
+{
+    uint16_t checkSum = (EEPROM_SIGNATURE & 0xFFFF) + (EEPROM_SIGNATURE >> 16) * 3;
+    uint16_t *p = (uint16_t *) &record;
+    for (int i = 0; i < sizeof(record) / 2; i++) {
+        checkSum += *p++ * (i * 2 + 5);
+    }
+    return checkSum;
 }
 
 void clearRecord(void)
 {
     eepSeek(EEPROM_ADDR_BASE);
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < (sizeof(record) + 6) / 4; i++) {
         eepWrite32(0);
     }
     recordState = RECORD_INITIAL;
@@ -131,6 +147,36 @@ void handleDPad(void)
         }
     } else {
         padRepeatCount = 0;
+    }
+}
+
+void drawNumber(int16_t x, int16_t y, int32_t value)
+{
+    arduboy.setCursor(x, y);
+    arduboy.print(value);
+}
+
+void drawTime(int16_t x, int16_t y, uint32_t frames)
+{
+    uint16_t h = frames / (FPS * 3600UL);
+    uint8_t m = frames / (FPS * 60) % 60;
+    uint8_t s = frames / FPS % 60;
+    arduboy.setCursor(x, y);
+    if (h == 0 && m == 0) {
+        if (s < 10) arduboy.print('0');
+        arduboy.print(s);
+        arduboy.print('.');
+        arduboy.print(frames / (FPS / 10) % 10);
+    } else {
+        if (h > 0) {
+            arduboy.print(h);
+            arduboy.print(':');
+            if (m < 10) arduboy.print('0');
+        }
+        arduboy.print(m);
+        arduboy.print(':');
+        if (s < 10) arduboy.print('0');
+        arduboy.print(s);
     }
 }
 

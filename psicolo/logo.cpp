@@ -2,7 +2,7 @@
 
 /*  Defines  */
 
-#define COUNTER_MAX     ((FPS) * 2)  // 2 secs 
+#define COUNTER_MAX     (FPS * 2)  // 2 secs 
 #define SIGNAL_PTN      0xEEE3AA3AU  // "OBN" in Morse code
 
 /*  Local Variables  */

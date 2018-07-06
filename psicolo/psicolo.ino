@@ -91,9 +91,7 @@ void loop()
 #ifdef DEBUG
     dbgCheckSerialRecv();
 #endif
-    if (!(arduboy.nextFrame())) {
-        return;
-    }
+    if (!(arduboy.nextFrame())) return;
     MODE_T nextMode = callUpdateFunc(mode);
     callDrawFunc(mode);
 #ifdef DEBUG
