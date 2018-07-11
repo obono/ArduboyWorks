@@ -6,8 +6,8 @@
 
 //#define DEBUG
 #define FPS             40
-#define APP_TITLE       "PSI-COLO"
-#define APP_INFO        "OBN-Y05 VER 0.02"
+#define APP_TITLE       "PSI COLO"
+#define APP_INFO        "OBN-Y05 VER 0.03"
 #define APP_RELEASED    "JULY 2018"
 
 enum MODE_T {
@@ -29,12 +29,12 @@ typedef struct {
     uint32_t    endlessMaxLevel : 8;
     uint32_t    limitedHiscore : 24;
     uint32_t    limitedMaxChain : 8;
-    uint8_t     puzzleClearFlag[7];
-    uint8_t     puzzleClearCount;
     uint32_t    playFrames;
     uint32_t    erasedDice;
-    uint16_t    dummy;
-} RECORD_T;
+    uint8_t     puzzleClearFlag[5];
+    uint8_t     puzzleClearCount;
+    uint8_t     dummy[4];
+} RECORD_T; // sizeof(RECORD_T) must be 26
 
 /*  Global Functions (Common)  */
 
@@ -69,6 +69,7 @@ void    setMenuCoords(int8_t x, int8_t y, int8_t w, int8_t h, bool f, bool s);
 void    setMenuItemPos(int8_t pos);
 void    handleMenu(void);
 void    drawMenuItems(bool isForced);
+void    drawSoundEnabled(void);
 
 /*  Global Functions (Each Mode)  */
 
@@ -93,11 +94,13 @@ extern int8_t   padX, padY, padRepeatCount;
 extern GAME_MODE_T gameMode;
 extern bool     isInvalid;
 
-extern const uint8_t imgLblScore[];
-extern const uint8_t imgLblChain[];
-extern const uint8_t imgLblLevel[];
-extern const uint8_t imgLblTime[];
-extern const uint8_t imgLblInfo[];
+extern const uint8_t imgLabelScore[];
+extern const uint8_t imgLabelChain[];
+extern const uint8_t imgLabelLevel[];
+extern const uint8_t imgLabelTime[];
+extern const uint8_t imgLabelInfo[];
+extern const uint8_t imgLabelStep[];
+extern const uint8_t imgLabelIssue[];
 
 /*  For Debugging  */
 

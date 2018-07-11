@@ -82,6 +82,7 @@ void setup()
 #endif
     arduboy.beginNoLogo();
     arduboy.setFrameRate(FPS);
+    arduboy.setTextColor(WHITE, WHITE);
     mode = MODE_LOGO;
     callInitFunc(mode);
 }

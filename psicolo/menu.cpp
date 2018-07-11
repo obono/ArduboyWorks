@@ -15,7 +15,7 @@ typedef struct
 /*  Local Variables  */
 
 PROGMEM static const uint8_t imgSound[14] = {
-    0x3E, 0x47, 0x6B, 0x6D, 0x6D, 0x41, 0x3E, 0x00, 0x1C, 0x1C, 0x00, 0x1C, 0x3E, 0x7F,
+    0x3E, 0x47, 0x6B, 0x6D, 0x6D, 0x41, 0x3E, 0x00, 0x1C, 0x1C, 0x00, 0x1C, 0x3E, 0x7F
 };
 
 PROGMEM static const uint8_t imgSoundOffOn[2][6] = {
@@ -92,8 +92,6 @@ void handleMenu(void)
         setSound(!arduboy.audio.enabled());
         playSoundClick();
         isInvalidMenu = true;
-        dprint(F("isSoundEnable="));
-        dprintln(arduboy.audio.enabled());
     }
     if (arduboy.buttonDown(B_BUTTON)) {
         menuItemAry[menuItemPos].func();
@@ -112,10 +110,13 @@ void drawMenuItems(bool isForced)
         arduboy.printEx(menuX + 12 - (i == menuItemPos) * 4, menuY + i * 6, pItem->label);
     }
     arduboy.fillRect2(menuX, menuY + menuItemPos * 6, 5, 5, WHITE);
-    if (isControlSound) {
-        arduboy.fillRect2(106, 56, 22, 8, BLACK);
-        arduboy.drawBitmap(106, 56, imgSound, 14, 8, WHITE);
-        arduboy.drawBitmap(121, 56, imgSoundOffOn[arduboy.audio.enabled()], 6, 8, WHITE);
-    }
+    if (isControlSound) drawSoundEnabled();
     isInvalidMenu = false;
+}
+
+void drawSoundEnabled(void)
+{
+    arduboy.fillRect2(106, 56, 22, 8, BLACK);
+    arduboy.drawBitmap(107, 57, imgSound, 14, 7, WHITE);
+    arduboy.drawBitmap(122, 57, imgSoundOffOn[arduboy.audio.enabled()], 6, 7, WHITE);
 }
