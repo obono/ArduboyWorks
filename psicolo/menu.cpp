@@ -89,7 +89,7 @@ void handleMenu(void)
         dprintln(menuItemPos);
     }
     if (isControlSound && arduboy.buttonDown(A_BUTTON)) {
-        setSound(!arduboy.audio.enabled());
+        setSound(!arduboy.isAudioEnabled());
         playSoundClick();
         isInvalidMenu = true;
     }

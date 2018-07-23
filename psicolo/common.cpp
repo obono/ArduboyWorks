@@ -100,7 +100,7 @@ void readRecord(void)
         recordState = RECORD_INITIAL;
         isRecordDirty = true;
     }
-    setSound(arduboy.audio.enabled()); // Load Sound ON/OFF
+    setSound(arduboy.isAudioEnabled()); // Load Sound ON/OFF
 }
 
 void writeRecord(void)
@@ -194,11 +194,7 @@ void drawTime(int16_t x, int16_t y, uint32_t frames)
 
 void setSound(bool on)
 {
-    if (on) {
-        arduboy.audio.on();
-    } else {
-        arduboy.audio.off();
-    }
+    arduboy.setAudioEnabled(on);
     dprint(F("audioEnabled="));
     dprintln(on);
 }

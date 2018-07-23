@@ -7,7 +7,7 @@
 //#define DEBUG
 #define FPS             40
 #define APP_TITLE       "PSI COLO"
-#define APP_INFO        "OBN-Y05 VER 0.03"
+#define APP_INFO        "OBN-Y05 VER 0.04"
 #define APP_RELEASED    "JULY 2018"
 
 enum MODE_T {
@@ -33,8 +33,7 @@ typedef struct {
     uint32_t    erasedDice;
     uint8_t     puzzleClearFlag[5];
     uint8_t     puzzleClearCount;
-    uint8_t     dummy[4];
-} RECORD_T; // sizeof(RECORD_T) must be 26
+} RECORD_T; // sizeof(RECORD_T) is 22 bytes
 
 /*  Global Functions (Common)  */
 

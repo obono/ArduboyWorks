@@ -35,6 +35,7 @@ enum OBJ_MODE
 #define FIELD_W     7
 #define FIELD_H     5
 #define DEPTH_MAX   (FPS * 8)
+#define GRID_PIXEL  11
 #define DEPTH_PIXEL 4
 #define LEVEL_MAX   99
 #define CHAIN_MAX   999
@@ -83,6 +84,7 @@ static int  judgeLinkedDice(int x, int y, uint16_t type, uint16_t *pMaxChain);
 static int  vanishHappyOne(void);
 static void vanishLinkedDice(uint16_t chain);
 static void vanishDie(OBJ_T *pObj, uint16_t chain);
+static void setVanishEffect(uint8_t type);
 
 static void setLevel(int level);
 static bool isTimeToBlinkFrame(void);
@@ -98,8 +100,8 @@ static void onMenuSelectIssue(void);
 
 static void drawField(void);
 static void drawObject(int x, int y);
+static bool drawFloorOrBlank(int x, int y, int g);
 static bool checkNeiborDepth(OBJ_T *pObj);
-static void drawFloor(int16_t dx, int16_t dy, bool isDrawMask);
 static void drawDie(int16_t dx, int16_t dy, uint16_t type, uint16_t rotate, boolean isWhite);
 static void drawObjectBitmap(int16_t x, int16_t y, int id, uint8_t c);
 static void drawCursor(void);
@@ -146,6 +148,15 @@ PROGMEM static const uint8_t mapWhiteDieImgId[6 * 2] = {
      IMG_OBJ_DIE_W_6A, IMG_OBJ_DIE_W_6B, // 6
 };
 
+PROGMEM static const uint8_t tableLedRGB[6 * 3] = {
+    0x14, 0x14, 0x14, // 1 White
+    0x18, 0x18, 0x00, // 2 Yellow
+    0x04, 0x04, 0x1F, // 3 Blue
+    0x00, 0x1C, 0x1C, // 4 Cyan
+    0x00, 0x1F, 0x00, // 5 Green
+    0x1F, 0x04, 0x04, // 6 Pink
+};
+
 PROGMEM static const uint8_t imgMiniDie[6][5] = {
     { 0x1F, 0x1F, 0x1B, 0x1F, 0x1F }, // 1
     { 0x1F, 0x1D, 0x1F, 0x17, 0x1F }, // 2
@@ -155,19 +166,125 @@ PROGMEM static const uint8_t imgMiniDie[6][5] = {
     { 0x1F, 0x11, 0x1F, 0x11, 0x1F }, // 6
 };
 
-PROGMEM static const uint8_t puzzleData[BYTES_PER_ISSUE/* * COUNT_ISSUES*/] = { // TODO
+#ifdef DEBUG
+PROGMEM static const uint8_t puzzleData[BYTES_PER_ISSUE] = {
     0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFF, 0xFF, 0xFF, 0xBD, 0xFF, 0xE4, 0x93, 0xEF, 0xFD, 0xFF, 0xFF, 0x7F, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x03,
 };
+#else
+PROGMEM static const uint8_t puzzleData[BYTES_PER_ISSUE * COUNT_ISSUES] = {
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFF, 0xFF, 0xEF, 0xBD, 0xFF, 0x1F, 0x7C, 0xEF, 0xFD, 0x47, 0xE7, 0x7B, 0xEF, 0xFF, 0xFF, 0xDF, 0x7B, 0x02,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFE, 0xFF, 0xEF, 0xBD, 0xF7, 0x9F, 0x20, 0xEF, 0xBD, 0xFF, 0xFF, 0x7B, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x02,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFF, 0xFF, 0xFF, 0xBD, 0xFF, 0xE4, 0x93, 0xEF, 0xFD, 0xFF, 0xFF, 0x7F, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x03,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFF, 0xFF, 0xEF, 0xBD, 0xFF, 0xE8, 0x2B, 0xEF, 0xFD, 0xA7, 0xFF, 0x7B, 0xEF, 0xFF, 0xFF, 0xDF, 0x7B, 0x04,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFF, 0xFF, 0xEF, 0xBD, 0x9F, 0xFF, 0x13, 0xEF, 0xFD, 0xFF, 0xFF, 0x7B, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x02,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFE, 0xFF, 0xEF, 0xBD, 0xF7, 0xFF, 0x7F, 0xEF, 0x3D, 0x72, 0xFF, 0x7B, 0xEF, 0xFD, 0xF2, 0xDE, 0x7B, 0x06,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFF, 0x7B, 0xF4, 0xBD, 0xFF, 0xFF, 0xFF, 0xEF, 0xFD, 0x3F, 0xFE, 0x7F, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x05,
+    0xFE, 0xFF, 0xFF, 0xBF, 0xF7, 0x5F, 0xFC, 0xFB, 0xBD, 0xFF, 0xFF, 0xFC, 0xEF, 0xFD, 0x67, 0x3F, 0x7D, 0xEF, 0xFF, 0xFF, 0xFF, 0x7B, 0x04,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFE, 0xFF, 0xEB, 0xBD, 0xF7, 0xE7, 0x37, 0xEF, 0xBD, 0xFF, 0x5F, 0x78, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x04,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xBF, 0xFE, 0xF3, 0xBD, 0xF7, 0xFF, 0xFE, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x06,
+    0x3E, 0xFE, 0x7F, 0xBC, 0xF7, 0xFE, 0x7F, 0xEF, 0xBD, 0xF7, 0x3F, 0x78, 0xEF, 0xBD, 0xFD, 0x5F, 0x78, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x08,
+    0x3E, 0xFC, 0x2F, 0xBD, 0xF7, 0xFE, 0xFF, 0xFF, 0xBD, 0xF7, 0xED, 0xFF, 0xEF, 0xFD, 0xFF, 0x5F, 0x79, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x06,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xCC, 0xFB, 0xEF, 0xBD, 0xFF, 0x9F, 0x4A, 0xEF, 0xFD, 0xFB, 0xFE, 0x7B, 0x6F, 0xBE, 0xFF, 0xE1, 0x7B, 0x08,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0x7E, 0x06, 0xEF, 0xBD, 0x77, 0xFF, 0x7F, 0xEF, 0xBD, 0x9F, 0xDF, 0x7B, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x05,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFE, 0x7F, 0xEF, 0xBD, 0x87, 0xFF, 0xFF, 0xE2, 0xBD, 0xFF, 0xDF, 0x7B, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x09,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFE, 0xD2, 0xEA, 0xBD, 0xF7, 0xFF, 0x7F, 0xEF, 0xBD, 0xBF, 0xB6, 0x7A, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x0A,
+    0xE0, 0x7F, 0xFF, 0xBF, 0xF9, 0xFF, 0xFF, 0xFF, 0xBF, 0xF7, 0xFF, 0x7F, 0xEF, 0xFF, 0xFF, 0xFF, 0xFF, 0x8F, 0xFE, 0xF7, 0xFF, 0x37, 0x0E,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0xEF, 0x3D, 0xFB, 0xEC, 0xB3, 0xCF, 0xFE, 0xFF, 0xFF, 0xFF, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x08,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0xEF, 0x3D, 0xFB, 0xEC, 0xB3, 0xBF, 0xFD, 0xFF, 0xDF, 0xFF, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x12,
+    0xFE, 0x7F, 0xEF, 0xBD, 0xF7, 0xFF, 0x7F, 0xEF, 0xBD, 0x07, 0xFE, 0x7F, 0xEF, 0x7D, 0xF0, 0xFE, 0x7F, 0xEF, 0x81, 0xF7, 0xFE, 0x6F, 0x1C,
+    0xFF, 0xFF, 0xFF, 0xBF, 0xFF, 0x9F, 0xFE, 0xFF, 0xBD, 0xF9, 0xE4, 0xFF, 0xE9, 0xFF, 0xB7, 0xFF, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0x7B, 0x08,
+    0xFE, 0xFF, 0xFF, 0x3F, 0xF1, 0xE1, 0xFF, 0x9F, 0xBC, 0xFF, 0xFF, 0x5B, 0xEF, 0xFD, 0xFF, 0xD2, 0x7B, 0xEF, 0xFF, 0xF2, 0xDE, 0x7B, 0x08,
+    0xDE, 0xFB, 0xEF, 0xBD, 0xF7, 0xFE, 0xA7, 0xEF, 0xBD, 0xFF, 0x68, 0xAA, 0xEF, 0xBD, 0xFF, 0xEB, 0x7B, 0xEF, 0xBD, 0xFF, 0xDE, 0x7B, 0x08,
+    0x1E, 0xFE, 0xFF, 0xA1, 0xF7, 0xFF, 0xFF, 0xFF, 0xBD, 0xE7, 0xFF, 0xFF, 0xE8, 0xFD, 0xFF, 0xFF, 0x7F, 0xEF, 0xE5, 0xFF, 0x5F, 0x7A, 0x11,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFF, 0xFF, 0xFF, 0xBF, 0x17, 0x06, 0xBD, 0x48, 0xFD, 0xFF, 0xFF, 0xFF, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x08,
+    0xDE, 0xFB, 0xFF, 0xBD, 0xF7, 0xFE, 0x23, 0xF3, 0xBD, 0xFF, 0x88, 0xA8, 0xEF, 0xFD, 0x37, 0xEA, 0x7B, 0xEF, 0xFD, 0xFF, 0xDE, 0x7B, 0x0A,
+    0xDE, 0x7B, 0xE1, 0xBD, 0xF7, 0x3E, 0xFC, 0xFF, 0xFF, 0xF0, 0xFE, 0x78, 0xFF, 0xBD, 0x0F, 0xFF, 0xFF, 0xEF, 0xBD, 0x07, 0xDE, 0x7B, 0x0A,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFF, 0x07, 0xE2, 0xBD, 0xFF, 0xBF, 0xA9, 0xEF, 0xFD, 0xFF, 0xFF, 0x7F, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x08,
+    0xDE, 0xFF, 0xFF, 0xBD, 0xF7, 0xFE, 0xEF, 0xEF, 0xBD, 0xF7, 0xF0, 0x2F, 0xEF, 0xBD, 0x6F, 0xFF, 0x7B, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x07,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0x1E, 0xF6, 0xE8, 0xBD, 0xF7, 0x1F, 0x7E, 0xEF, 0xBD, 0x9F, 0x5F, 0x7A, 0xEF, 0xFD, 0xFF, 0xDF, 0x7B, 0x07,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xFF, 0xFF, 0xCB, 0xFF, 0xFD, 0xFF, 0x5F, 0x7F, 0xE5, 0xBD, 0xF7, 0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x0A,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0x1E, 0xFD, 0xFF, 0xBD, 0xF7, 0x3F, 0xFD, 0xEF, 0xBD, 0xFF, 0xFF, 0x7F, 0xEF, 0xBD, 0xFF, 0xE8, 0x7B, 0x06,
+    0xBE, 0xFC, 0xFF, 0xBD, 0xF7, 0xDF, 0xFB, 0xEF, 0xBD, 0xFF, 0xFE, 0x7F, 0xEF, 0xFD, 0xFF, 0xDF, 0x78, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x07,
+    0xDE, 0x7F, 0xFF, 0xBD, 0xF7, 0xFF, 0xCF, 0xFF, 0xBD, 0xF7, 0xD2, 0x4B, 0xEF, 0xFD, 0xFF, 0xF2, 0x7F, 0xEF, 0xFD, 0xF7, 0xDF, 0x7B, 0x07,
+    0xDE, 0x7B, 0xFF, 0x83, 0xF7, 0xFE, 0x7F, 0xF2, 0xBD, 0xF7, 0x7F, 0x7D, 0xEF, 0xBD, 0xFF, 0xDF, 0x79, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x09,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFE, 0xFF, 0xEA, 0xBD, 0xF7, 0x9F, 0x7E, 0xEF, 0xBD, 0x1F, 0xE2, 0x7B, 0xEF, 0xFD, 0xFF, 0xDF, 0x7B, 0x09,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xDF, 0xFD, 0xF4, 0xBD, 0xFF, 0xEB, 0xB7, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x08,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0x9E, 0x76, 0xEA, 0xBD, 0xF7, 0x00, 0x00, 0xEF, 0xBD, 0xFF, 0xFF, 0x7B, 0xEF, 0xFD, 0xFF, 0xDF, 0x7B, 0x0A,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0xFF, 0xFF, 0xFF, 0xBD, 0x1F, 0x83, 0x03, 0xE0, 0xFD, 0xFF, 0xFF, 0x7F, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x07,
+    0xDE, 0x7B, 0xEF, 0xBD, 0xF7, 0x9E, 0x1B, 0xEE, 0xBD, 0xF7, 0xFF, 0x03, 0xEF, 0xBD, 0xFF, 0xDF, 0x78, 0xEF, 0xBD, 0xF7, 0xDE, 0x7B, 0x0A,
+};
+#endif
 
 PROGMEM static const byte soundStart[] = {
     0x90, 72, 0, 100, 0x90, 74, 0, 100, 0x90, 76, 0, 100,
     0x90, 77, 0, 100, 0x90, 79, 0, 200, 0x80, 0xF0
 };
 
+PROGMEM static const byte soundOver[] = {
+    0x90, 55, 0, 120, 0x90, 54, 0, 140, 0x90, 53, 0, 160, 0x90, 52, 0, 180,
+    0x90, 51, 0, 200, 0x90, 50, 0, 220, 0x90, 49, 0, 240, 0x90, 48, 0, 260, 0x80, 0xF0
+};
+PROGMEM static const byte soundClear[] = {
+    0x90, 81, 0, 40, 0x80, 0, 40, 0x90, 86, 0, 40, 0x80, 0, 40,
+    0x90, 90, 0, 40, 0x80, 0, 40, 0xE0
+};
+
+PROGMEM static const byte soundAgain[] = {
+    0x90, 60, 0, 64, 0x80, 0, 64, 0xE0
+};
+
+PROGMEM static const byte soundVanishDieOne[] = {
+    0x90, 84, 0, 30, 0x90, 85, 0, 30, 0x90, 86, 0, 30, 0x90, 87, 0, 30,
+    0x90, 88, 0, 30, 0x90, 89, 0, 30, 0x90, 90, 0, 30, 0x90, 91, 0, 30, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundVanishDieTwo[] = {
+    0x90, 84, 0, 90, 0x90, 91, 0, 90, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundVanishDieThree[] = {
+    0x90, 93, 0, 75, 0x90, 84, 0, 75, 0x90, 89, 0, 75, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundVanishDieFour[] = {
+    0x90, 95, 0, 67, 0x90, 86, 0, 67, 0x90, 91, 0, 67, 0x90, 83, 0, 67, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundVanishDieFive[] = {
+    0x90, 88, 0, 63, 0x90, 91, 0, 63, 0x90, 100, 0, 63,
+    0x90, 84, 0, 63, 0x90, 96, 0, 63, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundVanishDieSix[] = {
+    0x90, 84, 0, 60, 0x90, 93, 0, 60, 0x90, 96, 0, 60,
+    0x90, 89, 0, 60, 0x90, 93, 0, 60, 0x90, 101, 0, 60, 0x80, 0xF0
+};
+
+PROGMEM static const byte * const soundVanishTable[] = {
+    soundVanishDieOne,  soundVanishDieTwo,  soundVanishDieThree,
+    soundVanishDieFour, soundVanishDieFive, soundVanishDieSix,
+};
+
+PROGMEM static const byte soundAppearDie[] = {
+    0x90, 64, 0, 20, 0x90, 56, 0, 18, 0x90, 60, 0, 16,
+    0x90, 52, 0, 14, 0x90, 56, 0, 12, 0x90, 48, 0, 10, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundLevelUp[] = {
+    0x90, 73, 0, 80, 0x90, 77, 0, 120, 0x80, 0, 80,
+    0x90, 73, 0, 80, 0x90, 77, 0, 120, 0x80, 0, 80,
+    0x90, 73, 0, 80, 0x90, 77, 0, 120, 0x80, 0, 80, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundTimeToBlink[] = {
+    0x90, 104, 0, 20, 0x80, 0, 20, 0x90, 104, 0, 20, 0x80, 0xF0
+};
+
 static STATE_T  state = STATE_INIT;
 static OBJ_T    field[FIELD_H][FIELD_W];
 static uint8_t  vanishFlg[FIELD_H];
 static uint16_t erasedEachDie[6];
+static uint8_t  ledRGB[3];
 
 static uint32_t score;
 static uint32_t gameFrames;
@@ -246,8 +363,12 @@ void drawGame(void)
     }
     if (state == STATE_MENU || state == STATE_RESULT) {
         drawMenuItems(false);
+        arduboy.setRGBled(0, 0, 0);
+    } else {
+        if (state == STATE_OVER) drawOverAnimation();
+        arduboy.setRGBled(ledRGB[0] * vanishFlashFrames, ledRGB[1] * vanishFlashFrames,
+                ledRGB[2] * vanishFlashFrames);
     }
-    if (state == STATE_OVER) drawOverAnimation();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -311,7 +432,10 @@ static void initTrialField(void)
 static void initPuzzleField(void)
 {
     countDice = 0;
-    const uint8_t *p = puzzleData; // +issue * BYTES_PER_ISSUE; // TODO
+    const uint8_t *p = puzzleData + issue * BYTES_PER_ISSUE;
+#ifdef DEBUG
+    p = puzzleData;
+#endif
     uint16_t buffer = 0, bits = 0;
     for (int y = 0; y < FIELD_H; y++) {
         for (int x = 0; x < FIELD_W; x++) {
@@ -336,10 +460,20 @@ static void initPuzzleField(void)
                 countDice++;
             } else {
                 pObj->type = (data == 30) ? OBJ_TYPE_BLANK : OBJ_TYPE_FLOOR;
+                pObj->rotate = 0;
                 pObj->depth = DEPTH_MAX;
             }
             buffer >>= 5;
             bits -= 5;
+        }
+    }
+    for (int y = 1; y < FIELD_H - 1; y++) {
+        for (int x = 1; x < FIELD_W - 1; x++) {
+            if (field[y][x].type == OBJ_TYPE_BLANK &&
+                field[y - 1][x].type != OBJ_TYPE_BLANK && field[y + 1][x].type != OBJ_TYPE_BLANK &&
+                field[y][x - 1].type != OBJ_TYPE_BLANK && field[y][x + 1].type != OBJ_TYPE_BLANK) {
+                field[y][x].rotate = 1;
+            }
         }
     }
     countValidDice = countDice;
@@ -355,18 +489,24 @@ static void updateGamePlaying(void)
     if (dbgRecvChar == 'l') norm = 0;
     if (dbgRecvChar == 'q') field[cursorY][cursorX].chain = CHAIN_MAX;
 #endif
-    handleDPad();
-    updateField();
-    moveCursor();
-    if (gameMode == GAME_MODE_ENDLESS) {
-        if (level < LEVEL_MAX && norm <= 0) setLevel(level + 1);
-    } else if (gameMode == GAME_MODE_LIMITED) {
-        if (isTimeToBlinkFrame()) blinkFrameFrames = BLINK_FRAME_FRAMES_MAX;
-    }
     if (vanishFlashFrames > 0) vanishFlashFrames--;
     if (blinkFrameFrames > 0) blinkFrameFrames--;
     if (blinkChainFrames > 0) blinkChainFrames--;
     if (blinkLevelFrames > 0) blinkLevelFrames--;
+    handleDPad();
+    updateField();
+    moveCursor();
+    if (gameMode == GAME_MODE_ENDLESS) {
+        if (level < LEVEL_MAX && norm <= 0) {
+            setLevel(level + 1);
+            arduboy.playScore2(soundLevelUp, 2);
+        }
+    } else if (gameMode == GAME_MODE_LIMITED) {
+        if (isTimeToBlinkFrame()) {
+            arduboy.playScore2(soundTimeToBlink, 2);
+            blinkFrameFrames = BLINK_FRAME_FRAMES_MAX;
+        }
+    }
     gameFrames++;
     record.playFrames++;
     blinkFlg = !blinkFlg;
@@ -386,6 +526,8 @@ static void updateGameOver(void)
 {
     if (overAnimFrames > 0) {
         overAnimFrames--;
+        if (vanishFlashFrames > 0) vanishFlashFrames--;
+        if (gameMode == GAME_MODE_PUZZLE && overAnimFrames == 0) arduboy.stopScore2();
     } else if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
         if (gameMode == GAME_MODE_PUZZLE) {
             state = STATE_ISSUES;
@@ -410,7 +552,7 @@ static void updateGameIssues(void)
         }
     }
     if (arduboy.buttonDown(A_BUTTON)) {
-        setSound(!arduboy.audio.enabled());
+        setSound(!arduboy.isAudioEnabled());
         playSoundClick();
         isInvalid = true;
     }
@@ -438,6 +580,7 @@ static void updateField(void)
                 countDice < countDiceUsual && elaspedFrames >= intervalDieUsual ||
                 countDice < countDiceMax && elaspedFrames >= intervalDieMax) {
             setDie(pickFloorObject(), OBJ_MODE_APPEAR);
+            arduboy.playScore2(soundAppearDie, 4);
             elaspedFrames = min(elaspedFrames, 0);
         }
     }
@@ -543,6 +686,7 @@ static void judgeVanish(int x, int y)
     if (die.type == OBJ_TYPE_1) {
         if (judgeHappyOne(x, y)) {
             int link = vanishHappyOne();
+            setVanishEffect(OBJ_TYPE_1);
             score += link;
             dprint(F("Happy one "));
             dprintln(link);
@@ -553,6 +697,7 @@ static void judgeVanish(int x, int y)
         if (link >= die.type) {
             if (chain < CHAIN_MAX) chain++;
             vanishLinkedDice(chain);
+            setVanishEffect(die.type);
             score += (uint32_t) die.type * link * chain;
             maxChain = max(maxChain, chain);
             dprint(F("Valnish "));
@@ -625,7 +770,6 @@ static int vanishHappyOne(void)
             }
         }
     }
-    vanishFlashFrames = VANISH_FLASH_FRAMES_MAX;
     return count;
 }
 
@@ -640,7 +784,6 @@ static void vanishLinkedDice(uint16_t chain)
             }
         }
     }
-    vanishFlashFrames = VANISH_FLASH_FRAMES_MAX;
     currentChain = chain;
     blinkChainFrames = BLINK_CHAIN_FRAMES_MAX;
 }
@@ -654,6 +797,14 @@ static void vanishDie(OBJ_T *pObj, uint16_t chain) {
     }
     pObj->mode = OBJ_MODE_VANISH;
     pObj->chain = chain;
+}
+
+static void setVanishEffect(uint8_t type)
+{
+    int offset = type - OBJ_TYPE_1;
+    arduboy.playScore2(pgm_read_word(soundVanishTable + offset), 3);
+    memcpy_P(ledRGB, tableLedRGB + offset * 3, 3);
+    vanishFlashFrames = VANISH_FLASH_FRAMES_MAX;
 }
 
 static void setLevel(int newLevel)
@@ -706,6 +857,7 @@ static bool isGameOver(void)
                 record.endlessMaxLevel = level;
                 dprintln(F("New record! (Endless)"));
             }
+            arduboy.playScore2(soundOver, 1);
             return true;
         }
         return false;
@@ -717,6 +869,7 @@ static bool isGameOver(void)
                 record.limitedMaxChain = maxChain;
                 dprintln(F("New record! (Time Limited)"));
             }
+            arduboy.playScore2(soundOver, 1);
             return true;
         }
         return false;
@@ -733,8 +886,10 @@ static bool isGameOver(void)
                     dprintln(issue);
                     if (issue < COUNT_ISSUES - 1) issue++;
                 }
+                arduboy.playScore2(soundClear, 1);
             } else {
                 pLargeLabel = F("AGAIN");
+                arduboy.playScore2(soundAgain, 1);
             }
             return true;
         }
@@ -749,22 +904,29 @@ static void setupMenu(void)
         addMenuItem(F("CONTINUE"), onMenuContine);
     }
     addMenuItem(F("RESTART"), onMenuRestart);
+    int menuW;
     if (gameMode == GAME_MODE_PUZZLE) {
         if (issue < COUNT_ISSUES - 1) addMenuItem(F("NEXT ISSUE"), onMenuNextIssue);
         if (issue > 0) addMenuItem(F("PREV ISSUE"), onMenuPreviousIssue);
         addMenuItem(F("ISSUES LIST"), onMenuSelectIssue);
+        menuW = 77;
     } else {
         addMenuItem(F("BACK TO TITLE"), onMenuBackToTitle);
+        menuW = 89;
     }
-
+    int menuH = getMenuItemCount() * 6 - 1;
+    int menuY;
+    bool flg;
     if (state == STATE_OVER) {
-        setMenuCoords(19, 53, 89, 11, false, false);
+        menuY = 53;
+        flg = false;
         state = STATE_RESULT;
     } else {
-        int h = getMenuItemCount() * 6 - 1;
-        setMenuCoords(19, 32 - h / 2, 89, h, true, true);
+        menuY = 31 - menuH / 2;
+        flg = true;
         state = STATE_MENU;
     }
+    setMenuCoords(63 - menuW / 2, menuY, menuW, menuH, flg, flg);
     setMenuItemPos(0);
     playSoundClick();
 }
@@ -817,8 +979,8 @@ static void drawField(void)
     if (gameMode == GAME_MODE_LIMITED && state == STATE_MENU) {
         /*  Dummy  */
         for (int i = 0; i <= FIELD_W; i++) {
-            arduboy.drawFastVLine2(i * 11 + 28, 8, 56, WHITE);
-            arduboy.drawFastHLine2(28, i * 11 + 8, 78, WHITE);
+            arduboy.drawFastVLine2(i * GRID_PIXEL + 28, 8, 56, WHITE);
+            arduboy.drawFastHLine2(28, i * GRID_PIXEL + 8, 78, WHITE);
         }
     } else {
         /*  Normal case  */
@@ -834,27 +996,26 @@ static void drawField(void)
 static void drawObject(int x, int y)
 {
     OBJ_T *pObj = &field[y][x];
-    if (pObj->type == OBJ_TYPE_BLANK) return;
 
-    int dx = x * 11 + 24;
-    int dy = y * 11 + 4;
-    bool isFlash = (vanishFlashFrames > 0 && (vanishFlg[y] & 1 << x));
+    /*  Blank  */
+    if (pObj->type == OBJ_TYPE_BLANK) {
+        drawFloorOrBlank(x, y, 6 - (pObj->rotate) * 3);
+        return;
+    }
 
     /*  Floor  */
+    bool isFlash = (vanishFlashFrames > 0 && (vanishFlg[y] & 1 << x));
     if (pObj->type == OBJ_TYPE_FLOOR ||
             blinkFlg && !isFlash && pObj->depth >= DEPTH_MAX / 2 &&
             (pObj->mode == OBJ_MODE_APPEAR || pObj->mode == OBJ_MODE_VANISH)) {
-        bool isDrawMask = (x > 0 && checkNeiborDepth(&field[y][x - 1])) ||
-                (y > 0 && checkNeiborDepth(&field[y - 1][x])) ||
-                (x > 0 && y > 0 && checkNeiborDepth(&field[y - 1][x - 1]));
-        drawFloor(dx + DEPTH_PIXEL, dy + DEPTH_PIXEL, isDrawMask);
+        drawFloorOrBlank(x, y, 0);
         return;
     }
 
     /*  Die  */
     int d = min(pObj->depth / (DEPTH_MAX / (DEPTH_PIXEL + 1)), DEPTH_PIXEL);
-    dx += d;
-    dy += d;
+    int dx = x * GRID_PIXEL + 24 + d;
+    int dy = y * GRID_PIXEL + 4  + d;
     if (isFlash) {
         drawObjectBitmap(dx, dy, IMG_OBJ_DIE_MASK, WHITE);
     } else {
@@ -864,16 +1025,25 @@ static void drawObject(int x, int y)
     }
 }
 
+static bool drawFloorOrBlank(int x, int y, int g)
+{
+    int dx = x * GRID_PIXEL + 24 + DEPTH_PIXEL;
+    int dy = y * GRID_PIXEL + 4  + DEPTH_PIXEL;
+    if ((x > 0 && checkNeiborDepth(&field[y][x - 1])) ||
+        (y > 0 && checkNeiborDepth(&field[y - 1][x])) ||
+        (x > 0 && y > 0 && checkNeiborDepth(&field[y - 1][x - 1]))) {
+        arduboy.fillRect(dx + 1, dy + 1, GRID_PIXEL, GRID_PIXEL, BLACK);
+    }
+    int8_t s = GRID_PIXEL + 1 - g * 2;
+    if (s > 0) {
+        arduboy.drawRect(dx + g, dy + g, s, s, WHITE);
+    }
+}
+
 static bool checkNeiborDepth(OBJ_T *pObj)
 {
     return (pObj->type >= OBJ_TYPE_1 && pObj->type <= OBJ_TYPE_6 &&
         pObj->depth >= DEPTH_MAX / (DEPTH_PIXEL + 1));
-}
-
-static void drawFloor(int16_t dx, int16_t dy, bool isDrawMask)
-{
-    if (isDrawMask) arduboy.fillRect(dx + 1, dy + 1, 10, 10, BLACK);
-    arduboy.drawRect(dx, dy, 12, 12, WHITE);
 }
 
 static void drawDie(int16_t dx, int16_t dy, uint16_t type, uint16_t rotate, boolean isWhite)
@@ -895,16 +1065,18 @@ static void drawObjectBitmap(int16_t dx, int16_t dy, int imgId, uint8_t c)
 
 static void drawCursor(void)
 {
-    int dx = cursorX * 11 + 24;
-    int dy = cursorY * 11 - 1;
+    int dx = cursorX * GRID_PIXEL + 24;
+    int dy = cursorY * GRID_PIXEL;
     int imgId = gameFrames % 10;
     if (imgId >= 5) imgId = 10 - imgId;
-    arduboy.drawBitmap(dx - 1, dy, imgCursorMask[imgId], 14, 8, BLACK);
-    arduboy.drawBitmap(dx, dy, imgCursor[imgId], 12, 8, WHITE);
+    arduboy.drawBitmap(dx - 1, dy - 1, imgCursorMask[imgId], 14, 8, BLACK);
+    arduboy.drawBitmap(dx, dy, imgCursor[imgId], 12, 6, WHITE);
  
     OBJ_T obj = field[cursorY][cursorX];
     if (obj.type >= OBJ_TYPE_1 && obj.type <= OBJ_TYPE_6) {
         drawDie(108, 0, obj.type, obj.rotate, false);
+    } else {
+        drawObjectBitmap(108, 0, IMG_OBJ_DIE_DUMMY, WHITE);
     }
     arduboy.drawBitmap(109, 17, imgLabelInfo, 13, 5, WHITE);
 }
