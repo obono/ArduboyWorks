@@ -34,6 +34,14 @@
 			"author" : "OBONO",
 			"cover" : "https://obono.github.io/ArduboyWorks/img/chiemagari2.gif",
 			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/chiemagari_v0.10.hex"
+		},
+		{
+			"name" : "Psi Colo",
+			"description" : "A puzzle game with dice on the 5x7 grid field.",
+			"version" : "0.10",
+			"author" : "OBONO",
+			"cover" : "https://obono.github.io/ArduboyWorks/img/psicolo2.gif",
+			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/psicolo_v0.10.hex"
 		}
 	]
 }

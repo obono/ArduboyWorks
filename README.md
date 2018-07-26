@@ -18,6 +18,10 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * Place 10 different pieces into the frame without overlapping.
   * Depend on Arduboy Library 1.1.1\
     ![shot](docs/img/chiemagari1.gif) ![shot](docs/img/chiemagari2.gif)
+* OBN-Y05 [Psi Colo](https://community.arduboy.com/t/psi-colo-a-puzzle-game-with-dice/6148)
+  * A puzzle game with dice on the 5x7 grid field.
+  * Depend on Arduboy Library 1.1.1\
+    ![shot](docs/img/psicolo1.gif) ![shot](docs/img/psicolo2.gif)
 
 [Repo link](https://obono.github.io/ArduboyWorks/repo.json) \
 [Repo viewer](https://obono.github.io/ArduboyWorks/?repo.json)
