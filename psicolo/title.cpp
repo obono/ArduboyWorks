@@ -168,7 +168,9 @@ static void handleAnyButton(void)
 
 static void drawTitleImage(void)
 {
-#ifndef DEBUG
+#ifdef DEBUG
+    arduboy.printEx(0, 0, F(APP_TITLE " DEBUG"));
+#else
     arduboy.drawBitmap(5, 8, imgTitle, 118, 16, WHITE);
     arduboy.drawBitmap(43, 0, imgTitlePart, 8, 8, WHITE);
     arduboy.drawBitmap(99, 0, imgTitlePart, 8, 8, WHITE);

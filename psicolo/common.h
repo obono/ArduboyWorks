@@ -7,7 +7,7 @@
 //#define DEBUG
 #define FPS             40
 #define APP_TITLE       "PSI COLO"
-#define APP_INFO        "OBN-Y05 VER 0.04"
+#define APP_INFO        "OBN-Y05 VER 0.10"
 #define APP_RELEASED    "JULY 2018"
 
 enum MODE_T {
