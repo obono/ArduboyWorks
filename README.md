@@ -1,7 +1,9 @@
-# ArduboyWorks
+# ArduboyWorks [![CircleCI Build Status](https://circleci.com/gh/obono/ArduboyWorks.svg?style=shield)](https://circleci.com/gh/obono/ArduboyWorks) ![MIT Licensed](https://img.shields.io/badge/license-MIT-blue.svg)
+
 Making mini games for [Arduboy](https://www.arduboy.com/).
 
 ## Products
+
 * OBN-Y01 [Hollow Seeker](https://community.arduboy.com/t/hollow-seeker-a-simple-action-game/2594)
   * Go forward in right direction. Seek a hollow as refuge not to be crushed.
   * Depend on Arduboy Library 1.1.1\
@@ -25,6 +27,3 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
 
 [Repo link](https://obono.github.io/ArduboyWorks/repo.json) \
 [Repo viewer](https://obono.github.io/ArduboyWorks/?repo.json)
-
-## License
-MIT License

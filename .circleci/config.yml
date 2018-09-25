@@ -1,0 +1,19 @@
+version: 2
+
+jobs:
+  build:
+    docker:
+      - image: obono/arduboy-env
+    working_directory: /home/circleci/working
+    steps:
+      - checkout
+
+      - run:
+          name: Compile
+          command: |
+            find ./ -name '*.ino' | sed -e 's/\/\w\+\.ino$//' | while read line
+            do
+              echo $line
+              arduino-cli compile --fqbn arduboy:avr:arduboy $line | grep "bytes" || return $?
+              echo
+            done
