@@ -2,6 +2,9 @@
 
 Making mini games for [Arduboy](https://www.arduboy.com/).
 
+[My repository information (JSON)](https://obono.github.io/ArduboyWorks/repo.json) \
+[Repository viewer](https://obono.github.io/ArduboyWorks/?repo.json)
+
 ## Products
 
 * OBN-Y01 [Hollow Seeker](https://community.arduboy.com/t/hollow-seeker-a-simple-action-game/2594)
@@ -25,5 +28,6 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * Depend on Arduboy Library 1.1.1\
     ![shot](docs/img/psicolo1.gif) ![shot](docs/img/psicolo2.gif)
 
-[Repo link](https://obono.github.io/ArduboyWorks/repo.json) \
-[Repo viewer](https://obono.github.io/ArduboyWorks/?repo.json)
+## License
+
+These codes are licensed under [MIT-License](LICENSE).
