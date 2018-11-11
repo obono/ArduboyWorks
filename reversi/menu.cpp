@@ -2,7 +2,7 @@
 
 /*  Defines  */
 
-#define MENU_COUNT_MAX  5
+#define MENU_COUNT_MAX  6
 
 /*  Typedefs  */
 
@@ -47,6 +47,11 @@ void addMenuItem(const __FlashStringHelper *label, void (*func)(void))
     menuItemCount++;
     dprint(F("Add menu items: "));
     dprintln(label);
+}
+
+int8_t getMenuItemPos(void)
+{
+    return menuItemPos;
 }
 
 int8_t getMenuItemCount(void)

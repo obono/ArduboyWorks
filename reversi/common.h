@@ -7,7 +7,7 @@
 //#define DEBUG
 #define FPS             60
 #define APP_TITLE       "REVERSI"
-#define APP_INFO        "OBN-Y06 VER 0.02"
+#define APP_INFO        "OBN-Y06 VER 0.03"
 #define APP_RELEASED    "NOVEMBER 2018"
 
 enum MODE_T {
@@ -22,13 +22,25 @@ enum GAME_MODE_T {
     GAME_MODE_2PLAYERS,
 };
 
+#define SETTING_BIT_THINK_LED       0x1
+#define SETTING_BIT_STONES_COUNTER  0x2
+#define SETTING_BIT_SHOW_PLACEABLE  0x4
+#define SETTING_BIT_SHOW_FIXED      0x8
+
 /*  Typedefs  */
 
 typedef struct {
-    uint16_t    hiscore[10];
+    uint8_t     black[8], white[8];
+    uint8_t     gameMode:2;
+    uint8_t     cpuLevel:3;
+    uint8_t     canContinue:1;
+    uint8_t     isWhiteTurn:1;
+    uint8_t     isLastPassed:1;
+    uint8_t     settings;
+    uint16_t    dummy;
     uint32_t    playFrames;
     uint16_t    playCount;
-} RECORD_T; // sizeof(RECORD_T) is 26 bytes
+} RECORD_T; // sizeof(RECORD_T) musb be 26 bytes
 
 /*  Global Functions (Common)  */
 
@@ -58,6 +70,7 @@ void    eepWriteBlock(const void *p, size_t n);
 
 void    clearMenuItems(void);
 void    addMenuItem(const __FlashStringHelper *label, void (*func)(void));
+int8_t  getMenuItemPos(void);
 int8_t  getMenuItemCount(void);
 void    setMenuCoords(int8_t x, int8_t y, int8_t w, int8_t h, bool f, bool s);
 void    setMenuItemPos(int8_t pos);
@@ -83,7 +96,6 @@ void    drawGame(void);
 
 extern MyArduboy    arduboy;
 extern RECORD_T     record;
-extern GAME_MODE_T  gameMode;
 
 extern bool     isRecordDirty;
 extern int8_t   padX, padY, padRepeatCount;

@@ -18,7 +18,6 @@ enum RECORD_STATE_T {
 
 MyArduboy   arduboy;
 RECORD_T    record;
-GAME_MODE_T gameMode;
 bool        isRecordDirty;
 int8_t      padX, padY, padRepeatCount;
 bool        isInvalid;
@@ -69,6 +68,8 @@ void readRecord(void)
         dprintln(F("Read record from EEPROM"));
     } else {
         memset(&record, 0, sizeof(record));
+        record.cpuLevel = 2;
+        record.settings = SETTING_BIT_THINK_LED | SETTING_BIT_STONES_COUNTER;
         recordState = RECORD_INITIAL;
         isRecordDirty = true;
     }
