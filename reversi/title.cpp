@@ -64,6 +64,7 @@ PROGMEM static const char creditText[] = "- " APP_TITLE " -\0\0" APP_RELEASED \
         "\0PROGREMMED BY OBONO\0\0THIS PROGRAM IS\0RELEASED UNDER\0THE MIT LICENSE.";
 
 static STATE_T  state = STATE_INIT;
+static bool     isSettingsChanged;
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -75,7 +76,6 @@ void initTitle(void)
         readRecord();
     }
     initTitleMenu(false);
-    isInvalid = true;
 }
 
 MODE_T updateTitle(void)
@@ -115,12 +115,14 @@ void drawTitle(void)
     }
     if (state == STATE_TITLE || state == STATE_SETTINGS) {
         drawMenuItems(isInvalid);
-        if (state == STATE_SETTINGS) { // TODO
+        if (state == STATE_SETTINGS &&
+                (arduboy.buttonDown(UP_BUTTON | DOWN_BUTTON) || isSettingsChanged)) {
             int8_t pos = getMenuItemPos();
             for (int i = 0; i < 4; i++) {
                 bool on = (record.settings & 1 << i);
                 arduboy.printEx(106 - (i == pos) * 4, i * 6 + 12, (on) ? F("ON ") : F("OFF"));
             }
+            isSettingsChanged = false;
         }
     }
     isInvalid = false;
@@ -134,11 +136,11 @@ static void initTitleMenu(bool isFromSettings)
 {
     clearMenuItems();
     if (record.canContinue) {
-        addMenuItem(F("CONTINUE"), onResume);
+        addMenuItem(F("RESUME"), onResume);
         setMenuItemPos((isFromSettings) ? 1 : 0);
     } else {
-        addMenuItem(F("BLACK GAME"), onVsCpu);
-        addMenuItem(F("WHITE GAME"), onVsCpu);
+        addMenuItem(F("AS BLACK"), onVsCpu);
+        addMenuItem(F("AS WHITE"), onVsCpu);
         addMenuItem(F("2 PLAYERS"), on2Players);
         setMenuItemPos((isFromSettings) ? 3 : record.gameMode);
     }
@@ -147,6 +149,8 @@ static void initTitleMenu(bool isFromSettings)
     setMenuCoords(57, 28, 71, 30, false, true);
     if (isFromSettings) isInvalid = true;
     state = STATE_TITLE;
+    isInvalid = true;
+    dprintln(F("Menu: title"));
 }
 
 static void onVsCpu(void)
@@ -154,7 +158,10 @@ static void onVsCpu(void)
     record.gameMode = (getMenuItemPos() == 0) ? GAME_MODE_BLACK : GAME_MODE_WHITE;
     playSoundClick();
 
-    int maxLevel = 3; // 4, 5
+    int maxLevel = 3;
+    if (record.isAdvancedLevel) {
+        maxLevel = (record.vsCpuWinLose == WIN_LOSE_VALUE_MAX) ? 5 : 4;
+    }
     clearMenuItems();
     addMenuItem(F("LEVEL 1"), onLevel);
     addMenuItem(F("LEVEL 2"), onLevel);
@@ -164,6 +171,7 @@ static void onVsCpu(void)
     addMenuItem(F("BACK"), onBack);
     setMenuCoords(57, 28, 71, 36, false, false);
     setMenuItemPos(record.cpuLevel - 1);
+    dprintln(F("Menu: level"));
 }
 
 static void on2Players(void)
@@ -178,7 +186,7 @@ static void onLevel(void)
     state = STATE_STARTED;
     dprint(F("Start VS CPU: level="));
     dprint(record.cpuLevel);
-    dprintln((record.gameMode == GAME_MODE_BLACK) ? F(" black") : F(" white"));
+    dprintln((record.gameMode == GAME_MODE_BLACK) ? F(" Black") : F(" White"));
 }
 
 static void onBack(void)
@@ -206,13 +214,17 @@ static void onSettings(void)
     setMenuItemPos(0);
     state = STATE_SETTINGS;
     isInvalid = true;
-    dprintln(F("Show settings"));
+    isSettingsChanged = true;
+    dprintln(F("Menu: settings"));
 }
 
 static void onSettingChange(void)
 {
     playSoundTick();
     record.settings ^= 1 << getMenuItemPos();
+    isSettingsChanged = true;
+    dprint(F("Setting changed: "));
+    dprintln(getMenuItemPos());
 }
 
 static void onCredit(void)

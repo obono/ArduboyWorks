@@ -5,11 +5,12 @@
 
 #define BOARD_W 8
 #define BOARD_H 8
+#define INITIAL_STONES 4
 
 enum STATE_T {
     STATE_INIT = 0,
     STATE_PLAYING,
-    STATE_ANIMATION,
+    STATE_FLIPPING,
     STATE_MENU,
     STATE_OVER,
     STATE_LEAVE,
@@ -24,28 +25,28 @@ enum FIX_COND_T {
 /*  Typedefs  */
 
 typedef struct {
-    uint8_t black[BOARD_H];
-    uint8_t white[BOARD_H];
-    uint8_t flag[BOARD_H];
+    uint8_t black[BOARD_H], white[BOARD_H], flag[BOARD_H];
     uint8_t numStones, numBlack, numWhite, numFixedBlack, numFixedWhite, numPlaceable;
     bool    isWhiteTurn, isLastPassed;
 } BOARD_T;
 
-typedef struct {
-    uint8_t x:3;
-    uint8_t y:3;
-} POS_T;
-
 /*  Local Functions  */
 
-static void resetAnimationParams(void);
+static void newGame(void);
+static void resumeGame(void);
+static void finalizeGame(void);
+static void toggleTurn(bool isPassed);
 static bool isCpuTurn(void);
+static bool isGameOver(BOARD_T *p);
+static void resetFlipAnimationParams(void);
 static void handlePlaying(void);
-static void handleAnimation(void);
+static void handleFlipping(void);
 static void handleOver(void);
 static void onContinue(void);
+static void onCancel(void);
 static void onSuspend(void);
-static void onAbandon(void);
+static void onRetry(void);
+static void onExit(void);
 
 static void drawBoard(bool isAnimation);
 static void drawStone(int8_t x, int8_t y, int8_t p);
@@ -55,16 +56,17 @@ static void drawPlayerIndication(bool isAnimation);
 static void drawStonesCounter(void);
 static void draw2Numbers(int16_t x, int16_t y, int8_t value);
 static void drawResult(void);
+#define     getDx(x) ((x) * 12 + 16)
+#define     getDy(y) ((y) * 8)
 
 static void analyzeBoard(BOARD_T *p);
+static void placeStone(void);
 static bool isPlaceable(BOARD_T *p, int8_t x, int8_t y, bool isActual);
 static bool isReversible(BOARD_T *p, int8_t x, int8_t y, int8_t vx, int8_t vy, bool isActual);
 static void checkFixedStones(BOARD_T *p);
 static bool isFixed(BOARD_T *p, int8_t x, int8_t y, bool isCheckingBlack);
 static FIX_COND_T checkFixCond(BOARD_T *p, int8_t x, int8_t y, int8_t vx, int8_t vy, bool isCheckingBlack);
-static bool isGameOver(BOARD_T *p);
-#define     placeStone(b, x, y)     isPlaceable(b, x, y, true)
-#define     countBits(val)          pgm_read_byte(bitNumTable + (val))
+#define     countBits(val) pgm_read_byte(bitNumTable + (val))
 
 static void cpuThinking(void);
 static int  alphabeta(BOARD_T *p, int8_t depth, int alpha, int beta);
@@ -74,17 +76,16 @@ static int8_t evaluateBit(const int8_t *pTable, uint8_t value);
 /*  Local Variables  */
 
 static STATE_T  state = STATE_INIT;
-static BOARD_T  board;
-static int8_t   animTable[BOARD_H][BOARD_W];
-static uint8_t  animStones, animCounter;
+static BOARD_T  board, lastStepBoard;
+static POS_T    cursorPos, cursorLastPos, lastStepPos;
+static uint16_t thinkLed;
+static uint8_t  cursorBuf[IMG_STONE_W];
 static uint8_t  ledRGB[3];
-static int      thinkLed;
-
-static POS_T    cursorPos, cursorLastPos;
-static uint8_t  cursorBuf[11];
-static bool     isCursorMoved;
-
-static uint32_t gameFrames;
+static int8_t   flipTable[BOARD_H][BOARD_W];
+static uint8_t  flipStones, animCounter, counter;
+static bool     isCursorMoved, isCancelable;
+static const byte *resultSound;
+static const __FlashStringHelper *resultLabel;
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -93,38 +94,23 @@ static uint32_t gameFrames;
 void initGame(void)
 {
     if (record.canContinue) {
-        record.canContinue = false;
-        memcpy(board.black, record.black, BOARD_H * 2);
-        board.isWhiteTurn = record.isWhiteTurn;
-        board.isLastPassed = record.isLastPassed;
-        analyzeBoard(&board);
-        state = STATE_PLAYING;
+        resumeGame();
     } else {
-        record.playCount++;
-        memset(&board, 0, sizeof(board));
-        board.isWhiteTurn = true; // trick
-        state = STATE_ANIMATION;
+        newGame();
     }
-
-    clearMenuItems();
-    addMenuItem(F("CONTINUE"), onContinue);
-    addMenuItem(F("CANCEL LAST STEP"), onContinue); // TODO
-    addMenuItem(F("SUSPEND GAME"), onSuspend);
-    addMenuItem(F("ABANDON GAME"), onAbandon);
-    setMenuCoords(10, 20, 108, 24, true, true);
-
     isRecordDirty = true;
     writeRecord();
-    gameFrames = 0;
-    resetAnimationParams();
+
+    resetFlipAnimationParams();
+    isCancelable = false;
     arduboy.playScore2(soundStart, 0);
     isInvalid = true;
 }
 
 MODE_T updateGame(void)
 {
-    if (state == STATE_PLAYING || state == STATE_ANIMATION) {
-        gameFrames++;
+    counter++;
+    if (state == STATE_PLAYING || state == STATE_FLIPPING) {
         record.playFrames++;
         isRecordDirty = true;
     }
@@ -132,8 +118,8 @@ MODE_T updateGame(void)
     case STATE_PLAYING:
         handlePlaying();
         break;
-    case STATE_ANIMATION:
-        handleAnimation();
+    case STATE_FLIPPING:
+        handleFlipping();
         break;
     case STATE_MENU:
         handleMenu();
@@ -167,10 +153,10 @@ void drawGame(void)
             drawCursor();
             drawPlayerIndication(true);
             break;
-        case STATE_ANIMATION:
+        case STATE_FLIPPING:
             drawBoard(true);
             drawPlayerIndication(true);
-            if (animCounter % 4 == 0) drawStonesCounter();
+            if (!(animCounter & 3)) drawStonesCounter();
             break;
         case STATE_OVER:
             drawResult();
@@ -183,13 +169,92 @@ void drawGame(void)
 /*                             Control Functions                             */
 /*---------------------------------------------------------------------------*/
 
-static void resetAnimationParams(void)
+static void newGame(void)
 {
-    memset(animTable, 0, sizeof(animTable));
-    animStones = 0;
+    record.playCount++;
+    memset(&board, 0, sizeof(board));
+    board.isWhiteTurn = true; // trick
+    state = STATE_FLIPPING;
+    dprintln(F("New game"));
+}
+
+static void resumeGame(void)
+{
+    memcpy(board.black, record.black, BOARD_H * 2);
+    board.isWhiteTurn = record.isWhiteTurn;
+    board.isLastPassed = record.isLastPassed;
+    cursorPos = record.cursorPos;
+    record.canContinue = false;
+    analyzeBoard(&board);
+    state = STATE_PLAYING;
+    dprintln(F("Resume game"));
+}
+
+static void finalizeGame(void)
+{
+    bool isBlackWin = board.numBlack > board.numWhite;
+    if (board.numBlack == board.numWhite) {
+        resultSound = soundDraw;
+        resultLabel = F("DRAW");
+    } else if (record.gameMode == GAME_MODE_2PLAYERS) {
+        resultSound = soundWin;
+        resultLabel = (isBlackWin) ? F("BLACK WINS") : F("WHITE WINS");
+    } else {
+        bool isPlayerWin = record.gameMode == GAME_MODE_BLACK && isBlackWin ||
+                record.gameMode == GAME_MODE_WHITE && !isBlackWin;
+        resultSound = (isPlayerWin) ? soundWin : soundLose;
+        resultLabel = (isPlayerWin) ? F("YOU WIN") : F("YOU LOSE");
+        if (record.cpuLevel == 3 + record.isAdvancedLevel &&
+                record.vsCpuWinLose != WIN_LOSE_VALUE_MAX) {
+            int win = record.vsCpuWinLose / (WIN_LOSE_MAX + 1);
+            int lose = record.vsCpuWinLose % (WIN_LOSE_MAX + 1);
+            if (isPlayerWin && win < WIN_LOSE_MAX) win++;
+            if (!isPlayerWin && lose < WIN_LOSE_MAX) lose++;
+            dprint(F("Vs CPU level="));
+            dprint(record.cpuLevel);
+            dprint(F(" : Win "));
+            dprint(win);
+            dprint(F(" - Lose "));
+            dprintln(lose);
+            if (win > lose || win == WIN_LOSE_MAX) {
+                if (record.isAdvancedLevel) {
+                    record.vsCpuWinLose = WIN_LOSE_VALUE_MAX;
+                } else {
+                    record.isAdvancedLevel = true;
+                    record.vsCpuWinLose = 0;
+                }
+                dprintln(F("Level up!!!"));
+            } else {
+                record.vsCpuWinLose = win * (WIN_LOSE_MAX + 1) + lose;
+            }
+        }
+    }
+    writeRecord();
     animCounter = 0;
-    cursorLastPos = cursorPos;
-    isCursorMoved = true;
+    state = STATE_OVER;
+    dprint(F("Game set: "));
+    dprintln(resultLabel);
+}
+
+static void toggleTurn(bool isPassed)
+{
+    bool isDoublePass = isPassed && board.isLastPassed;
+    board.isWhiteTurn = !board.isWhiteTurn;
+    board.isLastPassed = isPassed;
+    analyzeBoard(&board);
+    resetFlipAnimationParams();
+    int numStones = board.numStones;
+    if (numStones < INITIAL_STONES) {
+        cursorPos.x = (numStones == 0 || numStones == 3) ? 3 : 4;
+        cursorPos.y = (numStones == 0 || numStones == 1) ? 3 : 4;
+        placeStone();
+    } else if (isDoublePass || isGameOver(&board)) {
+        finalizeGame();
+    } else {
+        if (board.numPlaceable == 0) arduboy.playScore2(soundPass, SND_PRIO_PASS);
+        state = STATE_PLAYING;
+    }
+    isInvalid = true;
 }
 
 static bool isCpuTurn(void)
@@ -198,30 +263,38 @@ static bool isCpuTurn(void)
             !board.isWhiteTurn && record.gameMode == GAME_MODE_WHITE;
 }
 
+static bool isGameOver(BOARD_T *p)
+{
+    return  p->numStones == BOARD_H * BOARD_W ||
+            p->numBlack == 0 ||
+            p->numWhite == 0 ||
+            p->isLastPassed && p->numPlaceable == 0;
+
+}
+
+static void resetFlipAnimationParams(void)
+{
+    memset(flipTable, 0, sizeof(flipTable));
+    flipStones = 0;
+    animCounter = 0;
+    cursorLastPos = cursorPos;
+    isCursorMoved = true;
+}
+
 static void handlePlaying(void)
 {
     if (board.numPlaceable == 0) {
         /*  Pass  */
-        if (arduboy.buttonDown(B_BUTTON)) {
-            if (board.isLastPassed) {
-                writeRecord();
-                arduboy.playScore2(soundOver, 1);
-                state = STATE_OVER;
-            } else {
-                playSoundClick();
-                board.isWhiteTurn = !board.isWhiteTurn;
-                board.isLastPassed = true;
-                analyzeBoard(&board);
-            }
-            isInvalid = true;
+        bool isCpu = isCpuTurn();
+        if (isCpu && ++animCounter >= FPS || !isCpu && arduboy.buttonDown(B_BUTTON)) {
+            if (!isCpu) playSoundClick();
+            toggleTurn(true);
         }
     } else if (isCpuTurn()) {
         /*  CPU thinking  */
         cpuThinking();
-        resetAnimationParams();
-        placeStone(&board, cursorPos.x, cursorPos.y);
-        playSoundClick();
-        state = STATE_ANIMATION;
+        resetFlipAnimationParams();
+        placeStone();
     } else {
         /*  Move cursor  */
         handleDPad();
@@ -233,26 +306,45 @@ static void handlePlaying(void)
         if (arduboy.buttonDown(B_BUTTON)) {
             uint8_t empties = ~(board.black[cursorPos.y] | board.white[cursorPos.y]);
             if (empties & board.flag[cursorPos.y] & 1 << cursorPos.x) {
-                placeStone(&board, cursorPos.x, cursorPos.y);
-                playSoundClick();
-                state = STATE_ANIMATION;
+                lastStepBoard = board;
+                lastStepPos = cursorPos;
+                isCancelable = true;
+                placeStone();
             }
         }
     }
 
-    if (arduboy.buttonDown(A_BUTTON)) {
+    if (state == STATE_PLAYING && arduboy.buttonDown(A_BUTTON)) {
+        playSoundClick();
+        clearMenuItems();
+        addMenuItem(F("CONTINUE"), onContinue);
+        if (isCancelable) addMenuItem(F("CANCEL LAST MOVE"), onCancel);
+        addMenuItem(F("SUSPEND GAME"), onSuspend);
+        addMenuItem(F("ABANDON GAME"), onExit);
+        int w = (isCancelable) ? 107 : 83; 
+        int h = (isCancelable) ? 23 : 17;
+        setMenuCoords(63 - w / 2, 32 - h / 2, w, h, true, true);
         setMenuItemPos(0);
         state = STATE_MENU;
         isInvalid = true;
+        dprintln(F("Menu: playing"));
     }
+
+#ifdef DEBUG
+    if (dbgRecvChar == 'p') {
+        placeStone();
+    }
+    if (dbgRecvChar == 'q') {
+        finalizeGame();
+    }
+#endif
 }
 
-static void handleAnimation(void)
+static void handleFlipping(void)
 {
-    uint8_t animCounterMax = (animStones > 0) ? animStones * 4 + 32 : 20;
+    uint8_t animCounterMax = (flipStones > 0) ? flipStones * 4 + 32 : 20;
     if (++animCounter < animCounterMax) {
-        /*  Flipping animation  */
-        if (animCounter % 4 == 0 && animCounter >= 20 && animCounter < animStones * 4 + 20) {
+        if (!(animCounter & 3) && animCounter >= 20 && animCounter < flipStones * 4 + 20) {
             if (board.isWhiteTurn) {
                 board.numBlack--;
                 board.numWhite++;
@@ -260,35 +352,36 @@ static void handleAnimation(void)
                 board.numBlack++;
                 board.numWhite--;
             }
-            playSoundTick();
+            arduboy.playScore2(soundFlip, SND_PRIO_FLIP);
         }
     } else {
-        /*  Switch player turn  */
-        board.isWhiteTurn = !board.isWhiteTurn;
-        board.isLastPassed = false;
-        analyzeBoard(&board);
-        resetAnimationParams();
-        int numStones = board.numStones;
-        if (numStones < 4) {
-            int8_t x = (numStones == 0 || numStones == 3) ? 3 : 4;
-            int8_t y = (numStones == 0 || numStones == 1) ? 3 : 4;
-            placeStone(&board, x, y);
-            playSoundClick();
-        } else if (isGameOver(&board)) {
-            writeRecord();
-            arduboy.playScore2(soundOver, 1);
-            state = STATE_OVER;
-        } else {
-            state = STATE_PLAYING;
-        }
-        isInvalid = true;
+        toggleTurn(false);
     }
 }
 
 static void handleOver(void)
 {
-    if (arduboy.buttonDown(A_BUTTON)) {
-        state = STATE_LEAVE;
+    if (animCounter < FPS * 3) {
+        animCounter++;
+        if (animCounter == FPS) arduboy.playScore2(resultSound, SND_PRIO_RESULT);
+        if (animCounter == FPS * 3) {
+            arduboy.stopScore2();
+            if (arduboy.buttonPressed(B_BUTTON)) isInvalid = true;
+        }
+    } else {
+        if (arduboy.buttonDown(B_BUTTON)) isInvalid = true;
+        if (arduboy.buttonUp(B_BUTTON)) animCounter = FPS;
+        if (arduboy.buttonDown(A_BUTTON)) {
+            playSoundClick();
+            clearMenuItems();
+            addMenuItem(F("RETRY GAME"), onRetry);
+            addMenuItem(F("BACK TO TITLE"), onExit);
+            setMenuCoords(19, 19, 89, 11, true, false);
+            setMenuItemPos(0);
+            state = STATE_MENU;
+            isInvalid = true;
+            dprintln(F("Menu: game over"));
+        }
     }
 }
 
@@ -299,24 +392,42 @@ static void onContinue(void)
     isInvalid = true;
 }
 
+static void onCancel(void)
+{
+    board = lastStepBoard;
+    cursorPos = lastStepPos;
+    cursorLastPos = cursorPos;
+    isCursorMoved = true;
+    isCancelable = false;
+    arduboy.playScore2(soundCancel, SND_PRIO_CANCEL);
+    state = STATE_PLAYING;
+    isInvalid = true;
+}
+
 static void onSuspend(void)
 {
     playSoundClick();
     memcpy(record.black, board.black, BOARD_H * 2);
     record.isWhiteTurn = board.isWhiteTurn;
     record.isLastPassed = board.isLastPassed;
+    record.cursorPos = cursorPos;
     record.canContinue = true;
     writeRecord();
     state = STATE_LEAVE;
-    dprintln(F("Suspend this game"));
+    dprintln(F("Suspend game"));
 }
 
-static void onAbandon(void)
+static void onRetry(void)
+{
+    initGame();
+}
+
+static void onExit(void)
 {
     playSoundClick();
     writeRecord();
     state = STATE_LEAVE;
-    dprintln(F("Abandon this game"));
+    dprintln(F("Back to title"));
 }
 
 /*---------------------------------------------------------------------------*/
@@ -325,22 +436,22 @@ static void onAbandon(void)
 
 static void drawBoard(bool isAnimation)
 {
+    int anim = -1;
     for (int8_t y = 0; y < BOARD_H; y++) {
         uint8_t black = board.black[y];
         uint8_t white = board.white[y];
         uint8_t flag = board.flag[y];
         uint8_t placeable = flag & ~(black | white);
         uint8_t fixed = flag & (black | white);
-        if ((record.settings & SETTING_BIT_SHOW_PLACEABLE) == 0 || state != STATE_PLAYING) placeable = 0;
-        if ((record.settings & SETTING_BIT_SHOW_FIXED) == 0) fixed = 0;
-        int dy = y * 8;
-        int anim = -1;
+        if (!(record.settings & SETTING_BIT_SHOW_PLACEABLE) || state != STATE_PLAYING) placeable = 0;
+        if (!(record.settings & SETTING_BIT_SHOW_FIXED)) fixed = 0;
+        int dy = getDy(y);
         for (int8_t x = 0; x < BOARD_W; x++) {
-            int dx = x * 12 + 16;
+            int dx = getDx(x);
             uint8_t b = 1 << x;
             if (isAnimation) {
-                anim = animTable[y][x] - animCounter;
-                int belowAnim = (y < BOARD_H - 1) ? animTable[y + 1][x] - animCounter : -1;
+                anim = flipTable[y][x] - animCounter;
+                int belowAnim = (y < BOARD_H - 1) ? flipTable[y + 1][x] - animCounter : -1;
                 if ((anim < 0 || anim >= 16) && (belowAnim < 0 || belowAnim >= 16)) continue; // Skip drawing
             }
             if (anim <= 0) {
@@ -365,60 +476,60 @@ static void drawBoard(bool isAnimation)
 }
 
 static void drawStone(int8_t dx, int8_t y, int8_t p) {
-    memcpy_P(arduboy.getBuffer() + dx + y * WIDTH, imgStone[p], 11);
+    memcpy_P(arduboy.getBuffer() + dx + y * WIDTH, imgStone[p], IMG_STONE_W);
 }
 
 static void drawFlippingStone(int8_t dx, int8_t dy, int8_t anim, bool isBlack) {
-    arduboy.drawBitmap(dx, dy - 8, imgFlippingBase[anim], 11, 16, WHITE);
+    arduboy.drawBitmap(dx, dy - 8, imgFlippingBase[anim], IMG_FSTONE_W, IMG_FSTONE_H, WHITE);
     if (anim > 4) isBlack = !isBlack;
     if (isBlack) {
-        arduboy.drawBitmap(dx, dy - 8, imgFlippingFace[anim], 11, 16, BLACK);
+        arduboy.drawBitmap(dx, dy - 8, imgFlippingFace[anim], IMG_FSTONE_W, IMG_FSTONE_H, BLACK);
     }
 }
 
 static void drawCursor(void) {
-    if (board.numStones < 4 || board.numPlaceable == 0 || isCpuTurn()) return;
+    if (board.numStones < INITIAL_STONES || board.numPlaceable == 0 || isCpuTurn()) return;
     if (cursorLastPos.x != cursorPos.x || cursorLastPos.y != cursorPos.y) {
-        int dx = cursorLastPos.x * 12 + 16;
-        memcpy(arduboy.getBuffer() + dx + cursorLastPos.y * WIDTH, cursorBuf, 11);
+        int dx = getDx(cursorLastPos.x);
+        memcpy(arduboy.getBuffer() + dx + cursorLastPos.y * WIDTH, cursorBuf, IMG_STONE_W);
         cursorLastPos = cursorPos;
         isCursorMoved = true;
     }
+    int dx = getDx(cursorPos.x);
+    int dy = getDy(cursorPos.y) + 1;
     if (isCursorMoved) {
-        int dx = cursorPos.x * 12 + 16;
-        memcpy(cursorBuf, arduboy.getBuffer() + dx + cursorPos.y * WIDTH, 11);
+        memcpy(cursorBuf, arduboy.getBuffer() + dx + cursorPos.y * WIDTH, IMG_STONE_W);
         isCursorMoved = false;
     }
-    bool isBlink = (gameFrames & 2);
-    arduboy.drawRect(cursorPos.x * 12 + 16, cursorPos.y * 8 + 1, 11, 7, isBlink ? WHITE : BLACK);
+    arduboy.drawRect(dx, dy, IMG_STONE_W, IMG_STONE_H - 1, (counter & 2) ? WHITE : BLACK);
 }
 
 static void drawPlayerIndication(bool isAnimation)
 {
     if (isAnimation) {
-        if (gameFrames & 7) return;
-        arduboy.fillRect2(0, 24, 11, 19, BLACK);
-        arduboy.fillRect2(116, 24, 11, 19, BLACK);
+        arduboy.fillRect2(0, 24, IMG_PLAYER_W, IMG_PLAYER_H + 8, BLACK);
+        arduboy.fillRect2(116, 24, IMG_PLAYER_W, IMG_PLAYER_H + 8, BLACK);
     } else {
         drawStone(0, 1, IMG_ID_BLACK_OUTSIDE);
         drawStone(116, 1, IMG_ID_WHITE_OUTSIDE);
     }
 
-    bool isActive = (board.numStones >= 4 && state != STATE_OVER);
-    int a = gameFrames / 8 & 3;
+    bool isActive = (board.numStones >= INITIAL_STONES && state != STATE_OVER);
+    int a = counter / 8 & 3;
     for (int i = 0; i < 2; i++) {
         bool isCpu = (1 - i == record.gameMode);
         int x = i * 116;
         int y = (isActive && i == board.isWhiteTurn) ? 26 + abs(a - 1) : 27;
-        arduboy.drawBitmap(x, y, imgPlayer[isCpu], 11, 11, WHITE);
+        arduboy.drawBitmap(x, y, imgPlayer[isCpu], IMG_PLAYER_W, IMG_PLAYER_H, WHITE);
         if (isCpu) drawNumber(x + 3, y + 3, record.cpuLevel);
     }
     if (isActive) {
-        arduboy.fillRect2(board.isWhiteTurn ? 116 : 0, 40, 11, 3, WHITE);
+        arduboy.fillRect2(board.isWhiteTurn ? 116 : 0, 40, IMG_PLAYER_W, 3, WHITE);
         if (board.numPlaceable == 0) {
-            arduboy.fillRect2(50, 28, 27, 9, WHITE);
-            arduboy.fillRect2(51, 29, 25, 7, BLACK);
-            if (a & 1) arduboy.printEx(52, 30, F("PASS"));
+            int x = board.isWhiteTurn ? 82 : 22;
+            arduboy.fillRect2(x - 2, 28, 27, 9, WHITE);
+            arduboy.fillRect2(x - 1, 29, 25, 7, BLACK);
+            if (a & 1) arduboy.printEx(x, 30, F("PASS"));
         }
     }
 }
@@ -438,12 +549,21 @@ static void draw2Numbers(int16_t x, int16_t y, int8_t value)
     arduboy.print(value);
 }
 
-
 static void drawResult(void)
 {
-    arduboy.fillRect2(35, 28, 57, 9, WHITE);
-    arduboy.fillRect2(36, 29, 55, 7, BLACK);
-    arduboy.printEx(37, 30, F("GAME OVER"));
+    if (animCounter < FPS || animCounter > FPS * 2) return;
+    int h = min(animCounter - FPS + 1, 12);
+    arduboy.fillRect2(0, 51 - h / 2, WIDTH, h + 2, BLACK);    
+    arduboy.fillRect2(0, 52 - h / 2, WIDTH, h, WHITE);
+    int a = FPS * 2 - animCounter;
+    int x = a * a / 18 + WIDTH / 2 - (strlen_PF((uint_farptr_t) resultLabel) * 6 - 1);
+    if (x < WIDTH) {
+        arduboy.setTextColor(BLACK, BLACK);
+        arduboy.setTextSize(2);
+        arduboy.printEx(x, 47, resultLabel);
+        arduboy.setTextColor(WHITE, BLACK);
+        arduboy.setTextSize(1);
+    }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -476,6 +596,24 @@ static void analyzeBoard(BOARD_T *p)
     }
     p->numStones = p->numBlack + p->numWhite;
     checkFixedStones(p);
+    dprintln(F("Board analysis"));
+    dprintln(board.numBlack);
+    dprintln(board.numWhite);
+    dprintln(board.numFixedBlack);
+    dprintln(board.numFixedWhite);
+    dprintln(board.numPlaceable);
+}
+
+static void placeStone(void)
+{
+    isPlaceable(&board, cursorPos.x, cursorPos.y, true);
+    arduboy.playScore2(soundPlace, SND_PRIO_PLACE);
+    state = STATE_FLIPPING;
+    dprint(F("Place "));
+    dprint((board.isWhiteTurn) ? F("White ") : F("Black "));
+    dprint(cursorPos.x);
+    dprint(',');
+    dprintln(cursorPos.y);
 }
 
 static bool isPlaceable(BOARD_T *p, int8_t x, int8_t y, bool isActual)
@@ -516,15 +654,15 @@ static bool isReversible(BOARD_T *p, int8_t x, int8_t y, int8_t vx, int8_t vy, b
         if (isWhite == p->isWhiteTurn) {
             if (s == 0) return false;
             if (isActual) {
-                animStones += s;
-                int8_t anim = animStones * 4 + 32;
+                flipStones += s;
+                int8_t anim = flipStones * 4 + 32;
                 while (s-- > 0) {
                     x -= vx;
                     y -= vy;
                     b = 1 << x;
                     p->black[y] ^= b;
                     p->white[y] ^= b;
-                    animTable[y][x] = anim;
+                    flipTable[y][x] = anim;
                     anim -= 4;
                 }
             }
@@ -596,26 +734,26 @@ static FIX_COND_T checkFixCond(BOARD_T *p, int8_t x, int8_t y, int8_t vx, int8_t
     }
 }
 
-static bool isGameOver(BOARD_T *p)
-{
-    return  p->numStones == BOARD_H * BOARD_W ||
-            p->numBlack == 0 ||
-            p->numWhite == 0 ||
-            p->isLastPassed && p->numPlaceable == 0;
-
-}
-
 /*---------------------------------------------------------------------------*/
 /*                            Thinking Algorithm                             */
 /*---------------------------------------------------------------------------*/
 
 static void cpuThinking(void)
 {
-    int8_t depth = record.cpuLevel;
+    int8_t depth = min(record.cpuLevel, board.numStones / 4 + 1);
     if (board.numPlaceable == 1) depth = 1;
-    if (board.numStones < 16) depth = min(depth, board.numStones / 4 + 1);
-    alphabeta(NULL, depth, -EVAL_INF, EVAL_INF);
+    unsigned long before = millis();
+    int eval = -alphabeta(NULL, depth, -EVAL_INF, EVAL_INF);
     arduboy.setRGBled(0, 0, 0);
+    unsigned long after = millis();
+    if (after > before) {
+        int diff = (after - before) * FPS / 1000;
+        record.playFrames += diff; // TODO
+        dprint(F("CPU thinking frames="));
+        dprintln(diff);
+    }
+    dprint(F("Board evaluation="));
+    dprintln(eval);
 }
 
 static int alphabeta(BOARD_T *p, int8_t depth, int alpha, int beta)
@@ -648,13 +786,13 @@ static int alphabeta(BOARD_T *p, int8_t depth, int alpha, int beta)
         for (int8_t x = 0; x < BOARD_W; x++) {
             uint8_t b = 1 << x;
             if (placeable & b) {
-                if ((record.settings & SETTING_BIT_THINK_LED) && (thinkLed & 0x3f) == 0) {
+                if ((record.settings & SETTING_BIT_THINK_LED) && !(thinkLed & 0x3f)) {
                     uint8_t r = thinkLed >> 3;
                     arduboy.setRGBled((r < 64) ? r : 128 - r, 0, 0);
                 }
                 if (++thinkLed >= 1024) thinkLed = 0;
                 BOARD_T tmpBoard = *p;
-                placeStone(&tmpBoard, x, y);
+                isPlaceable(&tmpBoard, x, y, true);
                 tmpBoard.isWhiteTurn = !tmpBoard.isWhiteTurn;
                 tmpBoard.isLastPassed = false;
                 int eval = alphabeta(&tmpBoard, depth, -beta, -alpha);

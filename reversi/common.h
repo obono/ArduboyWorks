@@ -7,7 +7,7 @@
 //#define DEBUG
 #define FPS             60
 #define APP_TITLE       "REVERSI"
-#define APP_INFO        "OBN-Y06 VER 0.03"
+#define APP_INFO        "OBN-Y06 VER 0.04"
 #define APP_RELEASED    "NOVEMBER 2018"
 
 enum MODE_T {
@@ -22,6 +22,9 @@ enum GAME_MODE_T {
     GAME_MODE_2PLAYERS,
 };
 
+#define WIN_LOSE_MAX        10
+#define WIN_LOSE_VALUE_MAX  (((WIN_LOSE_MAX + 1) * (WIN_LOSE_MAX + 1)) - 1)
+
 #define SETTING_BIT_THINK_LED       0x1
 #define SETTING_BIT_STONES_COUNTER  0x2
 #define SETTING_BIT_SHOW_PLACEABLE  0x4
@@ -30,14 +33,21 @@ enum GAME_MODE_T {
 /*  Typedefs  */
 
 typedef struct {
+    uint8_t x:3;
+    uint8_t y:3;
+} POS_T;
+
+typedef struct {
     uint8_t     black[8], white[8];
     uint8_t     gameMode:2;
     uint8_t     cpuLevel:3;
     uint8_t     canContinue:1;
     uint8_t     isWhiteTurn:1;
     uint8_t     isLastPassed:1;
+    POS_T       cursorPos;
+    uint8_t     isAdvancedLevel:1;
+    uint8_t     vsCpuWinLose:7;
     uint8_t     settings;
-    uint16_t    dummy;
     uint32_t    playFrames;
     uint16_t    playCount;
 } RECORD_T; // sizeof(RECORD_T) musb be 26 bytes
