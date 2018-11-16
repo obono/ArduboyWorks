@@ -27,6 +27,10 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * A puzzle game with dice on the 5x7 grid field.
   * Depend on Arduboy Library 1.1.1\
     ![shot](docs/img/psicolo1.gif) ![shot](docs/img/psicolo2.gif)
+* OBN-Y06 [Reversi](https://community.arduboy.com/t/reversi-a-simple-board-game/6754)
+  * A simple board game.
+  * Depend on Arduboy Library 1.1.1\
+    ![shot](docs/img/reversi1.gif) ![shot](docs/img/reversi2.gif)
 
 ## License
 

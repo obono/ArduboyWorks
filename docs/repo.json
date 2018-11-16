@@ -42,6 +42,14 @@
 			"author" : "OBONO",
 			"cover" : "https://obono.github.io/ArduboyWorks/img/psicolo2.gif",
 			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/psicolo_v0.10.hex"
+		},
+		{
+			"name" : "Reversi",
+			"description" : "A simple Reversi game.",
+			"version" : "0.10",
+			"author" : "OBONO",
+			"cover" : "https://obono.github.io/ArduboyWorks/img/reversi2.gif",
+			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/reversi_v0.10.hex"
 		}
 	]
 }
