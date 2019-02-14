@@ -159,6 +159,37 @@ void drawTime(int16_t x, int16_t y, uint32_t frames)
     }
 }
 
+void clearScreenGray(void)
+{
+    static bool isBlink = true;
+    uint8_t *sBuffer = arduboy.getBuffer();
+    uint8_t b1 = (isBlink) ? 0x55 : 0xaa;
+    uint8_t b2 = ~b1;
+    asm volatile (
+        // load sBuffer pointer into Z
+        "movw r30, %0\n\t"
+        // counter = 0
+        "clr __tmp_reg__ \n\t"
+        "loopto: \n\t"
+        // (4x) push byte data into screen buffer,
+        // then increment buffer position
+        "st Z+, %1 \n\t"
+        "st Z+, %2 \n\t"
+        "st Z+, %1 \n\t"
+        "st Z+, %2 \n\t"
+        // increase counter
+        "inc __tmp_reg__ \n\t"
+        // repeat for 256 loops
+        // (until counter rolls over back to 0)
+        "brne loopto \n\t"
+        // input: sBuffer, b1, b2
+        // modified: Z (r30, r31)
+        :
+        : "r" (sBuffer), "r" (b1), "r" (b2)
+    );
+    isBlink = !isBlink;
+}
+
 /*---------------------------------------------------------------------------*/
 /*                              Sound Functions                              */
 /*---------------------------------------------------------------------------*/

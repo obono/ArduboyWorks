@@ -7,7 +7,7 @@
 //#define DEBUG
 #define FPS             60
 #define APP_TITLE       "LASERS"
-#define APP_INFO        "OBN-Y07 VER 0.01"
+#define APP_INFO        "OBN-Y07 VER 0.02"
 #define APP_RELEASED    "FEBRUARY 2019"
 
 enum MODE_T {
@@ -37,6 +37,7 @@ void    clearRecord(void);
 void    handleDPad(void);
 void    drawNumber(int16_t x, int16_t y, int32_t value);
 void    drawTime(int16_t x, int16_t y, uint32_t frames);
+void    clearScreenGray(void);
 
 void    setSound(bool on);
 void    playSoundTick(void);

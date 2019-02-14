@@ -1,6 +1,17 @@
 #include "common.h"
+#include "data.h"
 
 /*  Defines  */
+
+#define LASERS_MAX  8
+
+#define LASER_X_MAX 2048
+#define LASER_W     48
+
+#define RAY_VD_COEF (DEG_TO_RAD / 8.0)
+#define RAY_D_MAX   360
+#define RAY_R_MAX   144
+#define RAY_R_DEC   4
 
 enum STATE_T {
     STATE_INIT = 0,
@@ -10,26 +21,42 @@ enum STATE_T {
     STATE_LEAVE,
 };
 
-enum {
-    SND_PRIO_START = 0,
-};
-
 /*  Typedefs  */
+
+typedef struct {
+    int16_t x;
+    int8_t  vx;
+    int8_t  a;
+    int8_t  b;
+    float   d;
+    int8_t  vd;
+    uint8_t r;
+    bool    isWhite;
+} LASER_T;
 
 /*  Local Functions  */
 
+static void movePlayer(void);
+static void moveLasers(void);
+static void moveLaser(LASER_T *p);
+static void newLaser(LASER_T *p);
+static int16_t calcLaserY(LASER_T *p);
+
 static void clearScreen(bool isBlink);
+static void drawPlayer(void);
+static void drawLasers(void);
+static void drawRay(LASER_T *p);
+static void drawLaser(LASER_T *p);
+static void drawStrings(void);
 
 /*  Local Variables  */
 
-PROGMEM static const byte soundStart[] = {
-    0x90, 72, 0, 100, 0x90, 74, 0, 100, 0x90, 76, 0, 100,
-    0x90, 77, 0, 100, 0x90, 79, 0, 200, 0x80, 0xF0
-};
-
 static STATE_T  state = STATE_INIT;
-static double   degB, degW;
-static bool     blinkFlg;
+static LASER_T  lasers[LASERS_MAX];
+static uint16_t score;
+static int16_t  playerX, playerY;
+static int8_t   playerVx, playerVy, playerMoving;
+static bool     isPlayerWhite;
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -38,22 +65,31 @@ static bool     blinkFlg;
 void initGame(void)
 {
     record.playCount++;
-    degB = 0.0;
-    degW = 0.0;
-    blinkFlg = true;
+    isRecordDirty = true;
+    writeRecord();
+
+    for (LASER_T *p = &lasers[0]; p < &lasers[LASERS_MAX]; p++) {
+        newLaser(p);
+    }
+    score = 0;
+    playerX = 1024;
+    playerY = 512;
+    playerMoving = 0;
+    isPlayerWhite = true;
     state = STATE_PLAYING;
     arduboy.playScore2(soundStart, 0);
 }
 
 MODE_T updateGame(void)
 {
-    record.playFrames++;
-    blinkFlg = !blinkFlg;
     switch (state) {
     case STATE_PLAYING:
-        degB += 0.01;
-        degW += 0.015;
-        if (arduboy.buttonDown(B_BUTTON)) state = STATE_LEAVE;
+        record.playFrames++;
+        score++;
+        isRecordDirty = true;
+        movePlayer();
+        moveLasers();
+        if (arduboy.buttonDown(A_BUTTON)) state = STATE_LEAVE;
         break;
     case STATE_MENU:
         handleMenu();
@@ -66,51 +102,115 @@ MODE_T updateGame(void)
 
 void drawGame(void)
 {
-    clearScreen(blinkFlg);
+    clearScreenGray();
     if (state == STATE_LEAVE) return;
-
-    arduboy.drawLine(32, 32, 32 + cos(degB) * 48, 32 - sin(degB) * 48, BLACK);
-    arduboy.drawLine(96, 32, 96 - cos(degW) * 48, 32 - sin(degW) * 48, WHITE);
-    arduboy.printEx(12, 12, F("ABCDEFGHIJ"));
-    arduboy.setTextColor(BLACK, BLACK);
-    arduboy.printEx(64, 46, F("0123456789"));
-    arduboy.setTextColor(WHITE, WHITE);
+    drawLasers();
+    drawPlayer();
+    drawStrings();
 }
 
 /*---------------------------------------------------------------------------*/
 /*                             Control Functions                             */
 /*---------------------------------------------------------------------------*/
 
+static void movePlayer(void)
+{
+    playerVx = 0;
+    playerVy = 0;
+    if (arduboy.buttonPressed(LEFT_BUTTON))  playerVx--;
+    if (arduboy.buttonPressed(RIGHT_BUTTON)) playerVx++;
+    if (arduboy.buttonPressed(UP_BUTTON))    playerVy--;
+    if (arduboy.buttonPressed(DOWN_BUTTON))  playerVy++;
+    int8_t vr = (playerVx * playerVy == 0) ? 8 : 6;
+    playerX += playerVx * vr;
+    playerY += playerVy * vr;
+    playerMoving = (playerMoving + 1) & 15;
+    if (playerVx == 0 && playerVy == 0) playerMoving = 0;
+    if (arduboy.buttonDown(B_BUTTON)) isPlayerWhite = !isPlayerWhite;
+}
+
+static void moveLasers(void)
+{
+    for (LASER_T *p = &lasers[0]; p < &lasers[LASERS_MAX]; p++) {
+        if (p->vx) moveLaser(p);
+    }
+}
+
+static void moveLaser(LASER_T *p)
+{
+    p->x += p->vx;
+    p->d += p->vd * RAY_VD_COEF;
+    if (p->d < 0)      p->d += TWO_PI;
+    if (p->d > TWO_PI) p->d -= TWO_PI;
+    if (p->x < 0 && p->vx < 0 || p->x >= LASER_X_MAX && p->vx > 0) {
+        if (p->r < RAY_R_DEC) {
+            newLaser(p);
+        } else {
+            p->r -= RAY_R_DEC;
+        }
+    } else {
+        if (p->r < RAY_R_MAX) p->r++;
+    }
+}
+
+static void newLaser(LASER_T *p)
+{
+    p->x = random(2) * (LASER_X_MAX + LASER_W * 2) - LASER_W;
+    p->vx = random(4, 13) * ((p->x <= 0) * 2 - 1);
+    p->b = random(HEIGHT);
+    p->a = random(HEIGHT) - p->b;
+    p->d = random(RAY_D_MAX) * DEG_TO_RAD;
+    p->vd = random(8, 17) * (random(2) * 2 - 1);
+    p->r = 0;
+    p->isWhite = random(2);
+}
+
+static int16_t calcLaserY(LASER_T *p)
+{
+    return ((p->x >> 4) * p->a >> 3) + (p->b << 4);
+}
 
 /*---------------------------------------------------------------------------*/
 /*                              Draw Functions                               */
 /*---------------------------------------------------------------------------*/
 
-static void clearScreen(bool isBlink)
+static void drawPlayer(void)
 {
-    uint8_t *sBuffer = arduboy.getBuffer();
-    uint8_t b1 = (isBlink) ? 0x55 : 0xaa;
-    uint8_t b2 = ~b1;
-    asm volatile (
-        // load sBuffer pointer into Z
-        "movw r30, %0\n\t"
-        // counter = 0
-        "clr __tmp_reg__ \n\t"
-        "loopto: \n\t"
-        // (4x) push byte data into screen buffer,
-        // then increment buffer position
-        "st Z+, %1 \n\t"
-        "st Z+, %2 \n\t"
-        "st Z+, %1 \n\t"
-        "st Z+, %2 \n\t"
-        // increase counter
-        "inc __tmp_reg__ \n\t"
-        // repeat for 256 loops
-        // (until counter rolls over back to 0)
-        "brne loopto \n\t"
-        // input: sBuffer, b1, b2
-        // modified: Z (r30, r31)
-        :
-        : "r" (sBuffer), "r" (b1), "r" (b2)
-    );
+    int16_t x = playerX >> 4;
+    int16_t y = (playerY >> 4) - (playerMoving >= 8);
+    arduboy.drawBitmap(x - 4, y - 3, imgPlayerFrame, 9, 8, !isPlayerWhite);
+    arduboy.drawBitmap(x - 3, y - 2, imgPlayerBody, 7, 6, isPlayerWhite);
+    arduboy.drawBitmap(x - 1 + playerVx, y - 1 + playerVy, imgPlayerFace, 3, 4, !isPlayerWhite);
+}
+
+static void drawLasers(void)
+{
+    for (LASER_T *p = &lasers[0]; p < &lasers[LASERS_MAX]; p++) {
+        if (p->vx) drawRay(p);
+    }
+    for (LASER_T *p = &lasers[0]; p < &lasers[LASERS_MAX]; p++) {
+        if (p->vx) drawLaser(p);
+    }
+}
+
+static void drawRay(LASER_T *p)
+{
+    int16_t x = (p->x >> 4);
+    int16_t y = (calcLaserY(p) >> 4);
+    arduboy.drawLine(x, y, x + cos(p->d) * p->r, y - sin(p->d) * p->r, p->isWhite);
+}
+
+static void drawLaser(LASER_T *p)
+{
+    int16_t x = (p->x >> 4) - 3;
+    int16_t y = (calcLaserY(p) >> 4) - 3;
+    uint8_t idx = (uint8_t) (p->d * RAD_TO_DEG / 15.0 + 0.5) % 24;
+    arduboy.drawBitmap(x, y, imgLaserBase[idx], 7, 7, p->isWhite);
+    arduboy.drawBitmap(x + 2, y, imgLaserNeck[idx], 3, 7, !p->isWhite);
+}
+
+static void drawStrings(void)
+{
+    arduboy.printEx(0, 0, F("SCORE"));
+    drawNumber(0, 6, score);
 }
