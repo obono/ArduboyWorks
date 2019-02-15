@@ -19,6 +19,7 @@ enum RECORD_STATE_T {
 MyArduboy   arduboy;
 RECORD_T    record;
 bool        isRecordDirty;
+uint16_t    lastScore;
 int8_t      padX, padY, padRepeatCount;
 bool        isInvalid;
 
@@ -109,6 +110,18 @@ void clearRecord(void)
     }
     recordState = RECORD_INITIAL;
     dprintln(F("Clear EEPROM"));
+}
+
+bool enterScore(uint16_t score)
+{
+    int r = 10;
+    uint16_t h;
+    while (r > 0 && (h = record.hiscore[r - 1]) < score) {
+        if (--r < 9) record.hiscore[r + 1] = h;
+    }
+    if (r < 10) record.hiscore[r] = score;
+    lastScore = score;
+    return (r == 0);
 }
 
 void handleDPad(void)

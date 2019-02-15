@@ -36,6 +36,7 @@ void initTitle(void)
 {
     if (state == STATE_INIT) {
         readRecord();
+        lastScore = 0;
     }
 
     clearMenuItems();
@@ -126,17 +127,33 @@ static void handleAnyButton(void)
 
 static void drawTitleImage(void)
 {
+    arduboy.printEx(64, 12, F(APP_TITLE));
+    if (lastScore > 0) {
+        arduboy.printEx(0, 0, F("SCORE"));
+        drawNumber(0, 6, lastScore);
+    }
 #ifdef DEBUG
-    arduboy.printEx(0, 0, F(APP_TITLE " DEBUG"));
-#else
-    arduboy.printEx(0, 0, F(APP_TITLE));
+    arduboy.printEx(98, 0, F("DEBUG"));
 #endif
 }
 
 static void drawRecord(void)
 {
-    arduboy.printEx(34, 0, F("[ RECORD ]"));
-    arduboy.drawRect(-1, 6, 130, 45, WHITE);
+    arduboy.printEx(22, 4, F("BEST 10 SCORES"));
+    arduboy.drawRect(-1, 12, 130, 33, WHITE);
+    for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 5; j++) {
+            int r = i * 5 + j;
+            arduboy.printEx(i * 60 + 4 - (r == 9) * 6, j * 6 + 14, F("["));
+            arduboy.print(r + 1);
+            arduboy.print(F("] "));
+            arduboy.print(record.hiscore[r]);
+        }
+    }
+    arduboy.printEx(16, 48, F("PLAY COUNT"));
+    drawNumber(82, 48, record.playCount);
+    arduboy.printEx(16, 54, F("PLAY TIME"));
+    drawTime(82, 54, record.playFrames);
 }
 
 static void drawCredit(void)

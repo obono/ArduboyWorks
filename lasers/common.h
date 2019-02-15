@@ -7,7 +7,7 @@
 //#define DEBUG
 #define FPS             60
 #define APP_TITLE       "LASERS"
-#define APP_INFO        "OBN-Y07 VER 0.02"
+#define APP_INFO        "OBN-Y07 VER 0.03"
 #define APP_RELEASED    "FEBRUARY 2019"
 
 enum MODE_T {
@@ -24,6 +24,7 @@ typedef struct {
 } POS_T;
 
 typedef struct {
+    uint16_t    hiscore[10];
     uint32_t    playFrames;
     uint16_t    playCount;
 } RECORD_T; // sizeof(RECORD_T) must be 26 bytes
@@ -33,6 +34,7 @@ typedef struct {
 void    readRecord(void);
 void    writeRecord(void);
 void    clearRecord(void);
+bool    enterScore(uint16_t score);
 
 void    handleDPad(void);
 void    drawNumber(int16_t x, int16_t y, int32_t value);
@@ -85,6 +87,7 @@ extern MyArduboy    arduboy;
 extern RECORD_T     record;
 
 extern bool     isRecordDirty;
+extern uint16_t lastScore;
 extern int8_t   padX, padY, padRepeatCount;
 extern bool     isInvalid;
 
