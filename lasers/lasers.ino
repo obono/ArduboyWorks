@@ -23,6 +23,7 @@ typedef struct
 
 PROGMEM static const MODULE_FUNCS moduleTable[] = {
     { initLogo,     updateLogo,     drawLogo },
+    { initWarn,     updateWarn,     drawWarn },
     { initTitle,    updateTitle,    drawTitle },
     { initGame,     updateGame,     drawGame },
 };

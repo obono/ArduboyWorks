@@ -41,6 +41,12 @@ enum STATE_T {
     STATE_LEAVE,
 };
 
+enum ALIGN_T {
+    ALIGN_LEFT = 0,
+    ALIGN_CENTER,
+    ALIGN_RIGHT,
+};
+
 /*  Typedefs  */
 
 typedef struct {
@@ -61,25 +67,26 @@ static void moveLasers(void);
 static void moveLaser(LASER_T *p);
 static void newLaser(LASER_T *p);
 static int16_t calcLaserY(LASER_T *p);
+static void onContinue(void);
+static void onQuit(void);
 
-static void clearScreen(bool isBlink);
 static void drawPlayer(void);
 static void drawLasers(void);
 static void drawRay(LASER_T *p);
 static void drawLaser(LASER_T *p);
 static void drawStrings(void);
+static int8_t drawFigure(int16_t x, int16_t y, int value, ALIGN_T align);
 
 /*  Local Variables  */
 
 static STATE_T  state = STATE_INIT;
 static LASER_T  lasers[LASERS_MAX];
-static uint16_t score;
-static int16_t  power;
-static int16_t  playerX, playerY;
+static uint16_t score, gameFrames;
+static int16_t  power, playerX, playerY;
 static int16_t  laserCount, laserWait;
-static uint8_t  gameFrames;
-static int8_t   playerVx, playerVy, playerMoving;
-static bool     isPlayerWhite;
+static int8_t   playerVx, playerVy, playerMoving, colorBias;
+static int8_t   scoreX, scoreY, powerY;
+static bool     isPlayerWhite, isHiscore;
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -92,18 +99,23 @@ void initGame(void)
     writeRecord();
 
     score = 0;
+    scoreX = 0;
+    scoreY = -9;
     power = POWER_MAX;
+    powerY = -9;
+    gameFrames = 0;
+
     playerX = WIDTH * SCALE / 2;
     playerY = HEIGHT * SCALE / 2;
     playerMoving = 0;
     isPlayerWhite = true;
-    gameFrames = 0;
+    colorBias = 4;
 
     for (LASER_T *p = &lasers[0]; p < &lasers[LASERS_MAX]; p++) {
         p->vx = 0;
     }
     laserCount = 0;
-    laserWait = 120;
+    laserWait = FPS * 2;
 
     state = STATE_PLAYING;
     arduboy.playScore2(soundStart, SND_PRIO_START);
@@ -113,27 +125,42 @@ MODE_T updateGame(void)
 {
     switch (state) {
     case STATE_PLAYING:
-        record.playFrames++;
-        isRecordDirty = true;
-        gameFrames++;
-        if (laserCount > 0 && (gameFrames & 7) == 0) score++;
+        if (laserCount > 0) {
+            record.playFrames++;
+            if ((++gameFrames & 7) == 0) score++;
+            if (scoreY < 0) scoreY++;
+            isRecordDirty = true;
+        }
         if (power < POWER_MAX) power++;
         movePlayer();
         moveLasers();
         if (power <= 0) {
-            enterScore(score);
+            isHiscore = enterScore(score);
             writeRecord();
-            state = STATE_OVER;
             arduboy.playScore2(soundOver, SND_PRIO_OVER);
+            gameFrames = FPS * 10;
+            state = STATE_OVER;
             dprintln(F("Game over"));
+        } else if (laserCount > 0 && arduboy.buttonDown(A_BUTTON)) {
+            writeRecord();
+            clearMenuItems();
+            addMenuItem(F("CONTINUE"), onContinue);
+            addMenuItem(F("QUIT"), onQuit);
+            setMenuCoords(34, 26, 59, 17);
+            setMenuItemPos(0);
+            state = STATE_MENU;
+            dprintln(F("Pause"));
         }
         break;
     case STATE_MENU:
         handleMenu();
         break;
     case STATE_OVER:
+        gameFrames--;
+        if (scoreY < 0) scoreY++;
         moveLasers();
-        if (arduboy.buttonDown(A_BUTTON)) state = STATE_LEAVE;
+        if (arduboy.buttonDown(A_BUTTON) || gameFrames == 0) state = STATE_LEAVE;
+        if (arduboy.buttonDown(B_BUTTON) && gameFrames <= FPS * 8) initGame();
     default:
         break;
     }
@@ -147,6 +174,7 @@ void drawGame(void)
     drawLasers();
     drawPlayer();
     drawStrings();
+    if (state == STATE_MENU) drawMenuItems();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -180,6 +208,17 @@ static void movePlayer(void)
     if (arduboy.buttonDown(B_BUTTON)) {
         isPlayerWhite = !isPlayerWhite;
     }
+
+    /*  Others  */
+    if (scoreX == 0 && playerX <= 36 * SCALE) {
+        scoreX = 120;
+        scoreY = -8;
+    } else if (scoreX > 0 && playerX >= 91 * SCALE) {
+        scoreX = 0;
+        scoreY = -8;
+    }
+    if (playerY >= 53 * SCALE || power == POWER_MAX) powerY = -9;
+    if (playerY <= 10 * SCALE) powerY = 6;
 }
 
 static void moveLasers(void)
@@ -242,12 +281,28 @@ static void newLaser(LASER_T *p)
     p->d = random(RAY_D_MAX) * DEG_TO_RAD;
     p->vd = random(RAY_VD_MIN, RAY_VD_MAX + 1) * (random(2) * 2 - 1);
     p->r = 0;
-    p->isWhite = random(2);
+    p->isWhite = (random(8) >= colorBias);
+    colorBias += p->isWhite * 2 - 1; 
 }
 
 static int16_t calcLaserY(LASER_T *p)
 {
     return (descale(p->x) * p->a >> 3) + (p->b << 4);
+}
+
+static void onContinue(void)
+{
+    playSoundClick();
+    state = STATE_PLAYING;
+    dprintln(F("Continue"));
+}
+
+static void onQuit(void)
+{
+    playSoundClick();
+    lastScore = 0;
+    state = STATE_LEAVE;
+    dprintln(F("Quit"));
 }
 
 /*---------------------------------------------------------------------------*/
@@ -263,7 +318,7 @@ static void drawPlayer(void)
     arduboy.drawBitmap(x - 3, y - 2, imgPlayerBody, 7, 6, isPlayerWhite);
     arduboy.drawBitmap(x - 1 + playerVx, y - 1 + playerVy, imgPlayerFace, 3, 4, !isPlayerWhite);
     if (power < POWER_MAX) {
-        drawNumber(x - 5, y - 9, power / 10);
+        drawNumber(x - 5 + (power < 100) * 3, y + powerY, power / 10);
     }
 }
 
@@ -296,13 +351,22 @@ static void drawLaser(LASER_T *p)
 
 static void drawStrings(void)
 {
-    if (laserCount == 0) {
-        arduboy.printEx(46, 16, F("READY?"));
-    } else {
-        arduboy.printEx(0, 0, F("SCORE"));
-        drawNumber(0, 6, score);
-    }
+    drawFigure(scoreX, scoreY, score, (scoreX == 0) ? ALIGN_LEFT : ALIGN_RIGHT);
+    if (laserCount == 0) drawBitmapBW(40, 8, imgReady, 49, 15);
     if (state == STATE_OVER) {
-        arduboy.printEx(37, 29, F("GAME OVER"));
+        drawBitmapBW(25, 26, imgGameOver, 77, 11);
+        if (isHiscore) {
+            uint8_t c = (gameFrames & 8) >> 3; 
+            arduboy.setTextColor(c, c);
+            arduboy.printEx(31, 40, F("NEW RECORD!"));
+            arduboy.setTextColor(WHITE, WHITE);
+        }
     }
+}
+
+static int8_t drawFigure(int16_t x, int16_t y, int value, ALIGN_T align)
+{
+    int8_t offset = (value > 9) ? drawFigure(x - align * 4, y, value / 10, align) : 0;
+    drawBitmapBW(x + offset, y, imgFigures[value % 10], 8, 8);
+    return offset + 8 - align * 4;
 }

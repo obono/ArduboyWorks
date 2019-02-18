@@ -54,7 +54,7 @@ MODE_T updateLogo(void)
     counter--;
     signalOn = (SIGNAL_PTN >> (counter - FPS / 4) / (FPS / 20)) & 1;
     arduboy.setRGBled(0, 0, signalOn * 127);
-    MODE_T ret = (counter == 0) ? MODE_TITLE : MODE_LOGO;
+    MODE_T ret = (counter == 0) ? MODE_WARN : MODE_LOGO;
     if (ret) {
         dprintln(F("Start " APP_TITLE " : " APP_INFO));
     }

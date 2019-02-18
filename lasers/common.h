@@ -7,11 +7,12 @@
 //#define DEBUG
 #define FPS             60
 #define APP_TITLE       "LASERS"
-#define APP_INFO        "OBN-Y07 VER 0.03"
+#define APP_INFO        "OBN-Y07 VER 0.04"
 #define APP_RELEASED    "FEBRUARY 2019"
 
 enum MODE_T {
     MODE_LOGO = 0,
+    MODE_WARN,
     MODE_TITLE,
     MODE_GAME,
 };
@@ -36,9 +37,10 @@ void    writeRecord(void);
 void    clearRecord(void);
 bool    enterScore(uint16_t score);
 
-void    handleDPad(void);
+void    drawFrame(int8_t x, int8_t y, int8_t w, int8_t h);
 void    drawNumber(int16_t x, int16_t y, int32_t value);
 void    drawTime(int16_t x, int16_t y, uint32_t frames);
+void    drawBitmapBW(int16_t x, int16_t y, const uint8_t *bitmap, uint8_t w, uint8_t h);
 void    clearScreenGray(void);
 
 void    setSound(bool on);
@@ -61,17 +63,20 @@ void    clearMenuItems(void);
 void    addMenuItem(const __FlashStringHelper *label, void (*func)(void));
 int8_t  getMenuItemPos(void);
 int8_t  getMenuItemCount(void);
-void    setMenuCoords(int8_t x, int8_t y, int8_t w, int8_t h, bool f, bool s);
+void    setMenuCoords(int8_t x, int8_t y, int8_t w, int8_t h);
 void    setMenuItemPos(int8_t pos);
 void    handleMenu(void);
-void    drawMenuItems(bool isForced);
-void    drawSoundEnabled(void);
+void    drawMenuItems(void);
 
 /*  Global Functions (Each Mode)  */
 
 void    initLogo(void);
 MODE_T  updateLogo(void);
 void    drawLogo(void);
+
+void    initWarn(void);
+MODE_T  updateWarn(void);
+void    drawWarn(void);
 
 void    initTitle(void);
 MODE_T  updateTitle(void);
@@ -88,7 +93,6 @@ extern RECORD_T     record;
 
 extern bool     isRecordDirty;
 extern uint16_t lastScore;
-extern int8_t   padX, padY, padRepeatCount;
 extern bool     isInvalid;
 
 /*  For Debugging  */

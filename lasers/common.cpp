@@ -5,9 +5,6 @@
 #define EEPROM_ADDR_BASE    960
 #define EEPROM_SIGNATURE    0x074E424FUL // "OBN\x07"
 
-#define PAD_REPEAT_DELAY    (FPS / 4)
-#define PAD_REPEAT_INTERVAL (FPS / 12)
-
 enum RECORD_STATE_T {
     RECORD_NOT_READ = 0,
     RECORD_INITIAL,
@@ -20,7 +17,6 @@ MyArduboy   arduboy;
 RECORD_T    record;
 bool        isRecordDirty;
 uint16_t    lastScore;
-int8_t      padX, padY, padRepeatCount;
 bool        isInvalid;
 
 /*  Local Functions  */
@@ -124,22 +120,10 @@ bool enterScore(uint16_t score)
     return (r == 0);
 }
 
-void handleDPad(void)
+void drawFrame(int8_t x, int8_t y, int8_t w, int8_t h)
 {
-    padX = padY = 0;
-    if (arduboy.buttonPressed(LEFT_BUTTON | RIGHT_BUTTON | UP_BUTTON | DOWN_BUTTON)) {
-        if (++padRepeatCount >= (PAD_REPEAT_DELAY + PAD_REPEAT_INTERVAL)) {
-            padRepeatCount = PAD_REPEAT_DELAY;
-        }
-        if (padRepeatCount == 1 || padRepeatCount == PAD_REPEAT_DELAY) {
-            if (arduboy.buttonPressed(LEFT_BUTTON))  padX--;
-            if (arduboy.buttonPressed(RIGHT_BUTTON)) padX++;
-            if (arduboy.buttonPressed(UP_BUTTON))    padY--;
-            if (arduboy.buttonPressed(DOWN_BUTTON))  padY++;
-        }
-    } else {
-        padRepeatCount = 0;
-    }
+    arduboy.fillRect2(x + 1, y + 1, w, h, BLACK);
+    arduboy.drawRect2(x, y, w, h, WHITE);
 }
 
 void drawNumber(int16_t x, int16_t y, int32_t value)
@@ -170,6 +154,12 @@ void drawTime(int16_t x, int16_t y, uint32_t frames)
         if (s < 10) arduboy.print('0');
         arduboy.print(s);
     }
+}
+
+void drawBitmapBW(int16_t x, int16_t y, const uint8_t *bitmap, uint8_t w, uint8_t h)
+{
+    arduboy.drawBitmap(x + 1, y + 1, bitmap, w, h, BLACK);
+    arduboy.drawBitmap(x, y, bitmap, w, h, WHITE);
 }
 
 void clearScreenGray(void)
