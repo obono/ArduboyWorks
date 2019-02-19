@@ -101,6 +101,9 @@ PROGMEM static const uint8_t imgFigures[10][8] = { // 8x8 x10
 enum {
     SND_PRIO_START = 0,
     SND_PRIO_OVER,
+    SND_PRIO_HIT,
+    SND_PRIO_TOGGLE,
+    SND_PRIO_LASER,
 };
 
 PROGMEM static const byte soundStart[] = {
@@ -111,4 +114,27 @@ PROGMEM static const byte soundStart[] = {
 PROGMEM static const byte soundOver[] = {
     0x90, 55, 0, 120, 0x90, 54, 0, 140, 0x90, 53, 0, 160, 0x90, 52, 0, 180,
     0x90, 51, 0, 200, 0x90, 50, 0, 220, 0x90, 49, 0, 240, 0x90, 48, 0, 260, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundToggle[] = {
+    0x90, 53, 0, 15, 0x90, 65, 0, 15, 0x90, 77, 0, 15, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundLaserWhite[] = {
+    0x90, 106, 0, 80, 0x90, 94, 0, 20, 0x90, 106, 0, 40, 0x90, 94, 0, 20,
+    0x90, 106, 0, 20, 0x90, 94, 0, 20, 0x90, 106, 0, 10, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundLaserBlack[] = {
+    0x90, 100, 0, 80, 0x90, 85, 0, 20, 0x90, 100, 0, 40, 0x90, 85, 0, 20,
+    0x90, 100, 0, 20, 0x90, 85, 0, 20, 0x90, 100, 0, 10, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundAbsorb[] = {
+    0x90, 115, 0, 25, 0x90, 112, 0, 25, 0x90, 116, 0, 25, 0x90, 114, 0, 25, 0xE0
+};
+
+PROGMEM static const byte soundDamage[] = {
+    0x90, 48, 0, 5, 0x90, 71, 0, 5, 0x90, 29, 0, 5, 0x90, 52, 0, 5,
+    0x90, 83, 0, 5, 0x90, 35, 0, 5, 0x90, 67, 0, 5, 0x90, 91, 0, 5, 0xE0
 };
