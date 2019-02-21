@@ -2,6 +2,12 @@
 
 /*  Defines  */
 
+#define LINES_MAX   8
+#define SCALE       16
+#define LINE_X_MAX  (WIDTH * SCALE)
+#define LINE_VX_MIN (SCALE / 2)
+#define LINE_VX_MAX (SCALE * 2)
+
 enum STATE_T {
     STATE_INIT = 0,
     STATE_TITLE,
@@ -10,13 +16,23 @@ enum STATE_T {
     STATE_STARTED,
 };
 
+/*  Typedefs  */
+
+typedef struct {
+    int16_t x;
+    int8_t  vx;
+} LINE_T;
+
 /*  Local Functions  */
 
+static void moveLines(void);
+static int8_t getLineVx(void);
 static void onStart(void);
 static void onRecord(void);
 static void onCredit(void);
 static void handleAnyButton(void);
 
+static void drawLines(void);
 static void drawTitleImage(void);
 static void drawRecord(void);
 static void drawCredit(void);
@@ -52,6 +68,7 @@ PROGMEM static const char creditText[] = "- " APP_TITLE " -\0\0" APP_RELEASED \
         "\0PROGREMMED BY OBONO\0\0THIS PROGRAM IS\0RELEASED UNDER\0THE MIT LICENSE.";
 
 static STATE_T  state = STATE_INIT;
+static LINE_T   lines[LINES_MAX]; 
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -62,6 +79,11 @@ void initTitle(void)
     if (state == STATE_INIT) {
         readRecord();
         lastScore = 0;
+    }
+
+    for (LINE_T *p = &lines[0]; p < &lines[LINES_MAX]; p++) {
+        p->x = random(LINE_X_MAX);
+        p->vx = getLineVx() * (random(2) * 2 - 1);
     }
 
     clearMenuItems();
@@ -85,6 +107,7 @@ MODE_T updateTitle(void)
     } else {
         handleAnyButton();
     }
+    moveLines();
     randomSeed(rand() ^ micros()); // Shuffle random
     return ret;
 }
@@ -92,6 +115,7 @@ MODE_T updateTitle(void)
 void drawTitle(void)
 {
     clearScreenGray();
+    drawLines();
     switch (state) {
     case STATE_TITLE:
     case STATE_STARTED:
@@ -112,6 +136,25 @@ void drawTitle(void)
 /*---------------------------------------------------------------------------*/
 /*                             Control Functions                             */
 /*---------------------------------------------------------------------------*/
+
+static void moveLines(void)
+{
+    for (LINE_T *p = &lines[0]; p < &lines[LINES_MAX]; p++) {
+        p->x += p->vx;
+        if (p->x < 0) {
+            p->x = 0;
+            p->vx = getLineVx();
+        }
+        if (p->x >= LINE_X_MAX) {
+            p->x = LINE_X_MAX - 1;
+            p->vx = -getLineVx();
+        }
+    }
+}
+
+static int8_t getLineVx(void) {
+    return random(LINE_VX_MIN, LINE_VX_MAX + 1);
+}
 
 static void onStart(void)
 {
@@ -144,6 +187,14 @@ static void handleAnyButton(void)
 /*---------------------------------------------------------------------------*/
 /*                              Draw Functions                               */
 /*---------------------------------------------------------------------------*/
+
+static void drawLines(void)
+{
+    for (int i = 0; i < LINES_MAX; i++) {
+        LINE_T *p = &lines[i];
+        arduboy.drawFastVLine(p->x / SCALE, 0, HEIGHT, i & 1);
+    }
+}
 
 static void drawTitleImage(void)
 {
