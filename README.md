@@ -31,6 +31,10 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * A simple board game.
   * Depend on Arduboy Library 1.1.1\
     ![shot](docs/img/reversi1.gif) ![shot](docs/img/reversi2.gif)
+* OBN-Y07 [Lasers](https://community.arduboy.com/t/lasers-a-simple-ikaruga-like-game/7310)
+  * Switch the character's color and have it be hit with same color ray.
+  * Depend on Arduboy Library 1.1.1\
+    ![shot](docs/img/lasers1.gif) ![shot](docs/img/lasers2.gif)
 
 ## License
 

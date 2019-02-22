@@ -50,6 +50,14 @@
 			"author" : "OBONO",
 			"cover" : "https://obono.github.io/ArduboyWorks/img/reversi2.gif",
 			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/reversi_v0.10.hex"
+		},
+		{
+			"name" : "Lasers",
+			"description" : "Switch the character's color and have it be hit with same color ray.",
+			"version" : "0.11",
+			"author" : "OBONO",
+			"cover" : "https://obono.github.io/ArduboyWorks/img/lasers2.gif",
+			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/lasers_v0.11.hex"
 		}
 	]
 }
