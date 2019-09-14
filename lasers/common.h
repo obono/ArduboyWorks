@@ -7,7 +7,8 @@
 //#define DEBUG
 #define FPS             60
 #define APP_TITLE       "LASERS"
-#define APP_INFO        "OBN-Y07 VER 0.11"
+#define APP_CODE        "OBN-Y07"
+#define APP_VERSION     "0.12"
 #define APP_RELEASED    "FEBRUARY 2019"
 
 enum MODE_T {

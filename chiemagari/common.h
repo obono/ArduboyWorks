@@ -7,7 +7,8 @@
 
 //#define DEBUG
 #define APP_TITLE       "CHIE MAGARI ITA"
-#define APP_INFO        "OBN-Y04 VER 0.10"
+#define APP_CODE        "OBN-Y04"
+#define APP_VERSION     "0.11"
 #define APP_RELEASED    "MARCH 2018"
 
 #define PIECES  10

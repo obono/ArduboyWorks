@@ -1,4 +1,4 @@
-#include "common.h"
+#include "MyArduboy.h"
 
 PROGMEM static const uint32_t imgFont[] = {
     0x00000000, 0x00017000, 0x000C00C0, 0x0A7CA7CA, 0x0855F542, 0x19484253, 0x1251F55E, 0x00003000,
@@ -12,16 +12,13 @@ PROGMEM static const uint32_t imgFont[] = {
 };
 
 #ifdef USE_ARDUBOY2_LIB
+
+#define myAudio     audio
+
 MyArduboy::MyArduboy(void)
 {
-    pTunes = new ArduboyPlaytune(audio.enabled);
+    pTunes = new ArduboyPlaytune(myAudio.enabled);
     pTunes->initChannel(PIN_SPEAKER_1);
-#ifndef AB_DEVKIT
-    pTunes->initChannel(PIN_SPEAKER_2);
-#else
-    pTunes->initChannel(PIN_SPEAKER_1);
-    pTunes->toneMutesScore(true);
-#endif
 }
 
 void MyArduboy::beginNoLogo(void)
@@ -29,13 +26,63 @@ void MyArduboy::beginNoLogo(void)
     boot();
     blank();
     flashlight();
-    audio.begin();
+    systemButtons();
+    myAudio.begin();
 }
+
 #else
+
 #define textSize    textsize
 #define textWrap    wrap
 #define pTunes      (&tunes)
+
+void MyArduboyAudio::begin()
+{
+    if (EEPROM.read(EEPROM_AUDIO_ON_OFF))
+        on();
+    else
+        off();
+}
+
+void MyArduboyAudio::on()
+{
+    power_timer3_enable();
+    audio_enabled = true;
+}
+
+void MyArduboyAudio::off()
+{
+    audio_enabled = false;
+    power_timer3_disable();
+}
+
+void MyArduboyAudio::toggle()
+{
+    if (audio_enabled)
+        off();
+    else
+        on();
+}
+
+void MyArduboy::beginNoLogo(void)
+{
+    boot();
+    if (pressed(UP_BUTTON)) {
+        sendLCDCommand(OLED_ALL_PIXELS_ON);
+        setRGBled(255, 255, 255);
+        power_timer0_disable();
+        while (true) {
+            idle(); // infinite loop
+        }
+    }
+    pTunes->initChannel(PIN_SPEAKER_1);
+    pinMode(PIN_SPEAKER_2, OUTPUT); // trick
+    myAudio.begin();
+}
+
 #endif
+
+/*----------------------------------------------------------------------------*/
 
 bool MyArduboy::nextFrame(void)
 {
@@ -63,6 +110,8 @@ bool MyArduboy::buttonUp(uint8_t buttons)
     return ~currentButtonState & lastButtonState & buttons;
 }
 
+/*----------------------------------------------------------------------------*/
+
 void MyArduboy::setTextColor(uint8_t color)
 {
     setTextColor(color, (color == BLACK) ? WHITE : BLACK);
@@ -85,7 +134,6 @@ size_t MyArduboy::printEx(int16_t x, int16_t y, const __FlashStringHelper *p)
     setCursor(x, y);
     return print(p);
 }
-
 
 size_t MyArduboy::write(uint8_t c)
 {
@@ -128,6 +176,8 @@ void MyArduboy::myDrawChar(int16_t x, int16_t y, unsigned char c, uint8_t color,
         }
     }
 }
+
+/*----------------------------------------------------------------------------*/
 
 void MyArduboy::drawRect2(int16_t x, int16_t y, uint8_t w, int8_t h, uint8_t color)
 {
@@ -234,13 +284,33 @@ void MyArduboy::fillBeltWhite(buffer_t *p, uint8_t d, uint8_t w)
     }
 }
 
+/*----------------------------------------------------------------------------*/
+
+bool MyArduboy::isAudioEnabled(void)
+{
+    return myAudio.enabled();
+}
+
+void MyArduboy::setAudioEnabled(bool on)
+{
+    if (on) {
+        myAudio.on();
+    } else {
+        myAudio.off();
+    }
+
+}
+
+void MyArduboy::saveAudioOnOff(void)
+{
+    myAudio.saveOnOff();
+}
+
 void MyArduboy::playScore2(const byte *score, uint8_t priority)
 {
-    if (!audio.enabled()) return;
+    if (!isAudioEnabled()) return;
     if (pTunes->playing()) {
-        if (priority > playScorePriority) {
-            return;
-        }
+        if (priority > playScorePriority) return;
         pTunes->stopScore();
     }
     playScorePriority = priority;
@@ -250,10 +320,4 @@ void MyArduboy::playScore2(const byte *score, uint8_t priority)
 void MyArduboy::stopScore2(void)
 {
     pTunes->stopScore();
-}
-
-void MyArduboy::tone2(unsigned int frequency, unsigned long duration)
-{
-    if (!audio.enabled()) return;
-    pTunes->tone(frequency, duration);
 }

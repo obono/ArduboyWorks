@@ -7,7 +7,8 @@
 //#define DEBUG
 #define FPS             60
 #define APP_TITLE       "REVERSI"
-#define APP_INFO        "OBN-Y06 VER 0.10"
+#define APP_CODE        "OBN-Y06"
+#define APP_VERSION     "0.11"
 #define APP_RELEASED    "NOVEMBER 2018"
 
 enum MODE_T {
