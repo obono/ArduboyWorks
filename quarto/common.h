@@ -6,9 +6,9 @@
 
 //#define DEBUG
 #define FPS             60
-#define APP_TITLE       "QUARTO"
+#define APP_TITLE       "QUARTO!"
 #define APP_CODE        "OBN-Y08"
-#define APP_VERSION     "0.01"
+#define APP_VERSION     "0.02"
 #define APP_RELEASED    "OCTOBER 2019"
 
 enum MODE_T {
@@ -25,18 +25,18 @@ enum GAME_MODE_T {
 
 #define SETTING_BIT_THINK_LED       0x1
 #define SETTING_BIT_SCREEN_INV      0x2
+#define SETTING_BIT_HINT            0x4
 
 /*  Typedefs  */
 
 typedef struct {
-    uint8_t     dummy[16];
-    uint8_t     gameMode; // 0-2 (2 bits)
-    uint8_t     cpuLevel; // 1-5 (3 bits)
-    uint8_t     maxLevel; // 3-5 (3 bits)
-    uint8_t     settings; // 2 bits
+    uint8_t     gameMode;
+    uint8_t     cpuLevel;
+    uint8_t     maxLevel;
+    uint8_t     settings;
     uint32_t    playFrames;
     uint16_t    playCount;
-} RECORD_T; // sizeof(RECORD_T) musb be 26 bytes
+} RECORD_T; // sizeof(RECORD_T) must be within 26 bytes
 
 /*  Global Functions (Common)  */
 

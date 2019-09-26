@@ -90,7 +90,7 @@ void drawTitle(void)
         if (state == STATE_SETTINGS &&
                 (arduboy.buttonDown(UP_BUTTON | DOWN_BUTTON) || isSettingsChanged)) {
             int8_t pos = getMenuItemPos();
-            for (int i = 0; i < 2; i++) {
+            for (int i = 0; i < 3; i++) {
                 bool on = (record.settings & 1 << i);
                 arduboy.printEx(106 - (i == pos) * 4, i * 6 + 12, (on) ? F("ON ") : F("OFF"));
             }
@@ -165,6 +165,7 @@ static void onSettings(void)
     clearMenuItems();
     addMenuItem(F("THINKING LED"), onSettingChange);
     addMenuItem(F("INVERT SCREEN"), onSettingChange);
+    addMenuItem(F("HINT (VS CPU)"), onSettingChange);
     addMenuItem(F("EXIT"), onBack);
     setMenuCoords(4, 12, 120, 30, false, false);
     setMenuItemPos(0);
