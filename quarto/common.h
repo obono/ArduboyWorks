@@ -8,7 +8,7 @@
 #define FPS             60
 #define APP_TITLE       "QUARTO!"
 #define APP_CODE        "OBN-Y08"
-#define APP_VERSION     "0.02"
+#define APP_VERSION     "0.03"
 #define APP_RELEASED    "OCTOBER 2019"
 
 enum MODE_T {
@@ -23,9 +23,16 @@ enum GAME_MODE_T {
     GAME_MODE_2PLAYERS,
 };
 
-#define SETTING_BIT_THINK_LED       0x1
-#define SETTING_BIT_SCREEN_INV      0x2
-#define SETTING_BIT_HINT            0x4
+#define BOARD_SIZE  4
+#define BOARD_EMPTY 0xFF
+#define PIECE_ATTRS 4
+#define TURN_MAX    (BOARD_SIZE * BOARD_SIZE)
+#define PIECE_MAX   (1 << PIECE_ATTRS)
+
+#define SETTING_BIT_2x2_RULE        0x1
+#define SETTING_BIT_THINK_LED       0x2
+#define SETTING_BIT_SCREEN_INV      0x4
+#define SETTING_BIT_HINT            0x8
 
 /*  Typedefs  */
 
@@ -88,6 +95,7 @@ void    drawTitle(void);
 void    initGame(void);
 MODE_T  updateGame(void);
 void    drawGame(void);
+void    drawPiece(int16_t x, int16_t y, int16_t piece);
 
 /*  Global Variables  */
 

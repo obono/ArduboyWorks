@@ -3,12 +3,6 @@
 
 /*  Defines  */
 
-#define BOARD_SIZE  4
-#define BOARD_EMPTY 0xFF
-#define PIECE_ATTRS 4
-#define TURN_MAX    (BOARD_SIZE * BOARD_SIZE)
-#define PIECE_MAX   (1 << PIECE_ATTRS)
-
 #define ANIM_COUNTER_MOVE   16
 #define ANIM_RESOLUTION     (ANIM_COUNTER_MOVE * ANIM_COUNTER_MOVE)
 
@@ -72,7 +66,7 @@ static void drawMovingPiece(void);
 static void drawRestPieces(bool isFullUpdate);
 static void drawRestPiecesUnit(int16_t x, uint8_t piece, bool isDrawHint);
 static void drawResult(bool isFullUpdate);
-static void drawPiece(int16_t x, int16_t y, int16_t piece);
+//     void drawPiece(int16_t x, int16_t y, int16_t piece);
 static void drawCursor(int16_t x, int16_t y);
 
 static bool cpuThinking(void);
@@ -504,6 +498,12 @@ static bool isWinMove(GAME_T *p, uint8_t x, uint8_t y, bool isJudge)
     bool ret = isLined(p, x, 0, 0, 1, isJudge) || isLined(p, 0, y, 1, 0, isJudge);
     if (!ret && x == y) ret = isLined(p, 0, 0, 1, 1, isJudge);
     if (!ret && x == BOARD_SIZE - y - 1) ret = isLined(p, BOARD_SIZE - 1, 0, -1, 1, isJudge);
+    if (record.settings & SETTING_BIT_2x2_RULE) {
+        if (!ret && x > 0 && y > 0) ret = isLined(p, x - 1, y - 1, 0, 0, isJudge);
+        if (!ret && x < BOARD_SIZE - 1 && y > 0) ret = isLined(p, x, y - 1, 0, 0, isJudge);
+        if (!ret && x > 0 && y < BOARD_SIZE - 1) ret = isLined(p, x - 1, y, 0, 0, isJudge);
+        if (!ret && x < BOARD_SIZE - 1 && y < BOARD_SIZE - 1) ret = isLined(p, x, y, 0, 0, isJudge);
+    }
     return ret;
 }
 
@@ -519,15 +519,27 @@ static bool isLined(GAME_T *p, uint8_t x, uint8_t y, int8_t vx, int8_t vy, bool 
         for (uint8_t j = 0; j < PIECE_ATTRS; j++) {
             if (piece & 1 << j) attrCnt[j]++;
         }
-        x += vx;
-        y += vy;
+        if (vx == 0 && vy == 0) {
+            int8_t b = i & 1; 
+            x += 1 - b * 2;
+            y += b;
+        } else {
+            x += vx;
+            y += vy;
+        }
     }
     for (uint8_t i = 0; i < PIECE_ATTRS; i++) {
         if (attrCnt[i] == 0 || attrCnt[i] == BOARD_SIZE) {
             if (isJudge) {
                 for (uint8_t i = 0; i < BOARD_SIZE; i++) {
-                    x -= vx;
-                    y -= vy;
+                    if (vx == 0 && vy == 0) {
+                        int8_t b = i & 1; 
+                        x += 1 - b * 2;
+                        y -= 1 - b;
+                    } else {
+                        x -= vx;
+                        y -= vy;
+                    }
                     linedPiecesPos |= 1 << (y * BOARD_SIZE + x);
                 }
             }
@@ -746,7 +758,7 @@ static void drawResult(bool isFullUpdate)
     }
 }
 
-static void drawPiece(int16_t x, int16_t y, int16_t piece)
+void drawPiece(int16_t x, int16_t y, int16_t piece)
 {
     arduboy.drawBitmap(x, y, imgPiece[piece], IMG_PIECE_W, IMG_PIECE_H, WHITE);
 }
