@@ -105,6 +105,14 @@ PROGMEM static const uint8_t imgTitle3[224] = { // 56x32
     0xBE, 0x7F, 0xBE, 0x1D, 0x82, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x00
 };
 
+PROGMEM static const byte sound1[] = {
+    0x90, 69, 0, 10, 0x80, 0xF0
+};
+
+PROGMEM static const byte sound2[] = {
+    0x90, 74, 0, 20, 0x80, 0xF0
+};
+
 PROGMEM static const char menuText[] = "START GAME\0SOUND \0RECORD\0CREDIT";
 PROGMEM static const char creditText[] = "- " APP_TITLE " -\0\0" APP_RELEASED \
         "\0PROGREMMED BY OBONO\0\0THIS PROGRAM IS\0" "RELEASED UNDER\0" "THE MIT LICENSE.";
@@ -273,12 +281,12 @@ static void setSound(bool enabled)
 
 static void playSound1(void)
 {
-    arduboy.tunes.tone(440, 10);
+    arduboy.playScore2(sound1, 255);
 }
 
 static void playSound2(void)
 {
-    arduboy.tunes.tone(587, 20);
+    arduboy.playScore2(sound2, 255);
 }
 
 static void readRecord(void)

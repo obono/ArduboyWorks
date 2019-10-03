@@ -94,6 +94,14 @@ PROGMEM static const uint8_t imgHeadLight[] = { // 7x8
     0x3C, 0x7E, 0xFF, 0xFF, 0xFF, 0x7E, 0x3C,
 };
 
+PROGMEM static const byte sound1[] = {
+    0x90, 69, 0, 10, 0x80, 0xF0
+};
+
+PROGMEM static const byte sound2[] = {
+    0x90, 74, 0, 20, 0x80, 0xF0
+};
+
 PROGMEM static const char menuGame[] = "START GAME";
 PROGMEM static const char menuSound[] = "SOUND ";
 PROGMEM static const char menuRecord[] = "RECORD";
@@ -355,12 +363,12 @@ static void setSound(bool enabled)
 
 static void playSound1(void)
 {
-    arduboy.tunes.tone(440, 10);
+    arduboy.playScore2(sound1, 255);
 }
 
 static void playSound2(void)
 {
-    arduboy.tunes.tone(587, 20);
+    arduboy.playScore2(sound2, 255);
 }
 
 /*---------------------------------------------------------------------------*/
