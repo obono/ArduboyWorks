@@ -1,19 +1,42 @@
 version: 2
 
 jobs:
-  build:
+  single_build:
     docker:
       - image: obono/arduboy-env
     working_directory: /home/circleci/working
     steps:
       - checkout
-
       - run:
-          name: Compile
+          name: Build
+          command: .circleci/build.sh ${CIRCLE_BRANCH%_dev}
+  build_and_deploy:
+    docker:
+      - image: obono/arduboy-env
+    working_directory: /home/circleci/working
+    steps:
+      - checkout
+      - run:
+          name: Build
+          command: .circleci/build.sh all
+      - run:
+          name: Update information
           command: |
-            find ./ -name '*.ino' | sed -e 's/\/\w\+\.ino$//' | while read line
-            do
-              echo $line
-              arduino-cli compile --fqbn arduboy:avr:arduboy $line | grep "bytes" || return $?
-              echo
-            done
+            .circleci/jq_repo.sh > docs/repo.json
+            .circleci/conv_readme.sh docs/repo.json > README.md
+      - run:
+          name: Push to GitHub
+          command: .circleci/git_push.sh
+
+workflows:
+  version: 2
+  workflow:
+    jobs:
+      - single_build:
+          filters:
+            branches:
+              only: /.*_dev/
+      - build_and_deploy:
+          filters:
+            branches:
+              only: master
