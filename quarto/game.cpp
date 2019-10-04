@@ -352,7 +352,7 @@ static void newGame(void)
     game.restPieces = ~(1 << cursorPiece);
     isCancelable = false;
     hintWinMoves = 0;
-    dprint(F("New game: piece = "));
+    dprint(F("New game: piece="));
     dprintln(cursorPiece);
 
     /*  Start animation  */
@@ -424,7 +424,7 @@ static void choosePiece(void)
     game.currentPiece = cursorPiece;
     game.restPieces &= ~(1 << cursorPiece);
     countWinMoves(&game, false, true);
-    dprint(F("Next piece = "));
+    dprint(F("Next piece="));
     dprintln(cursorPiece);
 
     /*  Start animation  */
@@ -779,17 +779,31 @@ static void drawCursor(int16_t x, int16_t y)
 static bool cpuThinking(void)
 {
     GAME_T work = game;
-    int8_t depth = min(record.cpuLevel, game.turn / 2 + 1);
+    int8_t depth = record.cpuLevel;
+    unsigned long startCpuTime = millis();
+    if (game.turn < 2) {
+        depth = 1;
+    } else if (game.turn < 5) {
+        depth = min(depth, 2);
+    } else {
+        depth = min(depth, game.turn - 2);
+    }
+    dprintln(F("CPU thinking..."));
+    dprint(F(" Depth="));
+    dprintln(depth);
     nextCpuInterval = millis() + CPU_INTERVAL_MILLIS;
     isCpuInterrupted = false;
     isLastAPressed = arduboy.pressed(A_BUTTON);
     int eval = -alphabeta(&work, depth, -EVAL_INF, EVAL_INF);
     arduboy.setRGBled(0, 0, 0);
     if (isCpuInterrupted) {
-        dprintln(F("CPU was interrupted"));
+        dprintln(F(" Interrupted!"));
         return false;
     } else {
-        dprint(F("CPU's evaluation="));
+        dprint(F(" Time="));
+        dprint((millis() - startCpuTime) / 1000);
+        dprintln(F("secs"));
+        dprint(F(" Evaluation="));
         dprintln(eval);
         return true;
     }

@@ -84,7 +84,7 @@ PROGMEM static const uint8_t imgPlayer[2][22] = { // 11x11 x2
 #define IMG_HINT_WIN_W 5
 #define IMG_HINT_WIN_H 5
 
-PROGMEM static const uint8_t imgHintWin[5] = { 0x11, 0x0A, 0x04, 0x0A, 0x11 }; // 5x5
+PROGMEM static const uint8_t imgHintWin[5] = { 0x04, 0x0A, 0x11, 0x0A, 0x04 }; // 5x5
 
 /*---------------------------------------------------------------------------*/
 /*                                Sound Data                                 */

@@ -8,7 +8,7 @@
 #define FPS             60
 #define APP_TITLE       "QUARTO!"
 #define APP_CODE        "OBN-Y08"
-#define APP_VERSION     "0.03"
+#define APP_VERSION     "0.10"
 #define APP_RELEASED    "OCTOBER 2019"
 
 enum MODE_T {

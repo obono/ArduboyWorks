@@ -82,7 +82,7 @@ PROGMEM static const uint8_t imgLargePiece[2][52] = { // 13x32 x2
 };
 
 PROGMEM static const char instText1[] = \
-        "\"QUARTO!\" IS MADE OF\0A 4X4 SQUARE BOARD\0AND OF 16 DIFFERENT\0" \
+        "\"QUARTO!\" IS MADE OF\0A 4^4 SQUARE BOARD\0AND OF 16 DIFFERENT\0" \
         "PIECES, EACH OF WHICH\0HAS 4 ATTRIBUTES.\0\e";
 
 PROGMEM static const char instText2[] = \
@@ -95,7 +95,7 @@ PROGMEM static const char instText3[] = \
 
 PROGMEM static const char instText4[] = \
         "A VARIANT RULE:\0A PLAYER ALSO CAN WIN\0BY PLACING 4 MATCHING\0" \
-        "PIECES IN 2X2 SQUARE.\0\0THIS IS CONFIGURABLE.\0CURRENT SETTING:    \0\e";
+        "PIECES IN 2^2 SQUARE.\0\0THIS IS CONFIGURABLE.\0CURRENT SETTING:    \0\e";
 
 PROGMEM static const char * const instList[] = { instText1, instText2, instText3, instText4 };
 
@@ -105,7 +105,7 @@ PROGMEM static const char instAttrLabels[] = \
 PROGMEM static const char creditText[] = \
         "- " APP_TITLE " -\0\0\0" APP_RELEASED "\0PROGREMMED BY OBONO\0\0" \
         "THIS PROGRAM IS\0RELEASED UNDER\0THE MIT LICENSE.\0\0\0" \
-        "ORIGINAL CONCEPT BY\0BLAISE MULLER, FRANCE\0\e";
+        "ORIGINAL CONCEPT BY\0BLAISE MULLER, SWISS\0\e";
 
 static STATE_T  state = STATE_INIT;
 static uint8_t  counter, instPage, instAttr, instPieces[BOARD_SIZE];
@@ -248,7 +248,7 @@ static void onSettings(void)
 {
     playSoundClick();
     clearMenuItems();
-    addMenuItem(F("APPROVE 2X2"), onSettingChange);
+    addMenuItem(F("APPROVE 2^2"), onSettingChange);
     addMenuItem(F("THINKING LED"), onSettingChange);
     addMenuItem(F("INVERT SCREEN"), onSettingChange);
     addMenuItem(F("HINT (VS CPU)"), onSettingChange);
@@ -302,7 +302,7 @@ static void handleInst(void)
         playSoundTick();
         instPage += vp;
         isInvalid = true;
-        dprint(F("instPage = "));
+        dprint(F("instPage="));
         dprintln(instPage);
     } else if (arduboy.buttonDown(A_BUTTON)
             || arduboy.buttonDown(B_BUTTON) && instPage == INST_PAGE_MAX - 1) {
@@ -364,12 +364,12 @@ static void handleAnyButton(void)
 
 static void drawTitleImage(void)
 {
-#ifdef DEBUG
-    arduboy.printEx(0, 0, F("DEBUG"));
-#endif
     arduboy.drawBitmap(0, 2, imgTitle, 128, 24, WHITE);
     arduboy.drawBitmap(4, 24, imgLargePiece[0], 13, 32, WHITE);
     arduboy.drawBitmap(111, 24, imgLargePiece[1], 13, 32, WHITE);
+#ifdef DEBUG
+    arduboy.printEx(0, 0, F("DEBUG"));
+#endif
 }
 
 static void drawRecord(void)
