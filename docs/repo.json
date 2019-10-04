@@ -200,6 +200,34 @@
 			],
 			"license": "MIT",
 			"arduboy": ""
+		},
+		{
+			"title": "Quarto!",
+			"description": "A board game played on a 4x4 board with 16 unique pieces.",
+			"genre": "Board game",
+			"url": "https://community.arduboy.com/t/quarto-an-abstract-strategy-board-game/8226",
+			"version": "0.10",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/quarto",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Quarto!",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/quarto_v0.10.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/quarto2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/quarto1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": ""
 		}
 	]
 }

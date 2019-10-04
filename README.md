@@ -35,6 +35,10 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * Switch the character's color and have it be hit with same color ray.
   * Depend on Arduboy Library 1.1.1\
     ![title](docs/img/lasers1.gif) ![playing](docs/img/lasers2.gif)
+* OBN-Y08 [Quarto!](https://community.arduboy.com/t/quarto-an-abstract-strategy-board-game/8226)
+  * A board game played on a 4x4 board with 16 unique pieces.
+  * Depend on Arduboy Library 1.1.1\
+    ![title](docs/img/quarto1.gif) ![playing](docs/img/quarto2.gif)
 
 ## License
 
