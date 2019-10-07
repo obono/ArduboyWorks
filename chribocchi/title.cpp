@@ -44,6 +44,16 @@ static void drawTitleMenu(void);
 static void drawTitleRecord(void);
 static void drawTitleCredit(void);
 
+static void     eepSeek(int addr);
+static uint8_t  eepRead8(void);
+static uint16_t eepRead16(void);
+static uint32_t eepRead32(void);
+static void     eepReadBlock(void *p, size_t n);
+static void     eepWrite8(uint8_t val);
+static void     eepWrite16(uint16_t val);
+static void     eepWrite32(uint32_t val);
+static void     eepWriteBlock(const void *p, size_t n);
+
 /*  Local Variables  */
 
 PROGMEM static const uint8_t imgTitle1[192] = { // 96x16
@@ -95,6 +105,14 @@ PROGMEM static const uint8_t imgTitle3[224] = { // 56x32
     0xBE, 0x7F, 0xBE, 0x1D, 0x82, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x00
 };
 
+PROGMEM static const byte sound1[] = {
+    0x90, 69, 0, 10, 0x80, 0xF0
+};
+
+PROGMEM static const byte sound2[] = {
+    0x90, 74, 0, 20, 0x80, 0xF0
+};
+
 PROGMEM static const char menuText[] = "START GAME\0SOUND \0RECORD\0CREDIT";
 PROGMEM static const char creditText[] = "- " APP_TITLE " -\0\0" APP_RELEASED \
         "\0PROGREMMED BY OBONO\0\0THIS PROGRAM IS\0" "RELEASED UNDER\0" "THE MIT LICENSE.";
@@ -105,6 +123,7 @@ static bool     sound;
 static int8_t   menuPos;
 static uint16_t lastScore = 0;
 static uint8_t  recordState = RECORD_NOT_READ;
+static int16_t  eepAddr;
 static uint16_t hiScore[10];
 static uint16_t playCount;
 static uint32_t playFrames;
@@ -139,9 +158,9 @@ bool updateTitle(void)
 
 #ifdef DEBUG
     if (dbgRecvChar == 'r') {
-        arduboy.eepSeek(EEPROM_ADDR_BASE);
+        eepSeek(EEPROM_ADDR_BASE);
         for (int i = 0; i < 8; i++) {
-            arduboy.eepWrite32(0);
+            eepWrite32(0);
         }
         recordState = RECORD_INITIAL;
         dprintln("Clean EEPROM");
@@ -187,15 +206,15 @@ uint8_t setLastScore(int score, uint32_t frames)
 
     /*  Store record to EEPROM  */
     if (recordState == RECORD_INITIAL) {
-        arduboy.eepSeek(EEPROM_ADDR_BASE);
-        arduboy.eepWrite32(EEPROM_SIGNATURE);
+        eepSeek(EEPROM_ADDR_BASE);
+        eepWrite32(EEPROM_SIGNATURE);
     }
-    arduboy.eepSeek(EEPROM_ADDR_BASE + 4 + r * 2);
+    eepSeek(EEPROM_ADDR_BASE + 4 + r * 2);
     for (int i = r; i < 10; i++) {
-        arduboy.eepWrite16(hiScore[i]);
+        eepWrite16(hiScore[i]);
     }
-    arduboy.eepWrite16(playCount);
-    arduboy.eepWrite32(playFrames);
+    eepWrite16(playCount);
+    eepWrite32(playFrames);
 
     uint16_t checkSum = (EEPROM_SIGNATURE & 0xFFFF) + (EEPROM_SIGNATURE >> 16) * 2;
     for (int i = 0; i < 10; i++) {
@@ -203,7 +222,7 @@ uint8_t setLastScore(int score, uint32_t frames)
     }
     checkSum += playCount * 13;
     checkSum += (playFrames & 0xFFFF) * 14 + (playFrames >> 16) * 15;
-    arduboy.eepWrite16(checkSum);
+    eepWrite16(checkSum);
 
     recordState = RECORD_STORED;
     return r;
@@ -262,34 +281,34 @@ static void setSound(bool enabled)
 
 static void playSound1(void)
 {
-    arduboy.tunes.tone(440, 10);
+    arduboy.playScore2(sound1, 255);
 }
 
 static void playSound2(void)
 {
-    arduboy.tunes.tone(587, 20);
+    arduboy.playScore2(sound2, 255);
 }
 
 static void readRecord(void)
 {
     bool isRegular = false;
-    arduboy.eepSeek(EEPROM_ADDR_BASE);
-    if (arduboy.eepRead32() == EEPROM_SIGNATURE) {
+    eepSeek(EEPROM_ADDR_BASE);
+    if (eepRead32() == EEPROM_SIGNATURE) {
         uint16_t checkSum = (EEPROM_SIGNATURE & 0xFFFF) + (EEPROM_SIGNATURE >> 16) * 2;
         for (int i = 0; i < 13; i++) {
-            checkSum += arduboy.eepRead16() * (i + 3);
+            checkSum += eepRead16() * (i + 3);
         }
-        isRegular = (arduboy.eepRead16() == checkSum);
+        isRegular = (eepRead16() == checkSum);
     }
 
     if (isRegular) {
         /*  Read record from EEPROM  */
-        arduboy.eepSeek(EEPROM_ADDR_BASE + 4);
+        eepSeek(EEPROM_ADDR_BASE + 4);
         for (int i = 0; i < 10; i++) {
-            hiScore[i] = arduboy.eepRead16();
+            hiScore[i] = eepRead16();
         }
-        playCount = arduboy.eepRead16();
-        playFrames = arduboy.eepRead32();
+        playCount = eepRead16();
+        playFrames = eepRead32();
         recordState = RECORD_STORED;
     } else {
         /*  Initialize record  */
@@ -364,4 +383,70 @@ static void drawTitleCredit(void)
         uint8_t len = strnlen(buf, sizeof(buf));
         p += arduboy.printEx(64 - len * 3, i * 6 + 8, buf) + 1;
     }
+}
+
+/*---------------------------------------------------------------------------*/
+/*                             EEPROM Functions                              */
+/*---------------------------------------------------------------------------*/
+
+void eepSeek(int addr)
+{
+    eepAddr = max(addr, EEPROM_STORAGE_SPACE_START);
+}
+
+uint8_t eepRead8(void)
+{
+    eeprom_busy_wait();
+    return eeprom_read_byte((const uint8_t *) eepAddr++);
+}
+
+uint16_t eepRead16(void)
+{
+    eeprom_busy_wait();
+    uint16_t ret = eeprom_read_word((const uint16_t *)eepAddr);
+    eepAddr += 2;
+    return ret;
+}
+
+uint32_t eepRead32(void)
+{
+    eeprom_busy_wait();
+    uint32_t ret = eeprom_read_dword((const uint32_t *) eepAddr);
+    eepAddr += 4;
+    return ret;
+}
+
+void eepReadBlock(void *p, size_t n)
+{
+    eeprom_busy_wait();
+    eeprom_read_block(p, (const void *) eepAddr, n);
+    eepAddr += n;
+}
+
+void eepWrite8(uint8_t val)
+{
+    eeprom_busy_wait();
+    eeprom_write_byte((uint8_t *) eepAddr, val);
+    eepAddr++;
+}
+
+void eepWrite16(uint16_t val)
+{
+    eeprom_busy_wait();
+    eeprom_write_word((uint16_t *)eepAddr, val);
+    eepAddr += 2;
+}
+
+void eepWrite32(uint32_t val)
+{
+    eeprom_busy_wait();
+    eeprom_write_dword((uint32_t *)eepAddr, val);
+    eepAddr += 4;
+}
+
+void eepWriteBlock(const void *p, size_t n)
+{
+    eeprom_busy_wait();
+    eeprom_write_block(p, (void *) eepAddr, n);
+    eepAddr += n;
 }

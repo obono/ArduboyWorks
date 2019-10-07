@@ -1,0 +1,14 @@
+# ArduboyWorks [![CircleCI Build Status](https://circleci.com/gh/obono/ArduboyWorks.svg?style=shield)](https://circleci.com/gh/obono/ArduboyWorks) ![MIT Licensed](https://img.shields.io/badge/license-MIT-blue.svg)
+
+Making mini games for [Arduboy](https://www.arduboy.com/).
+
+[My repository information (JSON)](https://obono.github.io/ArduboyWorks/repo.json) \
+[Repository viewer](https://obono.github.io/ArduboyWorks/?repo.json)
+
+## Products
+
+{{ProductsInfo}}
+
+## License
+
+These codes are licensed under [MIT-License](LICENSE).

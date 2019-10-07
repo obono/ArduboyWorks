@@ -3,6 +3,8 @@ var elmDivResult;
 var elmInputUrl;
 var elmItemTemplate;
 var elmStyleList;
+var elmDivEmulatorBase;
+var elmDivEmulatorArea;
 
 function $(id) {
 	return document.getElementById(id);
@@ -14,6 +16,8 @@ function setElements() {
 	elmInputUrl = $("text_url");
 	elmItemTemplate = $("item_template");
 	elmStyleList = $("style_list");
+	elmDivEmulatorBase = $("emulator_base");
+	elmDivEmulatorArea = $("emulator_area");
 }
 
 function switchStyle(isForce = false) {
@@ -99,6 +103,7 @@ function appendItem(item) {
 		var elmItem = document.importNode(elmItemTemplate.content, true);
 		elmItem.querySelector(".item_image").src = imageUrl;
 		elmItem.querySelector(".item_title").innerHTML = title;
+		elmItem.querySelector(".item_link_play").onclick = function() { launchEmulator(binaryUrl); }
 		elmItem.querySelector(".item_link_binary").href = binaryUrl;
 		elmItem.querySelector(".item_link_arduboy").href = "arduboy:" + binaryUrl;
 		var elmItemInfo = elmItem.querySelector(".item_info");
@@ -122,4 +127,16 @@ function escapeHTML(html) {
 	var elmTmp = document.createElement('div');
 	elmTmp.appendChild(document.createTextNode(html));
 	return elmTmp.innerHTML;
+}
+
+function launchEmulator(url) {
+	elmEmulator = document.createElement("iframe");
+	elmEmulator.src = "https://felipemanga.github.io/ProjectABE/?url=" + url + "&skin=BareFit&color=FFFFFF";
+	elmDivEmulatorArea.insertBefore(elmEmulator, elmDivEmulatorArea.firstChild);
+	elmDivEmulatorBase.style.display = "block";
+}
+
+function shutdownEmulator() {
+	elmDivEmulatorArea.removeChild(elmDivEmulatorArea.firstChild);
+	elmDivEmulatorBase.style.display = "none";
 }

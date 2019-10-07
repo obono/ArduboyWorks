@@ -36,11 +36,11 @@ static void     eepWriteBlock(const void *p, size_t n);
 /*  Local Variables  */
 
 PROGMEM static const byte soundTick[] = {
-    0x90, 69, 0, 10, 0x80, 0xF0 // arduboy.tone2(440, 10);
+    0x90, 69, 0, 10, 0x80, 0xF0
 };
 
 PROGMEM static const byte soundClick[] = {
-    0x90, 74, 0, 20, 0x80, 0xF0 // arduboy.tone2(587, 20);
+    0x90, 74, 0, 20, 0x80, 0xF0
 };
 
 static RECORD_STATE_T   recordState = RECORD_NOT_READ;
@@ -173,7 +173,7 @@ void clearScreenGray(void)
         "movw r30, %0\n\t"
         // counter = 0
         "clr __tmp_reg__ \n\t"
-        "loopto: \n\t"
+        "loopto2: \n\t"
         // (4x) push byte data into screen buffer,
         // then increment buffer position
         "st Z+, %1 \n\t"
@@ -184,7 +184,7 @@ void clearScreenGray(void)
         "inc __tmp_reg__ \n\t"
         // repeat for 256 loops
         // (until counter rolls over back to 0)
-        "brne loopto \n\t"
+        "brne loopto2 \n\t"
         // input: sBuffer, b1, b2
         // modified: Z (r30, r31)
         :

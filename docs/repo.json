@@ -1,63 +1,233 @@
 {
-	"repository": "OBONO\u0027s Arduboy Works",
-	"api-version": "0.5",
+	"repository": "OBONO's Arduboy Works",
+	"api-version": "1.0",
 	"maintainer": "OBONO",
-	"items" : [
+	"website": "https://github.com/obono/ArduboyWorks",
+	"items": [
 		{
-			"name" : "Hollow Seeker",
-			"description" : "Go forward in right direction. Seek a hollow as refuge not to be crushed.",
-			"version" : "0.31",
-			"author" : "OBONO",
-			"cover" : "https://obono.github.io/ArduboyWorks/img/hollow2.gif",
-			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/hollow_v0.31.hex"
+			"title": "Hollow Seeker",
+			"description": "Go forward in right direction. Seek a hollow as refuge not to be crushed.",
+			"genre": "Action",
+			"url": "https://community.arduboy.com/t/hollow-seeker-a-simple-action-game/2594",
+			"version": "0.32",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/hollow",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Hollow Seeker",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/hollow_v0.32.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/hollow2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/hollow1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": ""
 		},
 		{
-			"name" : "Hopper",
-			"description" : "Jump on panels and go up (foreground side). If you fall toward bottom, the game is over.",
-			"version" : "0.21",
-			"author" : "OBONO",
-			"cover" : "https://obono.github.io/ArduboyWorks/img/hopper2.gif",
-			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/hopper_v0.21.hex"
+			"title": "Hopper",
+			"description": "Jump on panels and go up (foreground side). If you fall toward bottom, the game is over.",
+			"genre": "Action",
+			"url": "https://community.arduboy.com/t/hopper-a-simple-action-game/4293",
+			"version": "0.22",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/hopper",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Hopper",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/hopper_v0.22.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/hopper2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/hopper1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": ""
 		},
 		{
-			"name" : "Chri-Bocchi Cat",
-			"description" : "Move the cat and bounce gift boxes for 2 minutes.",
-			"version" : "0.03",
-			"author" : "OBONO",
-			"cover" : "https://obono.github.io/ArduboyWorks/img/chribocchi2.gif",
-			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/chribocchi_v0.03.hex"
+			"title": "Chri-Bocchi Cat",
+			"extraNote": "for Game Jam 2.0",
+			"description": "Move the cat and bounce gift boxes for 2 minutes.",
+			"genre": "Action",
+			"url": "https://community.arduboy.com/t/chri-bocchi-cat-a-simple-action-game/4571",
+			"version": "0.04",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/chribocchi",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Chri-Bocchi Cat",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/chribocchi_v0.04.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/chribocchi2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/chribocchi1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": ""
 		},
 		{
-			"name" : "Chie Magari Ita",
-			"description" : "Place 10 different pieces into the frame without overlapping.",
-			"version" : "0.10",
-			"author" : "OBONO",
-			"cover" : "https://obono.github.io/ArduboyWorks/img/chiemagari2.gif",
-			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/chiemagari_v0.10.hex"
+			"title": "Chie Magari Ita",
+			"description": "Place 10 different pieces into the frame without overlapping.",
+			"genre": "Puzzle",
+			"url": "https://community.arduboy.com/t/chie-magari-ita-a-placing-puzzle-game/5178",
+			"version": "0.11",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/chiemagari",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Chie Magari Ita",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/chiemagari_v0.11.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/chiemagari2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/chiemagari1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": ""
 		},
 		{
-			"name" : "Psi Colo",
-			"description" : "A puzzle game with dice on the 5x7 grid field.",
-			"version" : "0.10",
-			"author" : "OBONO",
-			"cover" : "https://obono.github.io/ArduboyWorks/img/psicolo2.gif",
-			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/psicolo_v0.10.hex"
+			"title": "Psi Colo",
+			"description": "A puzzle game with dice on the 5x7 grid field.",
+			"genre": "Puzzle",
+			"url": "https://community.arduboy.com/t/psi-colo-a-puzzle-game-with-dice/6148",
+			"version": "0.11",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/psicolo",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Psi Colo",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/psicolo_v0.11.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/psicolo2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/psicolo1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": ""
 		},
 		{
-			"name" : "Reversi",
-			"description" : "A simple Reversi game.",
-			"version" : "0.10",
-			"author" : "OBONO",
-			"cover" : "https://obono.github.io/ArduboyWorks/img/reversi2.gif",
-			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/reversi_v0.10.hex"
+			"title": "Reversi",
+			"description": "A simple board game.",
+			"genre": "Board game",
+			"url": "https://community.arduboy.com/t/reversi-a-simple-board-game/6754",
+			"version": "0.11",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/reversi",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Reversi",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/reversi_v0.11.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/reversi2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/reversi1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": ""
 		},
 		{
-			"name" : "Lasers",
-			"description" : "Switch the character's color and have it be hit with same color ray.",
-			"version" : "0.11",
-			"author" : "OBONO",
-			"cover" : "https://obono.github.io/ArduboyWorks/img/lasers2.gif",
-			"hex" : "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/lasers_v0.11.hex"
+			"title": "Lasers",
+			"description": "Switch the character's color and have it be hit with same color ray.",
+			"genre": "Action",
+			"url": "https://community.arduboy.com/t/lasers-a-simple-ikaruga-like-game/7310",
+			"version": "0.12",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/lasers",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Lasers",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/lasers_v0.12.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/lasers2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/lasers1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": ""
+		},
+		{
+			"title": "Quarto!",
+			"description": "A board game played on a 4x4 board with 16 unique pieces.",
+			"genre": "Board game",
+			"url": "https://community.arduboy.com/t/quarto-an-abstract-strategy-board-game/8226",
+			"version": "0.10",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/quarto",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Quarto!",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/quarto_v0.10.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/quarto2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/quarto1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": ""
 		}
 	]
 }

@@ -52,6 +52,39 @@ div.item_actions {
 div.item_actions a img {
 	width: 16px;
 	height: 16px;
+	cursor: pointer;
+}
+
+div#emulator_base {
+	position: fixed;
+	background-color: #0009;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	display: none;
+	overflow: auto;
+}
+
+div#emulator_area {
+	position: absolute;
+	background-color: #999;
+	width: 272px;
+	height: 224px;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	margin: auto;
+	font-size: small;
+	text-align: center;
+}
+
+div#emulator_area iframe {
+	width: 256px;
+	height: 128px;
+	border: none;
+	margin: 8px;
 }
 
 input#text_url {

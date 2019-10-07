@@ -247,6 +247,14 @@ PROGMEM static const byte soundOver[] = {
     0x90, 48, 0, 260, 0x80, 0xF0
 };
 
+PROGMEM static const byte soundBound1[] = {
+    0x90, 89, 0, 15, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundBound2[] = {
+    0x90, 95, 0, 15, 0x80, 0xF0
+};
+
 static uint8_t  state;
 static bool     toDraw;
 static uint32_t gameFrames;
@@ -444,7 +452,7 @@ static void moveBoxes(void)
     }
 
     if (isBound) {
-        arduboy.tunes.tone((timer > secs(30)) ? 1440 : 1920, 15);
+        arduboy.playScore2((timer > secs(30)) ? soundBound1 : soundBound2, 3);
         dprint("boxCnt=");
         dprintln(boxCnt);
     }

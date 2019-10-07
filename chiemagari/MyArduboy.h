@@ -1,5 +1,4 @@
-#ifndef MYARDUBOY_H
-#define MYARDUBOY_H
+#pragma once
 
 //#define USE_ARDUBOY2_LIB
 
@@ -14,15 +13,24 @@ typedef uint8_t buffer_t;
 #define ARDUBOY_LIB_CLASS Arduboy
 #define ARDUBOY_LIB_VER_TGT 10101
 typedef unsigned char buffer_t;
+class MyArduboyAudio : public ArduboyAudio
+{
+public:
+    void static begin();
+    void static on();
+    void static off();
+    void static toggle();
+};
 #endif
+
 
 class MyArduboy : public ARDUBOY_LIB_CLASS
 {
 public:
 #ifdef USE_ARDUBOY2_LIB
     MyArduboy(void);
-    void    beginNoLogo(void);
 #endif
+    void    beginNoLogo(void);
     bool    nextFrame(void);
     bool    buttonDown(uint8_t buttons);
     bool    buttonPressed(uint8_t buttons);
@@ -36,9 +44,11 @@ public:
     void    drawFastVLine2(int16_t x, int16_t y, int8_t h, uint8_t color);
     void    drawFastHLine2(int16_t x, int16_t y, uint8_t w, uint8_t color);
     void    fillRect2(int16_t x, int16_t y, uint8_t w, int8_t h, uint8_t color);
+    bool    isAudioEnabled(void);
+    void    setAudioEnabled(bool on);
+    void    saveAudioOnOff(void);
     void    playScore2(const byte *score, uint8_t priority);
     void    stopScore2(void);
-    void    tone2(unsigned int frequency, unsigned long duration);
 
 private:
     void    myDrawChar(int16_t x, int16_t y, unsigned char c, uint8_t color, uint8_t bg, uint8_t size);
@@ -51,7 +61,7 @@ private:
     uint8_t playScorePriority;
 #ifdef USE_ARDUBOY2_LIB
     ArduboyPlaytune *pTunes;
+#else
+    MyArduboyAudio  myAudio;
 #endif
 };
-
-#endif // MYARDUBOY_H

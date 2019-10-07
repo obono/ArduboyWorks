@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
@@ -7,8 +7,9 @@
 	<meta name="theme-color" content="#ddddee">
 	<link rel="stylesheet" type="text/css" href="css/style.css">
 	<link rel="stylesheet" type="text/css" href="css/style_list.css" disabled="true" id="style_list">
+	<link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
 	<script type="text/javascript" src="js/script.js"></script>
-	<title>Arduboy Repository Viewer</title>
+	<title>Arduboy&trade; Repository Viewer</title>
 </head>
 
 <body>
@@ -18,12 +19,13 @@
 			<span class="item_title"></span>
 			<div class="item_info"></div>
 			<div class="item_actions">
-				<a class="item_link_binary"><img src="img/act_dl.gif" alt="download"></a>
-				<a class="item_link_arduboy"><img src="img/act_tr.gif" alt="transfer"></a>
+				<a class="item_link_play"><img src="img/act_em.gif" title="Play on emulator" alt="Play"></a>
+				<a class="item_link_binary"><img src="img/act_dl.gif" title="Download HEX file" alt="Download"></a>
+				<a class="item_link_arduboy"><img src="img/act_tr.gif" title="Transfer to the device" alt="Transfer"></a>
 			</div>
 		</div>
 	</template>
-	<h1 id="header">Arduboy Repository Viewer</h1>
+	<h1 id="header">Arduboy&trade; Repository Viewer</h1>
 	<div class="result" id="result">
 		<ul>
 			<li><a href="?repo.json">OBONO's Arduboy Works</a></li>
@@ -38,6 +40,13 @@
 		<input id="text_url" type="text" placeholder="(Enter URL)">
 		<input id="button_get" type="submit" value="Get">
 	</p>
+	<div id="emulator_base">
+		<div id="emulator_area">
+			<br>[D-pad] arrows, [A] a/z, [B] s/x,<br>
+			Powered by <a href="https://felipemanga.github.io/ProjectABE/" target="_blank">Project ABE</a><br>
+			<input type="button" onClick="shutdownEmulator();" value="close">
+		</div>
+	</div>
 	<script>
 		setElements();
 		window.onresize = switchStyle;
