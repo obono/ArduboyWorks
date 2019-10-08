@@ -19,8 +19,8 @@ PROGMEM static const uint8_t imgSound[14] = {
 };
 
 PROGMEM static const uint8_t imgSoundOffOn[2][7] = {
-    { 0x04, 0x12, 0x4A, 0x2A, 0x4A, 0x12, 0x04 },
     { 0x00, 0x00, 0x28, 0x10, 0x28, 0x00, 0x00 },
+    { 0x04, 0x12, 0x4A, 0x2A, 0x4A, 0x12, 0x04 },
 };
 
 static int8_t   menuX, menuY, menuW, menuH;
@@ -111,16 +111,21 @@ void drawMenuItems(bool isForced)
         arduboy.drawRect2(menuX - 2, menuY - menuH - 1, menuW + 4, menuH + 4, WHITE);
     }
     ITEM_T *pItem = menuItemAry;
+    int16_t x = menuX;
     for (int i = 0; i < menuItemCount; i++, pItem++) {
         if (pItem->label) {
             int16_t y = menuY;
-            if (pItem->func) {
-                y -= 12 - (i == menuItemPos) * 4;
+            if (pItem->func) y -= 12;
+            if (i == menuItemPos) {
+                arduboy.fillRect2(x, menuY - 5, 5, 5, WHITE);
+                y += 4;
             }
-            arduboy.printEx(menuX + i * 6, y, pItem->label);
+            arduboy.printEx(x, y, pItem->label);
+            x += 6;
+        } else {
+            x += 2;
         }
     }
-    arduboy.fillRect2(menuX + menuItemPos * 6, menuY - 5, 5, 5, WHITE);
     if (isControlSound) drawSoundEnabled();
     isInvalidMenu = false;
 }

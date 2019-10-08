@@ -6,10 +6,10 @@
 
 //#define DEBUG
 #define FPS             60
-#define APP_TITLE       "STAIR SWEEP"
-#define APP_CODE        "OBN-Y08"
-#define APP_VERSION     "VER 0.01"
-#define APP_RELEASED    "JULY 2019"
+#define APP_TITLE       "STAIRS SWEEP"
+#define APP_CODE        "OBN-Y09"
+#define APP_VERSION     "VER 0.02"
+#define APP_RELEASED    "NOVEMBER 2019"
 
 #if 0
 #define LEFT_BUTTON_V   DOWN_BUTTON

@@ -2,8 +2,8 @@
 
 /*  Defines  */
 
-#define EEPROM_ADDR_BASE    992
-#define EEPROM_SIGNATURE    0x084E424FUL // "OBN\x08"
+#define EEPROM_ADDR_BASE    736
+#define EEPROM_SIGNATURE    0x094E424FUL // "OBN\x09"
 
 enum RECORD_STATE_T {
     RECORD_NOT_READ = 0,
@@ -37,11 +37,11 @@ static void     eepWriteBlock(const void *p, size_t n);
 /*  Local Variables  */
 
 PROGMEM static const byte soundTick[] = {
-    0x90, 69, 0, 10, 0x80, 0xF0 // arduboy.tone2(440, 10);
+    0x90, 69, 0, 10, 0x80, 0xF0
 };
 
 PROGMEM static const byte soundClick[] = {
-    0x90, 74, 0, 20, 0x80, 0xF0 // arduboy.tone2(587, 20);
+    0x90, 74, 0, 20, 0x80, 0xF0
 };
 
 static RECORD_STATE_T   recordState = RECORD_NOT_READ;

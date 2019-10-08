@@ -62,7 +62,7 @@ MODE_T updateLogo(void)
     arduboy.setRGBled(0, 0, signalOn * 127);
     MODE_T ret = (counter == 0) ? MODE_TITLE : MODE_LOGO;
     if (ret) {
-        dprintln(F("Start " APP_TITLE " : " APP_CODE " " APP_VERSION));
+        dprintln(F("Start " APP_TITLE " Version " APP_VERSION));
     }
     return ret;
 }
