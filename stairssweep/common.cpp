@@ -11,13 +11,17 @@ enum RECORD_STATE_T {
     RECORD_STORED,
 };
 
+#define IMG_LABEL_W 5
+#define IMG_LABEL_H 20
+
 /*  Global Variables  */
 
 MyArduboyV  arduboy;
 RECORD_T    record;
-bool        isRecordDirty;
+int8_t      padX, padY, padRepeatCount;
+uint8_t     startLevel;
 uint16_t    lastScore;
-bool        isInvalid;
+bool        isInvalid, isRecordDirty;
 
 /*  Local Functions  */
 
@@ -35,6 +39,14 @@ static void     eepWrite32(uint32_t val);
 static void     eepWriteBlock(const void *p, size_t n);
 
 /*  Local Variables  */
+
+PROGMEM static const uint8_t imgLabelLevel[15] = { // 5x20
+    0xE8, 0x88, 0xE8, 0x88, 0xEE, 0xEA, 0x8A, 0xEA, 0x8A, 0xE4, 0x08, 0x08, 0x08, 0x08, 0x0E
+};
+
+PROGMEM static const uint8_t imgLabelScore[15] = { // 5x20
+    0xEE, 0xA8, 0xCE, 0xA8, 0xAE, 0x66, 0x8A, 0x8A, 0x8A, 0xEC, 0x06, 0x08, 0x0E, 0x02, 0x0C
+};
 
 PROGMEM static const byte soundTick[] = {
     0x90, 69, 0, 10, 0x80, 0xF0
@@ -109,30 +121,63 @@ void clearRecord(void)
     dprintln(F("Clear EEPROM"));
 }
 
-bool enterScore(uint16_t score)
+bool enterScore(uint32_t score, uint8_t level)
 {
-    int r = 10;
-    uint16_t h;
-    while (r > 0 && (h = record.hiscore[r - 1]) < score) {
-        if (--r < 9) record.hiscore[r + 1] = h;
+    int r;
+    for (r = 5; r > 0; r--) {
+        HISCORE_T h = record.hiscore[r - 1];
+        if (h.score >= score) break;
+        if (r <= 4) record.hiscore[r] = h;
     }
-    if (r < 10) record.hiscore[r] = score;
+    if (r < 5) {
+        record.hiscore[r].score = score;
+        record.hiscore[r].level = level;
+    }
     lastScore = score;
     return (r == 0);
 }
 
-void drawNumber(int16_t x, int16_t y, int16_t digits, int32_t value)
+void handleDPadV(void)
 {
-    if (digits > 0) digits--;
-    for (int32_t tmp = value; digits > 0 && tmp >= 10; tmp /= 10, digits--) { ; }
-    arduboy.setCursor(x, y - digits * 6);
+    padX = padY = 0;
+    if (arduboy.buttonPressed(LEFT_BUTTON_V | RIGHT_BUTTON_V | UP_BUTTON_V | DOWN_BUTTON_V)) {
+        if (++padRepeatCount >= (PAD_REPEAT_DELAY + PAD_REPEAT_INTERVAL)) {
+            padRepeatCount = PAD_REPEAT_DELAY;
+        }
+        if (padRepeatCount == 1 || padRepeatCount == PAD_REPEAT_DELAY) {
+            if (arduboy.buttonPressed(LEFT_BUTTON_V))  padX--;
+            if (arduboy.buttonPressed(RIGHT_BUTTON_V)) padX++;
+            if (arduboy.buttonPressed(UP_BUTTON_V))    padY--;
+            if (arduboy.buttonPressed(DOWN_BUTTON_V))  padY++;
+        }
+    } else {
+        padRepeatCount = 0;
+    }
+}
+
+void drawNumberV(int16_t x, int16_t y, int32_t value, ALIGN_T align)
+{
+    if (align != ALIGN_LEFT) {
+        uint32_t tmp;
+        if (value >= 0)  {
+            tmp = value;
+        } else {
+            y += align * 3;
+            tmp = -value;
+        }
+        do {
+            y += align * 3;
+            tmp /= 10;
+        } while (tmp > 0);
+    }
+    arduboy.setCursor(x, y);
     arduboy.print(value);
 }
 
-void drawTime(int16_t x, int16_t y, uint32_t frames)
+void drawTime(int16_t x, int16_t y, uint32_t frames, ALIGN_T align)
 {
-    arduboy.setCursor(x, y);
-    arduboy.print(frames / (FPS * 3600UL));
+    if (align == ALIGN_RIGHT) y += 36;
+    drawNumberV(x, y, frames / (FPS * 3600UL), align);
     printColonAnd2Digits(frames / (FPS * 60) % 60);
     printColonAnd2Digits(frames / FPS % 60);
 }
@@ -142,6 +187,16 @@ static void printColonAnd2Digits(uint8_t value)
     arduboy.print(':');
     if (value < 10) arduboy.print('0');
     arduboy.print(value);
+}
+
+void drawLabelLevel(int16_t x, int16_t y)
+{
+    arduboy.drawBitmap(x, y, imgLabelLevel, IMG_LABEL_W, IMG_LABEL_H, WHITE);
+}
+
+void drawLabelScore(int16_t x, int16_t y)
+{
+    arduboy.drawBitmap(x, y, imgLabelScore, IMG_LABEL_W, IMG_LABEL_H, WHITE);
 }
 
 /*---------------------------------------------------------------------------*/

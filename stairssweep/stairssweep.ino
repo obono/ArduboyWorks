@@ -64,6 +64,10 @@ void setup()
     Serial.begin(115200);
 #endif
     arduboy.beginNoLogo();
+#ifdef FLIP_SCREEN
+    arduboy.sendLCDCommand(0xA0); // Flip horizontal
+    arduboy.sendLCDCommand(0xC0); // Flip vertical
+#endif
     arduboy.setFrameRate(FPS);
     arduboy.setTextColor(WHITE, WHITE);
     mode = MODE_LOGO;
@@ -79,7 +83,6 @@ void loop()
     MODE_T nextMode = callUpdateFunc(mode);
     callDrawFunc(mode);
 #ifdef DEBUG
-    dbgScreenCapture();
     dbgRecvChar = '\0';
 #endif
     arduboy.display();

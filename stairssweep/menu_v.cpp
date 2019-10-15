@@ -46,7 +46,7 @@ void addMenuItem(const __FlashStringHelper *label, void (*func)(void))
     pItem->func = func;
     menuItemCount++;
     dprint(F("Add menu items: "));
-    dprintln(label);
+    dprintln((label != NULL) ? label : F("(null)"));
 }
 
 int8_t getMenuItemPos(void)

@@ -4,23 +4,36 @@
 
 /*  Defines  */
 
+//#define FLIP_SCREEN
+#define ROTATE_DPAD
+
 //#define DEBUG
 #define FPS             60
 #define APP_TITLE       "STAIRS SWEEP"
 #define APP_CODE        "OBN-Y09"
-#define APP_VERSION     "VER 0.02"
+#define APP_VERSION     "VER 0.03"
 #define APP_RELEASED    "NOVEMBER 2019"
 
-#if 0
-#define LEFT_BUTTON_V   DOWN_BUTTON
-#define RIGHT_BUTTON_V  UP_BUTTON
-#define UP_BUTTON_V     LEFT_BUTTON
-#define DOWN_BUTTON_V   RIGHT_BUTTON
+#define PAD_REPEAT_DELAY    (FPS / 6)
+#define PAD_REPEAT_INTERVAL 1
+
+#ifdef ROTATE_DPAD
+    #ifdef FLIP_SCREEN
+        #define LEFT_BUTTON_V   UP_BUTTON
+        #define RIGHT_BUTTON_V  DOWN_BUTTON
+        #define UP_BUTTON_V     RIGHT_BUTTON
+        #define DOWN_BUTTON_V   LEFT_BUTTON
+    #else
+        #define LEFT_BUTTON_V   DOWN_BUTTON
+        #define RIGHT_BUTTON_V  UP_BUTTON
+        #define UP_BUTTON_V     LEFT_BUTTON
+        #define DOWN_BUTTON_V   RIGHT_BUTTON
+    #endif
 #else
-#define LEFT_BUTTON_V   LEFT_BUTTON
-#define RIGHT_BUTTON_V  RIGHT_BUTTON
-#define UP_BUTTON_V     UP_BUTTON
-#define DOWN_BUTTON_V   DOWN_BUTTON
+    #define LEFT_BUTTON_V   LEFT_BUTTON
+    #define RIGHT_BUTTON_V  RIGHT_BUTTON
+    #define UP_BUTTON_V     UP_BUTTON
+    #define DOWN_BUTTON_V   DOWN_BUTTON
 #endif
 
 enum MODE_T {
@@ -29,10 +42,21 @@ enum MODE_T {
     MODE_GAME,
 };
 
+enum ALIGN_T {
+    ALIGN_LEFT = 0,
+    ALIGN_CENTER,
+    ALIGN_RIGHT,
+};
+
 /*  Typedefs  */
 
 typedef struct {
-    uint16_t    hiscore[10];
+    uint32_t    score : 24;
+    uint32_t    level : 8;
+} HISCORE_T;
+
+typedef struct {
+    HISCORE_T   hiscore[5];
     uint32_t    playFrames;
     uint16_t    playCount;
 } RECORD_T; // sizeof(RECORD_T) must be 26 bytes
@@ -42,10 +66,12 @@ typedef struct {
 void    readRecord(void);
 void    writeRecord(void);
 void    clearRecord(void);
-bool    enterScore(uint16_t score);
-
-void    drawNumber(int16_t x, int16_t y, int16_t digits, int32_t value);
-void    drawTime(int16_t x, int16_t y, uint32_t frames);
+bool    enterScore(uint32_t score, uint8_t level);
+void    handleDPadV(void);
+void    drawNumberV(int16_t x, int16_t y, int32_t value, ALIGN_T align);
+void    drawTime(int16_t x, int16_t y, uint32_t frames, ALIGN_T align);
+void    drawLabelLevel(int16_t x, int16_t y);
+void    drawLabelScore(int16_t x, int16_t y);
 
 void    setSound(bool on);
 void    playSoundTick(void);
@@ -91,10 +117,10 @@ void    drawGame(void);
 
 extern MyArduboyV   arduboy;
 extern RECORD_T     record;
-
-extern bool     isRecordDirty;
+extern int8_t   padX, padY, padRepeatCount;
+extern uint8_t  startLevel;
 extern uint16_t lastScore;
-extern bool     isInvalid;
+extern bool     isInvalid, isRecordDirty;
 
 /*  For Debugging  */
 
