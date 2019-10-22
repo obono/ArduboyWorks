@@ -20,7 +20,7 @@ MyArduboyV  arduboy;
 RECORD_T    record;
 int8_t      padX, padY, padRepeatCount;
 uint8_t     startLevel;
-uint16_t    lastScore;
+uint32_t    lastScore;
 bool        isInvalid, isRecordDirty;
 
 /*  Local Functions  */

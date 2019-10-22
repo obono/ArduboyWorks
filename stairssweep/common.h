@@ -11,11 +11,16 @@
 #define FPS             60
 #define APP_TITLE       "STAIRS SWEEP"
 #define APP_CODE        "OBN-Y09"
-#define APP_VERSION     "VER 0.03"
+#define APP_VERSION     "VER 0.04"
 #define APP_RELEASED    "NOVEMBER 2019"
 
 #define PAD_REPEAT_DELAY    (FPS / 6)
 #define PAD_REPEAT_INTERVAL 1
+
+#define HILEVEL3    60
+#define HISCORE3    200000UL
+#define HILEVEL4    90
+#define HISCORE4    500000UL
 
 #ifdef ROTATE_DPAD
     #ifdef FLIP_SCREEN
@@ -119,7 +124,7 @@ extern MyArduboyV   arduboy;
 extern RECORD_T     record;
 extern int8_t   padX, padY, padRepeatCount;
 extern uint8_t  startLevel;
-extern uint16_t lastScore;
+extern uint32_t lastScore;
 extern bool     isInvalid, isRecordDirty;
 
 /*  For Debugging  */

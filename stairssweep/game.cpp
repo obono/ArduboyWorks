@@ -4,12 +4,23 @@
 /*  Defines  */
 
 #define FIELD_W     6
-#define FIELD_H     13
+#define FIELD_H     14
 #define BUNCH_MAX   3
 #define ROT_SINGLE  5
 #define GAP_MAX     64
-#define FALLSPD_MAX 32 // = GAP_MAX / 2
-#define BALLSPD_MAX 24
+#define FALLSPD_MAX (GAP_MAX / 2)
+#define BALLSPD_MAX (GAP_MAX * 3 / 8)
+#define BALLE_STUCK 7
+#define STARSPD     (GAP_MAX / 8)
+#define STARG_INIT  80
+#define STARG_MAX   400
+#define STARG_STEP1 40
+#define STARG_STEP2 100
+#define FIX_GRACE   (FPS / 2)
+#define ERASE_WAIT  (FPS / 2)
+#define FALL_WAIT   (FPS * 2 / 3)
+#define NEXT_WAIT   (FPS / 3)
+#define DYING_MAX   4
 #define LEVEL_MAX   99
 #define LEVEL_FREQ  15
 
@@ -43,12 +54,21 @@ enum OBJECT_T {
     OBJECT_STAR,
     OBJECT_STAR_BLINK,
     OBJECT_ENEMY,
+    OBJECT_ENEMY_DYING1,
+    OBJECT_ENEMY_DYING2,
+    OBJECT_ENEMY_DYING3,
 };
 
 /*  Typedefs  */
 
+typedef struct {
+    int8_t x;
+    int8_t y;
+} DYING_T;
+
 /*  Local Functions  */
 
+static void     initParameters(void);
 static void     initField(void);
 static void     tuneParameters(void);
 static void     forwardGameWait(void);
@@ -62,18 +82,24 @@ static bool     isMoveable(int8_t x, int8_t y, uint8_t r);
 static bool     placeCurrentBunch(void);
 static bool     fallObject(void);
 static uint16_t checkFilledLines(void);
+static bool     decayDyingEnemies(void);
 
 static void     onContinue(void);
 static void     onRestart(void);
 static void     onQuit(void);
 
-static void     drawField(void);
-static void     drawBunch(int8_t x, int8_t y, int8_t r, int8_t g, OBJECT_T* pBunch);
 static void     drawObjectFast(int8_t x, int8_t y, int8_t g, OBJECT_T obj);
-static void     drawErasingEffect(void);
-static void     drawBallEffect(void);
-static void     drawStarEffect(void);
-static void     drawStatus(void);
+static void     drawField(void);
+static void     clearLastResidues(void);
+static void     drawStatus(bool isFullUpdate);
+static void     drawBunch(int8_t x, int8_t y, int8_t r, int8_t g, OBJECT_T* pBunch);
+static void     drawDyingEnemies(void);
+static void     drawGameWait(void);
+static void     drawGameControl(void);
+static void     drawGameFall(void);
+static void     drawGameErase(void);
+static void     drawGameBall(void);
+static void     drawGameStar(void);
 
 /*  Local Variables  */
 
@@ -83,17 +109,25 @@ PROGMEM static void (* const forwardGameFuncs[])(void) = {
 };
 #define forwardGame(mode) ((void (*)(void))pgm_read_ptr(forwardGameFuncs + (mode)))()
 
+PROGMEM static void (* const drawGameSubFuncs[])(void) = {
+    drawGameWait,   drawGameControl,    drawGameFall,
+    drawGameErase,  drawGameBall,       drawGameStar
+};
+#define drawGameSub(mode) ((void (*)(void))pgm_read_ptr(drawGameSubFuncs + (mode)))()
+
 static STATE_T      state = STATE_INIT;
 static GAME_MODE_T  gameMode = GAME_MODE_WAIT;
 static OBJECT_T     field[FIELD_H][FIELD_W];
 static OBJECT_T     currentBunch[BUNCH_MAX], nextBunch[BUNCH_MAX];
-static bool         isFastFall, isHiscore;
+static DYING_T      dyingEnemies[DYING_MAX];
+static bool         isFastFall, isFieldFalled, isHiscore;
 static int8_t       bunchX, bunchY, bunchR, bunchG;
 static int8_t       ballX, ballY, ballV, ballG, ballE;
+static int8_t       lastX, lastY, lastR, lastG, obtainedScoreY;
 static uint8_t      level, bunchCount, fallSpeed, ballSpeed, ballFreq, scoreCoef;
 static uint8_t      nextBall, boxesCount, enemiesCount, killedEnemies;
 static int16_t      gameCounter, filledLines, starGuage, starGuageMax;
-static uint32_t     score;
+static uint32_t     score, obtainedScore;
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -101,12 +135,8 @@ static uint32_t     score;
 
 void initGame(void)
 {
+    initParameters();
     initField();
-    level = startLevel;
-    score = 0; // TODO
-    bunchCount = 0;
-    starGuage = 0;
-    starGuageMax = 180; // TODO
     tuneParameters();
     nextBall = ballFreq;
     setNextBunch();
@@ -132,24 +162,9 @@ MODE_T updateGame(void)
     case STATE_PLAYING:
         record.playFrames++;
         isRecordDirty = true;
-#ifdef DEBUG
-        if (dbgRecvChar == 'l' && level < LEVEL_MAX) {
-            level++;
-            bunchCount = 0;
-            tuneParameters();
-        }
-        if (dbgRecvChar == 's') {
-            starGuage = starGuageMax;
-        }
-#endif
         handleDPadV();
         forwardGame(gameMode);
-        if (state == STATE_OVER) {
-            isHiscore = enterScore(score, level);
-            writeRecord();
-            gameCounter = FPS * 10;
-            isInvalid = true;
-        } else if (arduboy.buttonDown(A_BUTTON)) {
+        if (state == STATE_PLAYING && arduboy.buttonDown(A_BUTTON)) {
             clearMenuItems();
             addMenuItem(F("CONTINUE"), onContinue);
             addMenuItem(F("RESTART"), onRestart);
@@ -173,6 +188,18 @@ MODE_T updateGame(void)
     default:
         break;
     }
+#ifdef DEBUG
+    if (state == STATE_PLAYING) {
+        if (dbgRecvChar == 'l' && level < LEVEL_MAX) {
+            level++;
+            bunchCount = 0;
+            tuneParameters();
+        }
+        if (dbgRecvChar == 's') {
+            starGuage = starGuageMax;
+        }
+    }
+#endif
     return (state == STATE_LEAVE) ? MODE_TITLE : MODE_GAME;
 }
 
@@ -180,34 +207,26 @@ void drawGame(void)
 {
     if (state == STATE_LEAVE) return;
     if (state == STATE_MENU) {
+        if (isInvalid) {
+            arduboy.fillRect2(0, 24, IMG_OBJECT_W * 2, IMG_OBJECT_H * 2, BLACK);
+            arduboy.fillRect2(16, 8, (FIELD_H - 1) * IMG_OBJECT_W, FIELD_W * IMG_OBJECT_H, BLACK);
+        }
         drawMenuItems(isInvalid);
         isInvalid = false;
         return;
     }
 
-    if (true /*isInvalid*/) {
+    if (isInvalid) {
         arduboy.clear();
         drawField();
-        drawStatus();
+    } else {
+        clearLastResidues();
     }
-    drawBunch(2, FIELD_H + 1, (nextBunch[1] == OBJECT_EMPTY) ? ROT_SINGLE : 0, 0, nextBunch);
-    switch (state) {
-    case STATE_START:
-        arduboy.drawBitmap(57, 12, imgReady, IMG_READY_W, IMG_READY_H, WHITE);
-        break;
-    case STATE_PLAYING:
-        if (gameMode == GAME_MODE_CONTROL) {
-            drawBunch(bunchX, bunchY, bunchR, bunchG, currentBunch);
-        }
-        if (gameMode == GAME_MODE_ERASE) drawErasingEffect();
-        if (gameMode == GAME_MODE_BALL) drawBallEffect();
-        if (gameMode == GAME_MODE_STAR) drawStarEffect();
-        break;
-    case STATE_OVER:
-        arduboy.drawBitmap(60, 0, imgGameOver1, IMG_GAMEOVER1_W, IMG_GAMEOVER1_H, WHITE);
-        arduboy.drawBitmap(60, 56, imgGameOver2, IMG_GAMEOVER2_W, IMG_GAMEOVER2_H, WHITE);
-        break;
+    drawStatus(isInvalid);
+    if (gameMode != GAME_MODE_CONTROL || bunchY < FIELD_H - 2) {
+        drawBunch(2, FIELD_H, (nextBunch[1] == OBJECT_EMPTY) ? ROT_SINGLE : 0, 0, nextBunch);
     }
+    if (state == STATE_PLAYING) drawGameSub(gameMode);
     isInvalid = false;
 }
 
@@ -215,12 +234,32 @@ void drawGame(void)
 /*                             Control Functions                             */
 /*---------------------------------------------------------------------------*/
 
+static void initParameters(void)
+{
+    level = startLevel;
+    score = 0;
+    bunchCount = 0;
+    starGuage = 0;
+    starGuageMax = STARG_INIT;
+    isFieldFalled = false;
+    obtainedScore = 0;
+    if (startLevel == HILEVEL3) {
+        score = HISCORE3;
+    } else if (startLevel == HILEVEL4) {
+        score = HISCORE4;
+        starGuageMax = STARG_INIT * 2;
+    }
+}
+
 static void initField(void)
 {
     for (int i = 0; i < FIELD_H; i++) {
         for (int j = 0; j < FIELD_W; j++) {
             field[i][j] = OBJECT_EMPTY;
         }
+    }
+    for (int i = 0; i < DYING_MAX; i++) {
+        dyingEnemies[i].y = -1;
     }
     boxesCount = 0;
     enemiesCount = 0;
@@ -254,13 +293,13 @@ static void forwardGameWait(void)
     memcpy(currentBunch, nextBunch, sizeof(currentBunch));
     setNextBunch();
     bunchX = 2;
-    bunchY = FIELD_H + 1;
+    bunchY = FIELD_H;
     bunchR = (currentBunch[1] == OBJECT_EMPTY) ? ROT_SINGLE : 0;
     bunchG = 0;
+    lastY = 0;
     isFastFall = false;
     killedEnemies = 0;
     gameMode = GAME_MODE_CONTROL;
-    gameCounter = FPS / 2;
     dprint(F("Boxes="));
     dprint(boxesCount);
     dprint(F(" Enemies="));
@@ -275,11 +314,12 @@ static void forwardGameControl(void)
     while (bunchG < 0) {
         if (isMoveable(bunchX, bunchY - 1, bunchR)) {
             bunchY--;
+            if (isFastFall) score++;
             bunchG += GAP_MAX;
-            gameCounter = FPS / 2;
+            gameCounter = FIX_GRACE;
         } else {
             bunchG = 0;
-            if (gameCounter == FPS / 2) playSoundTick();
+            if (gameCounter == FIX_GRACE) arduboy.playScore2(soundFall, SND_PRIO_CONTROL);
             gameCounter--;
             if (isFastFall) gameCounter = 0;
         }
@@ -289,50 +329,77 @@ static void forwardGameControl(void)
         if (arduboy.buttonDown(UP_BUTTON_V | B_BUTTON) && bunchR != ROT_SINGLE &&
                 isMoveable(bunchX, bunchY, (bunchR + 1) & 3)) {
             bunchR = (bunchR + 1) & 3;
-            playSoundClick(); // TODO
+            arduboy.playScore2(soundRotate, SND_PRIO_CONTROL);
         }
-    } else if (placeCurrentBunch()) {
-        gameMode = GAME_MODE_FALL;
     } else {
-        state = STATE_OVER;
-        dprintln(F("Game over..."));
+        placeCurrentBunch();
+        gameMode = GAME_MODE_FALL;
+        isInvalid = true;
     }
 }
 
 static void forwardGameFall(void)
 {
+    if (gameCounter > 0) {
+        gameCounter--;
+        if (ballE == BALLE_STUCK) {
+            ballG -= ballSpeed;
+            while (ballG < 0) {
+                ballG += GAP_MAX;
+                if (!decayDyingEnemies()) ballE == 0;
+            }
+        }
+        if (gameCounter == 0 && obtainedScore > 0) {
+            obtainedScore = 0;
+            isInvalid = true;
+        }
+        return;
+    }
     if (fallObject()) {
+        isFieldFalled = true;
         isInvalid = true;
         return;
+    }
+    if (isFieldFalled) {
+        arduboy.playScore2(soundFall, SND_PRIO_CONTROL);
+        isFieldFalled = false;
     }
 
     filledLines = checkFilledLines();
     if (filledLines) {
+        arduboy.playScore2(soundErase, SND_PRIO_EFFECT);
         gameMode = GAME_MODE_ERASE;
-        gameCounter = FPS;
+        gameCounter = ERASE_WAIT;
     } else if (ballY < FIELD_H) {
         OBJECT_T obj = field[ballY][ballX];
         if (obj == OBJECT_STAR) {
             gameMode = GAME_MODE_STAR;
-            ballG = 0;
-            ballE = 0;
+            ballV = 0;
+            ballG = GAP_MAX - STARSPD;
         } else {
+            gameMode = GAME_MODE_BALL;
             ballV = (obj == OBJECT_BALL_L) ? -1 : 1;
             ballG = 0;
             ballE = 0;
-            gameMode = GAME_MODE_BALL;
+            lastX = 0;
         }
-    } else if (field[FIELD_H - 1][2] == OBJECT_EMPTY && field[FIELD_H - 1][3] == OBJECT_EMPTY) {
+    } else if (field[FIELD_H - 2][2] == OBJECT_EMPTY &&
+            (nextBunch[1] == OBJECT_EMPTY || field[FIELD_H - 2][3] == OBJECT_EMPTY)) {
         if (++bunchCount >= LEVEL_FREQ && level < LEVEL_MAX) {
             level++;
             bunchCount = 0;
             tuneParameters();
-            if (level % 5 == 0) playSoundClick(); // TODO
+            arduboy.playScore2(((level % 5 == 0)) ? soundLevel5Up : soundLevel1Up, SND_PRIO_EFFECT);
         }
         gameMode = GAME_MODE_WAIT;
-        gameCounter = FPS / 2;
-    } else {
+        gameCounter = NEXT_WAIT;
+     } else {
+        isHiscore = enterScore(score, level);
+        writeRecord();
+        gameCounter = FPS * 10;
         state = STATE_OVER;
+        isInvalid = true;
+        arduboy.playScore2(soundOver, SND_PRIO_OVER);
         dprintln(F("Game over..."));
     }
 }
@@ -341,12 +408,19 @@ static void forwardGameErase(void)
 {
     if (--gameCounter > 0) return;
     uint8_t lines = 0;
+    obtainedScoreY = -1;
     for (int i = 0; i < FIELD_H; i++) {
-        lines += bitRead(filledLines, i);
+        if (bitRead(filledLines, i)) {
+            lines++;
+            if (obtainedScoreY == -1) obtainedScoreY = i;
+        }
     }
-    score += (lines * (lines - 1) + 1) * scoreCoef * ((killedEnemies > 0) + 1) * 20;
+    obtainedScore = (lines * (lines - 1) + 1) * scoreCoef * ((killedEnemies > 0) + 1) * 20UL;
+    score += obtainedScore;
     boxesCount -= lines * FIELD_W;
     gameMode = GAME_MODE_FALL;
+    gameCounter = FALL_WAIT;
+    //isInvalid = true;
     dprint(F("Erase lines:"));
     dprintln(lines);
 }
@@ -356,11 +430,17 @@ static void forwardGameBall(void)
     ballG -= ballSpeed;
     while (ballG < 0 && gameMode == GAME_MODE_BALL)  {
         ballG += GAP_MAX;
+        decayDyingEnemies();
         if (field[ballY][ballX] == OBJECT_ENEMY) {
             enemiesCount--;
             killedEnemies++;
             starGuage++;
-            score += (killedEnemies + 1) * scoreCoef;
+            uint16_t enemyPoint = (killedEnemies + 1) * scoreCoef;
+            score += enemyPoint;
+            obtainedScore += enemyPoint;
+            dyingEnemies[DYING_MAX - 1].x = ballX;
+            dyingEnemies[DYING_MAX - 1].y = ballY;
+            arduboy.playScore2(soundKill, SND_PRIO_EFFECT);
         }
         field[ballY][ballX] = OBJECT_EMPTY;
         if (ballY > 0 && field[ballY - 1][ballX] != OBJECT_BOX) {
@@ -369,9 +449,12 @@ static void forwardGameBall(void)
         } else {
             ballE |= (ballX == 0 || field[ballY][ballX - 1] == OBJECT_BOX) | 2;
             ballE |= (ballX == FIELD_W - 1 || field[ballY][ballX + 1] == OBJECT_BOX) * 4;
-            if (ballE == 7) {
+            if (ballE == BALLE_STUCK) {
+                obtainedScoreY = ballY;
                 gameMode = GAME_MODE_FALL;
-                dprint(F("Killed enemies:"));
+                gameCounter = FALL_WAIT;
+                isInvalid = true;
+                dprint(F("Killed(Ball):"));
                 dprintln(killedEnemies);
             } else {
                 if (bitRead(ballE, ballV + 1)) ballV = -ballV;
@@ -383,27 +466,43 @@ static void forwardGameBall(void)
 
 static void forwardGameStar(void)
 {
-    ballG -= ballSpeed;
-    while (ballG < 0 && gameMode == GAME_MODE_STAR) {
-        ballE++;
-        int8_t y = ballY - ballE;
-        if (y >= 0 && ballE <= 7) {
-            ballG += GAP_MAX;
+    ballG += STARSPD;
+    while (ballG >= GAP_MAX && gameMode == GAME_MODE_STAR) {
+        ballG -= GAP_MAX;
+        int8_t y = ballY - ballV;
+        bool isCancelled = false;
+        if (y == ballY) {
+            if (arduboy.buttonPressed(UP_BUTTON_V | B_BUTTON)) {
+                isCancelled = true;
+                arduboy.playScore2(soundStarCancel, SND_PRIO_EFFECT);
+            } else {
+                arduboy.playScore2(soundStar, SND_PRIO_EFFECT);
+            }
+        } else {
             for (int i = 0; i < FIELD_W; i++) {
                 if (field[y][i] == OBJECT_ENEMY) {
                     field[y][i] = OBJECT_EMPTY;
                     enemiesCount--;
                     killedEnemies++;
-                    score += (killedEnemies + 1) * scoreCoef;
+                    uint16_t enemyPoint = (killedEnemies + 1) * scoreCoef;
+                    score += enemyPoint;
+                    obtainedScore += enemyPoint;
                 }
             }
-        } else {
+        }
+        if (y == 0 || ++ballV > 7 || isCancelled) {
             field[ballY][ballX] = OBJECT_EMPTY;
-            if (killedEnemies == 0) score += scoreCoef * 400;
-            dprint(F("Star:"));
-            dprintln(killedEnemies);
+            if (killedEnemies == 0) {
+                obtainedScore = scoreCoef * 2000UL;
+                score += obtainedScore;
+                starGuage += starGuageMax / 2;
+            }
+            obtainedScoreY = y;
             gameMode = GAME_MODE_FALL;
-            break;
+            gameCounter = FALL_WAIT;
+            isInvalid = true;
+            dprint(F("Killed(Star):"));
+            dprintln(killedEnemies);
         }
     }
 }
@@ -416,7 +515,9 @@ static void setNextBunch(void)
             isStar = true;
             isSingle = true;
             starGuage -= starGuageMax;
-            starGuageMax = 180; // TODO
+            if (starGuageMax < STARG_MAX) {
+                starGuageMax += (starGuageMax < STARG_MAX / 2) ? STARG_STEP1 : STARG_STEP2;
+            }
             dprint(F("starGuageMax="));
             dprintln(starGuageMax);
         } else {
@@ -507,8 +608,6 @@ static uint16_t checkFilledLines(void)
             case OBJECT_STAR:
                 ballX = j;
                 ballY = i;
-            case OBJECT_EMPTY:
-            case OBJECT_ENEMY:
             default:
                 isFilled = false;
                 break;
@@ -522,6 +621,18 @@ static uint16_t checkFilledLines(void)
         }
     }
     return ret;
+}
+
+static bool decayDyingEnemies(void)
+{
+    bool isDying = false;
+    for (int i = 0; i < DYING_MAX - 1; i++) {
+        DYING_T d = dyingEnemies[i + 1];
+        isDying = isDying || (d.y >= 0);
+        dyingEnemies[i] = d;
+    }
+    dyingEnemies[DYING_MAX - 1].y = -1;
+    return isDying;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -554,35 +665,6 @@ static void onQuit(void)
 /*                              Draw Functions                               */
 /*---------------------------------------------------------------------------*/
 
-static void drawField(void)
-{
-    arduboy.drawRect2(16, 7, FIELD_H * IMG_OBJECT_W + 1, FIELD_W * IMG_OBJECT_H + 2, WHITE);
-    for (int i = 0; i < FIELD_H; i++) {
-        for (int j = 0; j < FIELD_W; j++) {
-            drawObjectFast(j, i, 0, field[i][j]);
-        }
-    }
-}
-
-static void drawBunch(int8_t x, int8_t y, int8_t r, int8_t g, OBJECT_T* pBunch)
-{
-    /*static int8_t lastX, lastY, lastR, lastG;
-    if (false) { // TODO
-        drawBunch(lastX, lastY, lastR, lastG, NULL);
-    }*/
-    for (int i = 0; i < BUNCH_MAX; i++) {
-        int8_t bx = x + bitRead(r + i, 1);
-        int8_t by = y - bitRead(r + i + 1,  1);
-        OBJECT_T obj = (pBunch) ? pBunch[i] : OBJECT_EMPTY;
-        drawObjectFast(bx, by, g, obj);
-        if (r == ROT_SINGLE) break;
-    }
-    /*lastX = x;
-    lastY = y;
-    lastR = r;
-    lastG = g;*/
-}
-
 static void drawObjectFast(int8_t x, int8_t y, int8_t g, OBJECT_T obj)
 {
     uint16_t offset = (FIELD_W - x) * WIDTH + getScreenX(x, y) - g / 8;
@@ -590,21 +672,132 @@ static void drawObjectFast(int8_t x, int8_t y, int8_t g, OBJECT_T obj)
     memcpy_P(arduboy.getBuffer() + offset, imgObject[obj], IMG_OBJECT_W);
 }
 
-static void drawErasingEffect(void)
+static void drawField(void)
+{
+    arduboy.drawFastHLine2(16, 7, (FIELD_H - 1) * IMG_OBJECT_W + 1, WHITE);
+    arduboy.drawFastHLine2(16, 56, (FIELD_H - 1) * IMG_OBJECT_W + 1, WHITE);
+    arduboy.drawFastVLine2(120, 8, FIELD_W * IMG_OBJECT_H, WHITE);
+    for (int i = 0; i < FIELD_H; i++) {
+        for (int j = 0; j < FIELD_W; j++) {
+            OBJECT_T obj = field[i][j];
+            if (obj != OBJECT_EMPTY) drawObjectFast(j, i, 0, obj);
+        }
+    }
+}
+
+static void clearLastResidues(void)
+{
+    arduboy.fillRect2(6, 52, 6, 12, BLACK);
+    arduboy.fillRect2(122, 0, 6, 42, BLACK);
+    if (gameMode == GAME_MODE_CONTROL && lastY >= bunchY) {
+        drawBunch(lastX, lastY, lastR, lastG, NULL);
+    }
+    if (gameMode == GAME_MODE_BALL && lastX != 0) {
+        arduboy.fillRect2(lastX, lastY, IMG_OBJECT_W, IMG_OBJECT_H, BLACK);
+    }
+}
+
+static void drawStatus(bool isFullUpdate)
+{
+    drawLabelLevel(0, 44);
+    drawNumberV(6, 63, level, ALIGN_LEFT);
+    drawNumberV(122, -1, score, ALIGN_RIGHT);
+    arduboy.drawRect2(0, 0, 8, 18, WHITE);
+    int8_t h = starGuage * 16 / starGuageMax;
+    if (starGuage >= starGuageMax && bitRead(record.playFrames, 0)) h = 0;
+    arduboy.fillRect2(1, 1, 6, h, WHITE);
+    arduboy.fillRect2(1, 1 + h, 6, 16 - h, BLACK);
+    if (isFullUpdate) {
+        drawLabelScore(122, 44);
+        if (state == STATE_START) {
+            arduboy.drawBitmap(57, 12, imgReady, IMG_READY_W, IMG_READY_H, WHITE);
+        }
+        if (state == STATE_OVER) {
+            arduboy.drawRect2(49, -1, 30, HEIGHT + 2, WHITE);
+            arduboy.fillRect2(50, 0, 28, HEIGHT, BLACK);
+            arduboy.drawBitmap(60, 0, imgGameOver1, IMG_GAMEOVER1_W, IMG_GAMEOVER1_H, WHITE);
+            arduboy.drawBitmap(60, 56, imgGameOver2, IMG_GAMEOVER2_W, IMG_GAMEOVER2_H, WHITE);
+        }
+    }
+    if (state == STATE_OVER && isHiscore) {
+        uint8_t c = bitRead(gameCounter, 3);
+        arduboy.setTextColor(c, c);
+        arduboy.printEx(72, 61, F("NEW RECORD"));
+        arduboy.setTextColor(WHITE, WHITE);
+    }
+}
+
+static void drawBunch(int8_t x, int8_t y, int8_t r, int8_t g, OBJECT_T* pBunch)
+{
+    for (int i = 0; i < BUNCH_MAX; i++) {
+        int8_t bx = x + bitRead(r + i, 1);
+        int8_t by = y - bitRead(r + i + 1,  1);
+        OBJECT_T obj = (pBunch) ? pBunch[i] : OBJECT_EMPTY;
+        drawObjectFast(bx, by, g, obj);
+        if (r == ROT_SINGLE) break;
+    }
+}
+
+static void drawDyingEnemies(void)
+{
+    for (int i = 0; i < DYING_MAX; i++) {
+        int8_t bx = dyingEnemies[i].x;
+        int8_t by = dyingEnemies[i].y;
+        if (by >= 0) {
+            OBJECT_T obj = (OBJECT_T) (OBJECT_ENEMY_DYING1 + (DYING_MAX - 1 - i));
+            if (i == 0) obj = OBJECT_EMPTY;
+            drawObjectFast(bx, by, 0, obj);
+        }
+    }
+}
+
+static void drawGameWait(void)
+{
+    if (ballE == BALLE_STUCK) drawDyingEnemies();
+}
+
+static void drawGameControl(void)
+{
+    drawBunch(bunchX, bunchY, bunchR, bunchG, currentBunch);
+    lastX = bunchX;
+    lastY = bunchY;
+    lastR = bunchR;
+    lastG = bunchG;
+}
+
+static void  drawGameFall(void)
+{
+    if (ballE == BALLE_STUCK) drawDyingEnemies();
+    if (obtainedScore > 0) {
+        uint16_t dx = getScreenX(0, obtainedScoreY) + 2;
+        uint16_t dy = HEIGHT / 2 - 1;
+        arduboy.setTextColor(BLACK, BLACK);
+        for (int i = -1; i <= 1; i++) {
+            for (int j = -1; j <= 1; j++) {
+                drawNumberV(dx + j, dy + i, obtainedScore, ALIGN_CENTER);
+            }
+        }
+        arduboy.setTextColor(WHITE, WHITE);
+        if (bitRead(gameCounter, 1)) drawNumberV(dx, dy, obtainedScore, ALIGN_CENTER);
+    }
+}
+
+static void drawGameErase(void)
 {
     for (int i = 0; i < FIELD_H; i++) {
         if (bitRead(filledLines, i)) {
             int16_t dx = getScreenX(0, i);
             for (int j = 0; j < IMG_OBJECT_W; j++) {
-                uint8_t c = (random(FPS / 2) < gameCounter - FPS / 2);
+                uint8_t c = (random(ERASE_WAIT) < gameCounter - 1);
                 arduboy.drawFastVLine2(dx + j, 8, FIELD_W * IMG_OBJECT_H, c);
             }
         }
     }
 }
 
-static void drawBallEffect(void)
+static void drawGameBall(void)
 {
+    drawDyingEnemies();
     int16_t dx = getScreenX(ballX, ballY);
     int16_t dy = getScreenY(ballX, ballY);
     if (ballE == 0) {
@@ -613,29 +806,24 @@ static void drawBallEffect(void)
         dy += ballG / 8 * ballV;
     }
     arduboy.drawBitmap(dx, dy, imgObject[OBJECT_BALL], IMG_OBJECT_W, IMG_OBJECT_H, WHITE);
+    lastX = dx;
+    lastY = dy;
 }
 
-static void drawStarEffect(void)
+static void drawGameStar(void)
 {
     drawObjectFast(ballX, ballY, 0, OBJECT_STAR);
-    int8_t y = ballY - ballE;
-    int16_t dx = getScreenX(0, y) + (GAP_MAX - ballG) / 8;
-    for (int i = 0; i < FIELD_W; i++) {
-        if (field[y][i] == OBJECT_EMPTY) {
-            int16_t dy = getScreenY(i, y);
-            arduboy.drawFastVLine2(dx, dy, IMG_OBJECT_H, WHITE);
+    if (ballV == 0) return;
+    int8_t y = ballY - ballV;
+    for (int i = y + (ballG < STARSPD); i >= y; i--) {
+        for (int j = 0; j < FIELD_W; j++) {
+            OBJECT_T obj = field[i][j];
+            if (obj == OBJECT_ENEMY) {
+                obj = (OBJECT_T)(OBJECT_ENEMY + ballG / 16);
+            }
+            drawObjectFast(j, i, 0, obj);
         }
     }
-}
-
-static void drawStatus(void)
-{
-    drawLabelLevel(0, 44);
-    drawNumberV(6, 63, level, ALIGN_LEFT);
-    drawLabelScore(122, 44);
-    drawNumberV(122, -1, score, ALIGN_RIGHT);
-    arduboy.drawRect2(0, 0, 8, 18, WHITE);
-    if (starGuage < starGuageMax || bitRead(record.playFrames, 0)) {
-        arduboy.fillRect2(1, 1, 6, starGuage * 16 / starGuageMax, WHITE);
-    }
+    int16_t dx = getScreenX(0, y) + ballG / 8;
+    arduboy.drawFastVLine2(dx, 8, FIELD_W * IMG_OBJECT_H, WHITE);
 }
