@@ -6,3 +6,4 @@ psicolo
 reversi
 lasers
 quarto
+stairssweep
