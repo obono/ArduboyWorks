@@ -228,6 +228,34 @@
 			],
 			"license": "MIT",
 			"arduboy": ""
+		},
+		{
+			"title": "Stairs Sweep",
+			"description": "A falling block puzzle game. Boxes lined up horizontally can be deleted. Enemies can not but beaten by a ball.",
+			"genre": "Puzzle",
+			"url": "https://community.arduboy.com/t/stairs-sweep-a-falling-block-puzzle-game/8259",
+			"version": "VER",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/stairssweep",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Stairs Sweep",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/stairssweep_vVER.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/stairssweep2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/stairssweep1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": ""
 		}
 	]
 }

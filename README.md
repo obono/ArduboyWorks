@@ -39,6 +39,10 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * A board game played on a 4x4 board with 16 unique pieces.
   * Depend on Arduboy Library 1.1.1\
     ![title](docs/img/quarto1.gif) ![playing](docs/img/quarto2.gif)
+* OBN-Y09 [Stairs Sweep](https://community.arduboy.com/t/stairs-sweep-a-falling-block-puzzle-game/8259)
+  * A falling block puzzle game. Boxes lined up horizontally can be deleted. Enemies can not but beaten by a ball.
+  * Depend on Arduboy Library 1.1.1\
+    ![title](docs/img/stairssweep1.gif) ![playing](docs/img/stairssweep2.gif)
 
 ## License
 
