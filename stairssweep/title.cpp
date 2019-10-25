@@ -14,7 +14,7 @@ enum STATE_T {
 };
 
 #define APP_TITLE_V     "STAIRS  \0   SWEEP"
-#define APP_RELEASED_V  "NOVEMBER\0" "2019"
+#define APP_RELEASED_V  "OCTOBER\0" "2019"
 
 /*  Typedefs  */
 

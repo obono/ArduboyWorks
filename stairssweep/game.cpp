@@ -20,8 +20,12 @@
 #define ERASE_WAIT  (FPS / 2)
 #define FALL_WAIT   (FPS * 2 / 3)
 #define NEXT_WAIT   (FPS / 3)
+#define START_WAIT  (FPS * 2)
+#define OVER_WAIT   (FPS * 10)
 #define DYING_MAX   4
+#define BONUS_THRES 10
 #define LEVEL_MAX   99
+#define LEVEL_NOVIC 10
 #define LEVEL_FREQ  15
 
 #define getScreenX(x, y)    (112 - (y) * IMG_OBJECT_W)
@@ -100,6 +104,7 @@ static void     drawGameFall(void);
 static void     drawGameErase(void);
 static void     drawGameBall(void);
 static void     drawGameStar(void);
+static void     controlLed(void);
 
 /*  Local Variables  */
 
@@ -125,7 +130,7 @@ static int8_t       bunchX, bunchY, bunchR, bunchG;
 static int8_t       ballX, ballY, ballV, ballG, ballE;
 static int8_t       lastX, lastY, lastR, lastG, obtainedScoreY;
 static uint8_t      level, bunchCount, fallSpeed, ballSpeed, ballFreq, scoreCoef;
-static uint8_t      nextBall, boxesCount, enemiesCount, killedEnemies;
+static uint8_t      nextBall, boxesCount, enemiesCount, killedEnemies, maxHeight;
 static int16_t      gameCounter, filledLines, starGuage, starGuageMax;
 static uint32_t     score, obtainedScore;
 
@@ -141,7 +146,7 @@ void initGame(void)
     nextBall = ballFreq;
     setNextBunch();
     gameMode = GAME_MODE_WAIT;
-    gameCounter = FPS * 2;
+    gameCounter = START_WAIT;
 
     state = STATE_START;
     isInvalid = true;
@@ -153,7 +158,7 @@ MODE_T updateGame(void)
 {
     switch (state) {
     case STATE_START:
-        if (--gameCounter <= 0) {
+        if (--gameCounter <= NEXT_WAIT) {
             record.playCount++;
             state = STATE_PLAYING;
             isInvalid = true;
@@ -180,9 +185,8 @@ MODE_T updateGame(void)
         handleMenu();
         break;
     case STATE_OVER:
-        if (--gameCounter <= FPS * 9) {
-            if (arduboy.buttonDown(A_BUTTON) || gameCounter == 0) state = STATE_LEAVE;
-            if (arduboy.buttonDown(B_BUTTON)) initGame();
+        if (--gameCounter <= OVER_WAIT - FPS) {
+            if (arduboy.buttonDown(A_BUTTON | B_BUTTON) || gameCounter <= 0) state = STATE_LEAVE;
         }
         break;
     default:
@@ -210,6 +214,7 @@ void drawGame(void)
         if (isInvalid) {
             arduboy.fillRect2(0, 24, IMG_OBJECT_W * 2, IMG_OBJECT_H * 2, BLACK);
             arduboy.fillRect2(16, 8, (FIELD_H - 1) * IMG_OBJECT_W, FIELD_W * IMG_OBJECT_H, BLACK);
+            arduboy.setRGBled(0, 0, 0);
         }
         drawMenuItems(isInvalid);
         isInvalid = false;
@@ -227,6 +232,7 @@ void drawGame(void)
         drawBunch(2, FIELD_H, (nextBunch[1] == OBJECT_EMPTY) ? ROT_SINGLE : 0, 0, nextBunch);
     }
     if (state == STATE_PLAYING) drawGameSub(gameMode);
+    controlLed();
     isInvalid = false;
 }
 
@@ -263,6 +269,7 @@ static void initField(void)
     }
     boxesCount = 0;
     enemiesCount = 0;
+    maxHeight = 0;
 }
 
 static void tuneParameters(void)
@@ -396,7 +403,7 @@ static void forwardGameFall(void)
      } else {
         isHiscore = enterScore(score, level);
         writeRecord();
-        gameCounter = FPS * 10;
+        gameCounter = OVER_WAIT;
         state = STATE_OVER;
         isInvalid = true;
         arduboy.playScore2(soundOver, SND_PRIO_OVER);
@@ -415,9 +422,12 @@ static void forwardGameErase(void)
             if (obtainedScoreY == -1) obtainedScoreY = i;
         }
     }
-    obtainedScore = (lines * (lines - 1) + 1) * scoreCoef * ((killedEnemies > 0) + 1) * 20UL;
-    score += obtainedScore;
     boxesCount -= lines * FIELD_W;
+    obtainedScore = (lines * (lines - 1) + 1) * scoreCoef * 20UL;
+    if (killedEnemies > 0) {
+        obtainedScore *= (boxesCount == 0 && enemiesCount == 0) ? 3UL : 2UL;
+    }
+    score += obtainedScore;
     gameMode = GAME_MODE_FALL;
     gameCounter = FALL_WAIT;
     //isInvalid = true;
@@ -451,6 +461,10 @@ static void forwardGameBall(void)
             ballE |= (ballX == FIELD_W - 1 || field[ballY][ballX + 1] == OBJECT_BOX) * 4;
             if (ballE == BALLE_STUCK) {
                 obtainedScoreY = ballY;
+                if (enemiesCount == 0 && killedEnemies >= BONUS_THRES) {
+                    score += obtainedScore;
+                    obtainedScore *= 2UL;
+                }
                 gameMode = GAME_MODE_FALL;
                 gameCounter = FALL_WAIT;
                 isInvalid = true;
@@ -484,6 +498,7 @@ static void forwardGameStar(void)
                     field[y][i] = OBJECT_EMPTY;
                     enemiesCount--;
                     killedEnemies++;
+                    starGuage++;
                     uint16_t enemyPoint = (killedEnemies + 1) * scoreCoef;
                     score += enemyPoint;
                     obtainedScore += enemyPoint;
@@ -522,7 +537,7 @@ static void setNextBunch(void)
             dprintln(starGuageMax);
         } else {
             isBall = true;
-            isSingle = (level < 10);
+            isSingle = (level < LEVEL_NOVIC);
         }
         nextBall = ballFreq;
     }
@@ -579,13 +594,17 @@ static bool placeCurrentBunch(void)
 static bool fallObject(void)
 {
     bool isFalled = false;
+    maxHeight = 0;
     for (int i = 1; i < FIELD_H; i++) {
         for (int j = 0; j < FIELD_W; j++) {
             OBJECT_T obj = field[i][j];
-            if (obj != OBJECT_EMPTY && field[i - 1][j] == OBJECT_EMPTY) {
-                field[i - 1][j] = obj;
-                field[i][j] = OBJECT_EMPTY;
-                isFalled = true;
+            if (obj != OBJECT_EMPTY) {
+                maxHeight = i;
+                if (field[i - 1][j] == OBJECT_EMPTY) {
+                    field[i - 1][j] = obj;
+                    field[i][j] = OBJECT_EMPTY;
+                    isFalled = true;
+                }
             }
         }
     }
@@ -826,4 +845,26 @@ static void drawGameStar(void)
     }
     int16_t dx = getScreenX(0, y) + ballG / 8;
     arduboy.drawFastVLine2(dx, 8, FIELD_W * IMG_OBJECT_H, WHITE);
+}
+
+static void controlLed(void)
+{
+    uint8_t r = 0, g = 0;
+    if (state == STATE_PLAYING) {
+        if (maxHeight >= FIELD_H - 4) {
+            uint8_t grade = FIELD_H - maxHeight - 1;
+            uint8_t cycle = 1 << (grade + 3);
+            int8_t  tmp = cycle / 2 - (record.playFrames & (cycle - 1));
+            tmp = (abs(tmp) << (3 - grade)) - grade * 8;
+            if (tmp > 0) r = tmp;
+        }
+    }
+    if (state == STATE_OVER) {
+        int16_t tmp = (gameCounter - (OVER_WAIT - 32)) * 2;
+        if (tmp > 0) {
+            r = tmp;
+            g = tmp;
+        }
+    }
+    arduboy.setRGBled(r, g, 0);
 }

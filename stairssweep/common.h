@@ -11,8 +11,8 @@
 #define FPS             60
 #define APP_TITLE       "STAIRS SWEEP"
 #define APP_CODE        "OBN-Y09"
-#define APP_VERSION     "VER 0.04"
-#define APP_RELEASED    "NOVEMBER 2019"
+#define APP_VERSION     "VER 0.10"
+#define APP_RELEASED    "OCTOBER 2019"
 
 #define PAD_REPEAT_DELAY    (FPS / 6)
 #define PAD_REPEAT_INTERVAL 1
