@@ -55,7 +55,7 @@ bool updateLogo(void)
     arduboy.setRGBled(0, 0, signalOn * 127);
     bool ret = (counter == 0);
     if (ret) {
-        dprintln("Start " APP_TITLE " : " APP_INFO);
+        dprintln("Start " APP_TITLE " Version " APP_VERSION);
     }
     return ret;
 }
@@ -69,6 +69,6 @@ void drawLogo(void)
         arduboy.drawBitmap(28 + i * 24, y, imgOBN[i], 24, 32, WHITE);
     }
     arduboy.drawBitmap(68, 44, imgSoft, 32, 8, WHITE);
-    arduboy.printEx(16, 58, F(APP_INFO));
+    arduboy.printEx(16, 58, F(APP_CODE " VER " APP_VERSION));
     arduboy.printEx(7, 0, F("FOR 2ND #ARDUBOYJAM"));
 }

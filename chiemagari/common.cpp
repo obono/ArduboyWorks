@@ -36,6 +36,14 @@ int8_t      helpX, helpY;
 
 /*  Local Variables  */
 
+PROGMEM static const byte soundTick[] = {
+    0x90, 69, 0, 10, 0x80, 0xF0
+};
+
+PROGMEM static const byte soundClick[] = {
+    0x90, 74, 0, 20, 0x80, 0xF0
+};
+
 static int16_t  eepAddr;
 static uint16_t encPiecesCheckSum;
 
@@ -197,12 +205,12 @@ void setSound(bool on)
 
 void playSoundTick(void)
 {
-    arduboy.tone2(440, 10);
+    arduboy.playScore2(soundTick, 255);
 }
 
 void playSoundClick(void)
 {
-    arduboy.tone2(587, 20);
+    arduboy.playScore2(soundClick, 255);
 }
 
 /*---------------------------------------------------------------------------*/
