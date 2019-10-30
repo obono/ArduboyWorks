@@ -7,15 +7,31 @@
 /*  Defines  */
 
 //#define DEBUG
-#define APP_VERSION     "0.01"
+#define FPS             60
+#define APP_TITLE       "RYSK"
+#define APP_CODE        "OBN-Y00"
+#define APP_VERSION     "0.02"
+#define APP_RELEASED    "NOVEMBER 2019"
+
+#define COOKIES     8
+#define ANIM_MAX    16
+
+#define PL_SIZE     4
+#define CK_SIZE     2
+#define SCALE       64
+#define WIDTH_S     (WIDTH * SCALE)
+#define HEIGHT_S    (HEIGHT * SCALE)
+#define PL_SIZE_S   (PL_SIZE * SCALE)
+#define CK_SIZE_S   (CK_SIZE * SCALE)
+#define HIT_DIFF_S  PL_SIZE_S
+#define NEW_DIFF_S  (PL_SIZE_S * 4)
 
 /*  Functions  */
 
 void initialize(void);
 void update(void);
 void movePlayer(void);
-void newCookie(void);
-void controlLED(void);
+void newCookie(uint8_t idx);
 void draw(void);
 
 /*  Variables  */
@@ -42,7 +58,8 @@ PROGMEM static const byte soundCapture[] = {
 
 MyArduboy   arduboy;
 int16_t     px, py;
-int16_t     dx, dy;
+int16_t     cx[COOKIES], cy[COOKIES];
+int8_t      cvx[COOKIES], cvy[COOKIES];
 uint16_t    score;
 uint8_t     pc, pa;
 
@@ -51,7 +68,6 @@ uint8_t     pc, pa;
 #ifdef DEBUG
 bool    dbgPrintEnabled = true;
 char    dbgRecvChar = '\0';
-uint8_t dbgCaptureMode = 0;
 
 #define dprint(...)     (!dbgPrintEnabled || Serial.print(__VA_ARGS__))
 #define dprintln(...)   (!dbgPrintEnabled || Serial.println(__VA_ARGS__))
@@ -65,27 +81,12 @@ static void dbgCheckSerialRecv(void) {
             Serial.print("Debug output ");
             Serial.println(dbgPrintEnabled ? "ON" : "OFF");
             break;
-        case 'c':
-            dbgCaptureMode = 1;
-            break;
-        case 'C':
-            dbgCaptureMode = 2;
-            break;
         case 'r':
-            clearRecord();
+            //clearRecord();
             break;
         }
         if (recv >= ' ' && recv <= '~') {
             dbgRecvChar = recv;
-        }
-    }
-}
-
-static void dbgScreenCapture() {
-    if (dbgCaptureMode) {
-        Serial.write((const uint8_t *)arduboy.getBuffer(), WIDTH * HEIGHT / 8);
-        if (dbgCaptureMode == 1) {
-            dbgCaptureMode = 0;
         }
     }
 }
@@ -102,7 +103,7 @@ void setup()
     Serial.begin(115200);
 #endif
     arduboy.beginNoLogo();
-    arduboy.setFrameRate(60);
+    arduboy.setFrameRate(FPS);
     initialize();
 }
 
@@ -116,10 +117,6 @@ void loop()
     }
     update();
     draw();
-#ifdef DEBUG
-    dbgScreenCapture();
-    dbgRecvChar = '\0';
-#endif
     arduboy.display();
 }
 
@@ -127,11 +124,13 @@ void loop()
 
 void initialize(void)
 {
-    px = 128;
-    py = 64;
+    px = WIDTH_S / 2;
+    py = HEIGHT_S / 2;
     pc = 4;
     pa = 0;
-    newCookie();
+    for (uint8_t idx = 0; idx < COOKIES; idx++) {
+        newCookie(idx);
+    }
     score = 0;
     arduboy.setAudioEnabled(true);
 }
@@ -139,61 +138,54 @@ void initialize(void)
 void update(void)
 {
     movePlayer();
-    if (abs(px - dx) < 12 && abs(py - dy) < 12) {
-        score++;
-        arduboy.playScore2(soundCapture, 0);
-        newCookie();
+    for (uint8_t idx = 0; idx < COOKIES; idx++) {
+        if (cx[idx] + cvx[idx] < CK_SIZE_S || cx[idx] + cvx[idx] >= WIDTH_S - CK_SIZE_S) cvx[idx] = -cvx[idx];
+        if (cy[idx] + cvy[idx] < CK_SIZE_S || cy[idx] + cvy[idx] >= HEIGHT_S - CK_SIZE_S) cvy[idx] = -cvy[idx];
+        cx[idx] += cvx[idx];
+        cy[idx] += cvy[idx];
+        if (abs(px - cx[idx]) < HIT_DIFF_S && abs(py - cy[idx]) < HIT_DIFF_S) {
+            score++;
+            arduboy.playScore2(soundCapture, 0);
+            newCookie(idx);
+        }
     }
-    controlLED();
 }
 
 void movePlayer(void)
 {
     /*  Move  */
-    int vx = 0, vy = 0;
+    int8_t vx = 0, vy = 0;
     if (arduboy.buttonPressed(LEFT_BUTTON))  vx--;
     if (arduboy.buttonPressed(RIGHT_BUTTON)) vx++;
     if (arduboy.buttonPressed(UP_BUTTON))    vy--;
     if (arduboy.buttonPressed(DOWN_BUTTON))  vy++;
-    if (px + vx >= 8 && px + vx < 248) px += vx;
-    if (py + vy >= 8 && py + vy < 120) py += vy;
+    pc = (vy + 1) * 3 + (vx + 1);
+    int8_t vs = (vx != 0 && vy != 0) ? (SCALE * 3 / 8) : (SCALE / 2);
+    vx *= vs;
+    vy *= vs;
+    if (px + vx >= PL_SIZE_S && px + vx < WIDTH_S - PL_SIZE_S) px += vx;
+    if (py + vy >= PL_SIZE_S && py + vy < HEIGHT_S - PL_SIZE_S) py += vy;
 
     /*  Animation  */
-    pc = (vy + 1) * 3 + (vx + 1);
     if (pc == 4) {
         pa = 0;
     } else {
-        if (++pa >= 16) {
+        if (++pa >= ANIM_MAX) {
             arduboy.playScore2(soundStep, 1);
             pa = 0;
         }
     }
 }
 
-void newCookie(void)
+void newCookie(uint8_t idx)
 {
     do {
-        dx = random(4, 252);
-        dy = random(4, 124);
-    } while (abs(px - dx) < 32 && abs(py - dy) < 32);
-}
-
-void controlLED(void)
-{
-    uint8_t r, g, b;
-    if (arduboy.buttonPressed(B_BUTTON)) {
-        if (px < 128) {
-            r = px / 2;
-            g = 63;
-        } else {
-            r = 63;
-            g = (255 - px) / 2;
-        }
-        b = py / 2;
-    } else {
-        r = b = g = 0;
-    }
-    arduboy.setRGBled(r, g, b);
+        cx[idx] = random(CK_SIZE_S, WIDTH_S - CK_SIZE_S);
+        cy[idx] = random(CK_SIZE_S, HEIGHT_S - CK_SIZE_S);
+    } while (abs(px - cx[idx]) < NEW_DIFF_S && abs(py - cy[idx]) < NEW_DIFF_S);
+    float d = random(2048) * PI / 1024.0;
+    cvx[idx] = (int8_t) (cos(d) * (float) SCALE);
+    cvy[idx] = (int8_t) (sin(d) * (float) SCALE);
 }
 
 void draw(void)
@@ -201,6 +193,12 @@ void draw(void)
     arduboy.clear();
     arduboy.setCursor(0, 0);
     arduboy.print(score);
-    arduboy.drawBitmap(px / 2 - 4, py / 2 - 4 - (pa >= 8), imgPlayer[pc], 8, 8, WHITE);
-    arduboy.drawRect2(dx / 2 - 2, dy / 2 - 2, 4, 4, WHITE);
+    int16_t dx = px / SCALE - PL_SIZE;
+    int16_t dy = py / SCALE - PL_SIZE - (pa >= ANIM_MAX / 2);
+    arduboy.drawBitmap(dx, dy, imgPlayer[pc], PL_SIZE * 2, PL_SIZE * 2, WHITE);
+    for (uint8_t idx = 0; idx < COOKIES; idx++) {
+        dx = cx[idx] / SCALE - CK_SIZE;
+        dy = cy[idx] / SCALE - CK_SIZE;
+        arduboy.drawRect2(dx, dy, CK_SIZE * 2, CK_SIZE * 2, WHITE);
+    }
 }

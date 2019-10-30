@@ -1,5 +1,4 @@
-#ifndef MYARDUBOY_H
-#define MYARDUBOY_H
+#pragma once
 
 //#define USE_ARDUBOY2_LIB
 
@@ -7,7 +6,7 @@
 #include <Arduboy2.h>
 #include <ArduboyPlaytune.h>
 #define ARDUBOY_LIB_CLASS Arduboy2
-#define ARDUBOY_LIB_VER_TGT 40100
+#define ARDUBOY_LIB_VER_TGT 50201
 typedef uint8_t buffer_t;
 #else
 #include <Arduboy.h>
@@ -66,5 +65,3 @@ private:
     MyArduboyAudio  myAudio;
 #endif
 };
-
-#endif // MYARDUBOY_H

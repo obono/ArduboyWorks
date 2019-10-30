@@ -310,9 +310,7 @@ void MyArduboy::playScore2(const byte *score, uint8_t priority)
 {
     if (!isAudioEnabled()) return;
     if (pTunes->playing()) {
-        if (priority > playScorePriority) {
-            return;
-        }
+        if (priority > playScorePriority) return;
         pTunes->stopScore();
     }
     playScorePriority = priority;
