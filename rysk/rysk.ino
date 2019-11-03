@@ -10,7 +10,7 @@
 #define FPS             60
 #define APP_TITLE       "RYSK"
 #define APP_CODE        "OBN-Y00"
-#define APP_VERSION     "0.03"
+#define APP_VERSION     "0.04"
 #define APP_RELEASED    "NOVEMBER 2019"
 
 #define COOKIES         8
@@ -74,6 +74,7 @@ static void draw(void);
 static void drawObject(int16_t x, int16_t y, uint8_t size, const uint8_t *bitmap);
 static void drawStatus(void);
 static int  drawFigure(int16_t x, int16_t y, int value, uint8_t align);
+static void drawBorderedLetter(int16_t x, int16_t y, uint8_t w, uint8_t h, const uint8_t *bitmap);
 static void drawClock(int16_t x, int16_t y, uint8_t r, uint8_t sec);
 
 /*  Variables  */
@@ -179,8 +180,8 @@ PROGMEM static const byte soundOver[] = {
 };
 
 PROGMEM static const uint8_t ledValues[] = {
-    LED_VALUE(2, 2, 2), LED_VALUE(4, 0, 0), LED_VALUE(0, 0, 4), LED_VALUE(3, 3, 0), LED_VALUE(0, 4, 0),
-    LED_VALUE(3, 1, 1), LED_VALUE(2, 1, 0), LED_VALUE(2, 0, 3), LED_VALUE(1, 3, 0), LED_VALUE(0, 2, 2)
+    LED_VALUE(2, 2, 2), LED_VALUE(4, 0, 0), LED_VALUE(0, 0, 4), LED_VALUE(3, 3, 0), LED_VALUE(0, 3, 0),
+    LED_VALUE(4, 1, 2), LED_VALUE(2, 1, 0), LED_VALUE(2, 0, 3), LED_VALUE(2, 4, 0), LED_VALUE(0, 3, 3)
 };
 
 MyArduboy   arduboy;
@@ -261,6 +262,7 @@ static void initialize(void)
     arduboy.setCursor(40, 58);
     arduboy.print(F("RYSK " APP_VERSION));
     isPlaying = false;
+    arduboy.setRGBled(0, 0, 0);
 }
 
 static void update(void)
@@ -327,10 +329,12 @@ static void movePlayer(void)
     if (arduboy.buttonPressed(UP_BUTTON))    vy--;
     if (arduboy.buttonPressed(DOWN_BUTTON))  vy++;
     int8_t vs = (vx != 0 && vy != 0) ? (SCALE * 3 / 8) : (SCALE / 2);
-    int16_t dx = playerX + vx * vs;
-    int16_t dy = playerY + vy * vs;
-    if (dx >= PL_SIZE_S && dx < WIDTH_S - PL_SIZE_S) playerX = dx;
-    if (dy >= PL_SIZE_S && dy < HEIGHT_S - PL_SIZE_S) playerY = dy;
+    playerX += vx * vs;
+    playerY += vy * vs;
+    if (playerX < PL_SIZE_S)            playerX = PL_SIZE_S;
+    if (playerX > WIDTH_S - PL_SIZE_S)  playerX = WIDTH_S - PL_SIZE_S;
+    if (playerY < PL_SIZE_S)            playerY = PL_SIZE_S;
+    if (playerY > HEIGHT_S - PL_SIZE_S) playerY = HEIGHT_S - PL_SIZE_S;
 
     /*  Animation  */
     playerChr = (vy + 1) * 3 + (vx + 1);
@@ -348,8 +352,8 @@ static void moveCookie(COOKIE_T *pCookie)
 {
     int16_t dx = pCookie->x + pCookie->vx;
     int16_t dy = pCookie->y + pCookie->vy;
-    if (dx < CK_SIZE_S || dx >= WIDTH_S - CK_SIZE_S) pCookie->vx = -pCookie->vx;
-    if (dy < CK_SIZE_S || dy >= HEIGHT_S - CK_SIZE_S) pCookie->vy = -pCookie->vy;
+    if (dx < CK_SIZE_S || dx > WIDTH_S - CK_SIZE_S) pCookie->vx = -pCookie->vx;
+    if (dy < CK_SIZE_S || dy > HEIGHT_S - CK_SIZE_S) pCookie->vy = -pCookie->vy;
     pCookie->x += pCookie->vx;
     pCookie->y += pCookie->vy;
 }
@@ -394,15 +398,15 @@ static void drawObject(int16_t x, int16_t y, uint8_t size, const uint8_t *bitmap
 static void drawStatus(void)
 {
     if (gameTime > GAME_DURATION + FPS) {
-        arduboy.drawBitmap((WIDTH - IMG_START1_W) / 2, 8, imgStart1, IMG_START1_W, IMG_START1_H, WHITE);
+        drawBorderedLetter((WIDTH - IMG_START1_W) / 2, 8, IMG_START1_W, IMG_START1_H, imgStart1);
     } else if (gameTime > GAME_DURATION) {
-        arduboy.drawBitmap((WIDTH - IMG_START2_W) / 2, 8, imgStart2, IMG_START2_W, IMG_START2_H, WHITE);
+        drawBorderedLetter((WIDTH - IMG_START2_W) / 2, 8, IMG_START2_W, IMG_START2_H, imgStart2);
     } else {
         int dx = drawFigure(0, 0, score, ALIGN_LEFT);
-        arduboy.drawBitmap(dx, 0, imgTen, IMG_TEN_W, IMG_TEN_H, WHITE);
+        drawBorderedLetter(dx, 0, IMG_TEN_W, IMG_TEN_H, imgTen);
         drawClock(CLOCK_X, CLOCK_Y, CLOCK_R, (gameTime > 0) ? (GAME_DURATION - gameTime) / FPS : 0);
         if (gameTime <= 0) {
-            arduboy.drawBitmap((WIDTH - IMG_OVER_W) / 2, 48, imgOver, IMG_OVER_W, IMG_OVER_H, WHITE);
+            drawBorderedLetter((WIDTH - IMG_OVER_W) / 2, 48, IMG_OVER_W, IMG_OVER_H, imgOver);
         }
     }
 }
@@ -410,8 +414,17 @@ static void drawStatus(void)
 static int drawFigure(int16_t x, int16_t y, int value, uint8_t align)
 {
     int k = (value > 9) ? drawFigure(x - align * 4, y, value / 10, align) : 0;
-    arduboy.drawBitmap(x + k, y, imgFigures[value % 10], IMG_FIGURE_W, IMG_FIGURE_H, WHITE);
+    drawBorderedLetter(x + k, y, IMG_FIGURE_W, IMG_FIGURE_H, imgFigures[value % 10]);
     return k + 8 - align * 4;
+}
+
+static void drawBorderedLetter(int16_t x, int16_t y, uint8_t w, uint8_t h, const uint8_t *bitmap)
+{
+    arduboy.drawBitmap(x, y - 1, bitmap, w, h, BLACK);
+    arduboy.drawBitmap(x - 1, y, bitmap, w, h, BLACK);
+    arduboy.drawBitmap(x + 1, y, bitmap, w, h, BLACK);
+    arduboy.drawBitmap(x, y + 1, bitmap, w, h, BLACK);
+    arduboy.drawBitmap(x, y, bitmap, w, h, WHITE);
 }
 
 static void drawClock(int16_t x, int16_t y, uint8_t r, uint8_t sec)
@@ -419,6 +432,7 @@ static void drawClock(int16_t x, int16_t y, uint8_t r, uint8_t sec)
     float d = sec * PI / 30.0;
     int16_t vx = sin(d) * r;
     int16_t vy = -cos(d) * r;
-    arduboy.drawLine(x, y, x + vx, y + vy, WHITE);
+    arduboy.fillCircle(x, y, r, BLACK);
     arduboy.drawCircle(x, y, r, WHITE);
+    arduboy.drawLine(x, y, x + vx, y + vy, WHITE);
 }
