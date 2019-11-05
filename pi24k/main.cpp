@@ -3,10 +3,9 @@
 
 /*  Defines  */
 
-#define PAD_REPEAT_MAX  (FPS * 20)
+#define PAD_REPEAT_MAX  (FPS * 16)
+#define SIDE_DIGITS     7
 #define DEC_POINT_SIZE  2
-
-/*  Typedefs  */
 
 /*  Local Functions  */
 
@@ -15,9 +14,19 @@ static void processCredit(void);
 static void sparkleLed(uint8_t num);
 
 static void drawPiNumbers(void);
-static void drawDecimalPoint(int16_t x);
 static void drawStatus(void);
 static void drawCredit(void);
+
+#define drawDigit(x, y, id) \
+        arduboy.drawBitmap(x, y, imgDigit[id], IMG_DIGIT_W, IMG_DIGIT_H, WHITE)
+#define drawBigDigit(x, y, id) \
+        arduboy.drawBitmap(x, y, imgBigDigit[id], IMG_BIGDIGIT_W, IMG_BIGDIGIT_H, WHITE)
+#define drawIcon(x, y, id) \
+        arduboy.drawBitmap(x, y, imgIcon[id], IMG_ICON_W, IMG_ICON_H, WHITE)
+#define drawChoice(x, y, id) \
+        arduboy.drawBitmap(x, y, imgChoice[id], IMG_CHOICE_W, IMG_CHOICE_H, WHITE)
+#define drawDecimalPoint(x, y) \
+        arduboy.fillRect2(x, y, DEC_POINT_SIZE, DEC_POINT_SIZE, WHITE)
 
 /*  Local Variables  */
 
@@ -57,6 +66,7 @@ MODE_T updateMain(void)
     if (arduboy.buttonPressed(LEFT_BUTTON | RIGHT_BUTTON)) {
         if (padRepeatCount < PAD_REPEAT_MAX) padRepeatCount++;
     } else {
+        if (!isPlaying && padRepeatCount >= FPS * 2) isInvalid = true;
         padRepeatCount = 0;
     }
     if (isCredit) {
@@ -123,7 +133,7 @@ static void processUsual(void)
         if (keta > ketaMax) keta = ketaMax;
         currentNum = getPiNumber(keta);
         sparkleLed(currentNum);
-        arduboy.playScore2(soundFigure[currentNum], 0);
+        arduboy.playScore2(soundDigit[currentNum], 0);
         if (isPlaying && keta == ketaMax) {
             isPlaying = false;
         }
@@ -139,13 +149,12 @@ static void processUsual(void)
     if (arduboy.buttonDown(DOWN_BUTTON)) {
         isSoundOn = !isSoundOn;
         arduboy.setAudioEnabled(isSoundOn);
-        arduboy.playScore2(soundFigure[currentNum], 0);
+        arduboy.playScore2(soundDigit[currentNum], 0);
         isInvalid = true;
     }
 
-    if (arduboy.buttonDown(A_BUTTON) && keta == 0) {
+    if (arduboy.buttonDown(A_BUTTON) && !isPlaying && keta == 0) {
         playSoundClick();
-        isPlaying = false;
         isCredit = true;
         isInvalid = true;
     }
@@ -154,9 +163,9 @@ static void processUsual(void)
         isPlaying = !isPlaying;
         if (isPlaying) {
             sparkleLed(currentNum);
-            arduboy.playScore2(soundFigure[currentNum], 0);
+            arduboy.playScore2(soundDigit[currentNum], 0);
             waitCounter = waitInterval;
-            padRepeatCount = 0;
+            if (keta == ketaMax) isPlaying = false;
         }
         isInvalid = true;
     }
@@ -192,39 +201,35 @@ static void sparkleLed(uint8_t num)
 static void drawPiNumbers(void)
 {
     /*  Left side  */
-    int16_t x = (keta <= 7) ? -DEC_POINT_SIZE : 0;
-    for (int i = -7; i < 0; i++, x += IMG_FIGURE_W) {
+    int16_t x = (WIDTH - IMG_BIGDIGIT_W) / 2 - IMG_DIGIT_W * SIDE_DIGITS;
+    if (keta <= SIDE_DIGITS) x -= DEC_POINT_SIZE;
+    for (int i = -SIDE_DIGITS; i < 0; i++, x += IMG_DIGIT_W) {
         int16_t pos = keta + i;
         if (pos < 0) continue;
-        int num = getPiNumber(pos);
-        arduboy.drawBitmap(x, 24, imgFigure[num], IMG_FIGURE_W, IMG_FIGURE_H, WHITE);
+        drawDigit(x, 24, getPiNumber(pos));
         if (pos == 0) {
-            drawDecimalPoint(x + IMG_FIGURE_W);
+            drawDecimalPoint(x + IMG_DIGIT_W, 35);
             x += DEC_POINT_SIZE;
         }
     }
 
     /*  Center  */
-    arduboy.drawBitmap((WIDTH - IMG_BIGFIGURE_W) / 2, 16, imgBigFigure[currentNum],
-            IMG_BIGFIGURE_W, IMG_BIGFIGURE_H, WHITE);
+    drawBigDigit((WIDTH - IMG_BIGDIGIT_W) / 2, 16, currentNum);
 
     /*  Right side  */
-    x = WIDTH / 2 + IMG_FIGURE_W;
+    x = (WIDTH + IMG_BIGDIGIT_W) / 2;
     if (keta == 0) {
-        drawDecimalPoint(x);
+        drawDecimalPoint(x, 35);
         x += DEC_POINT_SIZE;
     }
-    for (int i = 1; i <= 7; i++, x += IMG_FIGURE_W) {
+    for (int i = 1; i <= SIDE_DIGITS; i++, x += IMG_DIGIT_W) {
         int16_t pos = keta + i;
-        if (pos > ketaMax) break;
-        int num = getPiNumber(pos);
-        arduboy.drawBitmap(x, 24, imgFigure[num], IMG_FIGURE_W, IMG_FIGURE_H, WHITE);
+        if (pos > ketaMax) {
+            arduboy.drawBitmap(x, 24, imgDots, IMG_DOTS_W, IMG_DOTS_H, WHITE);
+            break;
+        }
+        drawDigit(x, 24, getPiNumber(pos));
     }
-}
-
-static void drawDecimalPoint(int16_t x)
-{
-    arduboy.fillRect2(x, 35, DEC_POINT_SIZE, DEC_POINT_SIZE, WHITE);
 }
 
 static void drawStatus(void)
@@ -235,34 +240,39 @@ static void drawStatus(void)
     drawNumber(48, 3, keta);
 
     /*  Credit navigation  */
-    if (keta == 0) {
-        arduboy.drawBitmap(84, 0, imgIcon[IMG_ICON_ID_A], IMG_ICON_W, IMG_ICON_H, WHITE);
+    if (!isPlaying && keta == 0) {
+        drawIcon(84, 0, IMG_ICON_ID_A);
         arduboy.printEx(92, 1, F("CREDIT"));
     }
 
     /*  LED on / off  */
-    arduboy.drawBitmap(0, 56, imgIcon[IMG_ICON_ID_UP], IMG_ICON_W, IMG_ICON_H, WHITE);
-    arduboy.drawBitmap(8, 56, imgChoice[IMG_CHOICE_ID_LED_OFF + isLedOn],
-            IMG_CHOICE_W, IMG_CHOICE_H, WHITE);
+    drawIcon(0, 56, IMG_ICON_ID_UP);
+    drawChoice(8, 56, IMG_CHOICE_ID_LED_OFF + isLedOn);
 
     /*  Sound on / off  */
-    arduboy.drawBitmap(32, 56, imgIcon[IMG_ICON_ID_DOWN], IMG_ICON_W, IMG_ICON_H, WHITE);
-    arduboy.drawBitmap(40, 56, imgChoice[IMG_CHOICE_ID_SOUND_OFF + isSoundOn],
-            IMG_CHOICE_W, IMG_CHOICE_H, WHITE);
+    drawIcon(32, 56, IMG_ICON_ID_DOWN);
+    drawChoice(40, 56, IMG_CHOICE_ID_SOUND_OFF + isSoundOn);
 
     /*  Speed  */
-    arduboy.drawBitmap(64, 56, imgIcon[IMG_ICON_ID_LEFTRIGHT], IMG_ICON_W, IMG_ICON_H, WHITE);
+    drawIcon(64, 56, IMG_ICON_ID_LEFTRIGHT);
     if (isPlaying) {
-        drawNumber(75, 57, FPS / waitInterval);
-        arduboy.print(F("/S"));
+        uint8_t speed = FPS / waitInterval;
+        drawNumber(75, 57, speed);
+        drawChoice((speed < 10) ? 81 : 87, 56, IMG_CHOICE_ID_PERSEC);
     } else {
         arduboy.printEx(75, 57, F("----"));
     }
 
     /*  Playing state  */
-    arduboy.drawBitmap(104, 56, imgIcon[IMG_ICON_ID_B], IMG_ICON_W, IMG_ICON_H, WHITE);
-    arduboy.drawBitmap(112, 56, imgChoice[IMG_CHOICE_ID_STOP + isPlaying],
-            IMG_CHOICE_W, IMG_CHOICE_H, WHITE);
+    drawIcon(104, 56, IMG_ICON_ID_B);
+    drawChoice(112, 56, IMG_CHOICE_ID_STOP + isPlaying);
+
+    /*  Position bar  */
+    if (!isPlaying && padRepeatCount >= FPS * 2) {
+        int16_t x = keta / ((ketaMax + 1) / WIDTH);
+        arduboy.drawFastVLine2(x, 42, 5, WHITE);
+        arduboy.drawFastHLine2(0, 44, WIDTH, WHITE);
+    }
 }
 
 static void drawCredit(void)
