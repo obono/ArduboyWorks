@@ -43,6 +43,10 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * A falling block puzzle game. Boxes lined up horizontally can be deleted. Enemies can not but beaten by a ball.
   * Depend on Arduboy Library 1.1.1\
     ![title](docs/img/stairssweep1.gif) ![playing](docs/img/stairssweep2.gif)
+* OBN-Y10 [Ͽ 24k](https://community.arduboy.com/t/pi-24k-a-browser-of-circular-constant/8290) (for Game Jam 4.0)
+  * A browser of Ͽ: circular constant. (24,576 digits)
+  * Depend on Arduboy Library 1.1.1\
+    ![title](docs/img/pi24k1.gif) ![playing](docs/img/pi24k2.gif)
 
 ## License
 

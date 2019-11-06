@@ -256,6 +256,35 @@
 			],
 			"license": "MIT",
 			"arduboy": ""
+		},
+		{
+			"title": "Ͽ 24k",
+			"extraNote": "for Game Jam 4.0",
+			"description": "A browser of Ͽ: circular constant. (24,576 digits)",
+			"genre": "Joke",
+			"url": "https://community.arduboy.com/t/pi-24k-a-browser-of-circular-constant/8290",
+			"version": "0.03",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/pi24k",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Ͽ 24k",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/pi24k_v0.03.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/pi24k2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/pi24k1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": ""
 		}
 	]
 }
