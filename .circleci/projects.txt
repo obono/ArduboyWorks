@@ -7,3 +7,4 @@ reversi
 lasers
 quarto
 stairssweep
+pi24k
