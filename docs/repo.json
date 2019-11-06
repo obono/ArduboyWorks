@@ -258,9 +258,9 @@
 			"arduboy": ""
 		},
 		{
-			"title": "Ͽ 24k",
+			"title": "π 24k",
 			"extraNote": "for Game Jam 4.0",
-			"description": "A browser of Ͽ: circular constant. (24,576 digits)",
+			"description": "A browser of π: circular constant. (24,576 digits)",
 			"genre": "Joke",
 			"url": "https://community.arduboy.com/t/pi-24k-a-browser-of-circular-constant/8290",
 			"version": "0.03",
@@ -268,7 +268,7 @@
 			"author": "OBONO",
 			"binaries": [
 				{
-					"title": "Ͽ 24k",
+					"title": "π 24k",
 					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/pi24k_v0.03.hex",
 					"device": "Arduboy"
 				}
