@@ -31,7 +31,7 @@ static void drawCredit(void);
 /*  Local Variables  */
 
 PROGMEM static const char creditText[] = \
-        "- " APP_TITLE " -\0\0\0" APP_RELEASED "\0PROGREMMED BY OBONO\0\0" \
+        APP_RELEASED "\0PROGREMMED BY OBONO\0\0" \
         "THIS PROGRAM IS\0RELEASED UNDER\0THE MIT LICENSE.\0\e";
 
 int16_t keta, ketaMax, padRepeatCount;
@@ -63,12 +63,6 @@ void initMain(void)
 MODE_T updateMain(void)
 {
     if (ledLevel > 0) ledLevel--;
-    if (arduboy.buttonPressed(LEFT_BUTTON | RIGHT_BUTTON)) {
-        if (padRepeatCount < PAD_REPEAT_MAX) padRepeatCount++;
-    } else {
-        if (!isPlaying && padRepeatCount >= FPS * 2) isInvalid = true;
-        padRepeatCount = 0;
-    }
     if (isCredit) {
         processCredit();
     } else {
@@ -116,14 +110,20 @@ static void processUsual(void)
     } else {
         if (arduboy.buttonPressed(LEFT_BUTTON))  vx--;
         if (arduboy.buttonPressed(RIGHT_BUTTON)) vx++;
-        if (padRepeatCount < FPS * 2) {
-            if (padRepeatCount > 1 && padRepeatCount < FPS / 3 ||
-                    padRepeatCount >= FPS / 3 && padRepeatCount < FPS && (padRepeatCount & 3) ||
-                    padRepeatCount >= FPS && padRepeatCount < FPS * 2 && (padRepeatCount & 1)) {
-                vx = 0;
+        if (vx != 0) {
+            if (padRepeatCount < PAD_REPEAT_MAX) padRepeatCount++;
+            if (padRepeatCount < FPS * 2) {
+                if (padRepeatCount > 1 && padRepeatCount < FPS / 3 ||
+                        padRepeatCount >= FPS / 3 && padRepeatCount < FPS && (padRepeatCount & 3) ||
+                        padRepeatCount >= FPS && padRepeatCount < FPS * 2 && (padRepeatCount & 1)) {
+                    vx = 0;
+                }
+            } else {
+                vx *= pow(2.0, (padRepeatCount - FPS * 2) / (double) FPS);
             }
         } else {
-            vx *= pow(2.0, (padRepeatCount - FPS * 2) / (double) FPS);
+            if (padRepeatCount >= FPS * 2) isInvalid = true;
+            padRepeatCount = 0;
         }
     }
 
@@ -134,9 +134,7 @@ static void processUsual(void)
         currentNum = getPiNumber(keta);
         sparkleLed(currentNum);
         arduboy.playScore2(soundDigit[currentNum], 0);
-        if (isPlaying && keta == ketaMax) {
-            isPlaying = false;
-        }
+        if (keta == ketaMax) isPlaying = false;
         isInvalid = true;
     }
 
@@ -156,11 +154,13 @@ static void processUsual(void)
     if (arduboy.buttonDown(A_BUTTON) && !isPlaying && keta == 0) {
         playSoundClick();
         isCredit = true;
+        padRepeatCount = 0;
         isInvalid = true;
     }
 
     if (arduboy.buttonDown(B_BUTTON)) {
         isPlaying = !isPlaying;
+        padRepeatCount = 0;
         if (isPlaying) {
             sparkleLed(currentNum);
             arduboy.playScore2(soundDigit[currentNum], 0);
@@ -268,7 +268,7 @@ static void drawStatus(void)
     drawChoice(112, 56, IMG_CHOICE_ID_STOP + isPlaying);
 
     /*  Position bar  */
-    if (!isPlaying && padRepeatCount >= FPS * 2) {
+    if (padRepeatCount >= FPS * 2) {
         int16_t x = keta / ((ketaMax + 1) / WIDTH);
         arduboy.drawFastVLine2(x, 42, 5, WHITE);
         arduboy.drawFastHLine2(0, 44, WIDTH, WHITE);
@@ -277,8 +277,12 @@ static void drawStatus(void)
 
 static void drawCredit(void)
 {
+    arduboy.drawBitmap(24, 2, imgPi, IMG_PI_W, IMG_PI_H, WHITE);
+    for (int i = 0; i < 3; i++) {
+        drawBigDigit(56 + i * IMG_BIGDIGIT_W, 2, (i == 2) ? 10 : i * 2 + 2);
+    }
     const char *p = creditText;
-    int16_t y = 10;
+    int16_t y = 30;
     while (pgm_read_byte(p) != '\e') {
         uint8_t len = strnlen_P(p, 21);
         arduboy.printEx(64 - len * 3, y, (const __FlashStringHelper *) p);

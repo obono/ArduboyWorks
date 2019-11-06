@@ -8,7 +8,7 @@
 #define FPS             60
 #define APP_TITLE       "PI 24K"
 #define APP_CODE        "OBN-Y10"
-#define APP_VERSION     "0.02"
+#define APP_VERSION     "0.03"
 #define APP_RELEASED    "NOVEMBER 2019"
 
 enum MODE_T {
