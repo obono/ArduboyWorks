@@ -30,7 +30,9 @@
 				}
 			],
 			"license": "MIT",
-			"arduboy": ""
+			"arduboy": "",
+			"codeName": "OBN-Y01",
+			"nickName": "hollow"
 		},
 		{
 			"title": "Hopper",
@@ -58,7 +60,9 @@
 				}
 			],
 			"license": "MIT",
-			"arduboy": ""
+			"arduboy": "",
+			"codeName": "OBN-Y02",
+			"nickName": "hopper"
 		},
 		{
 			"title": "Chri-Bocchi Cat",
@@ -87,7 +91,9 @@
 				}
 			],
 			"license": "MIT",
-			"arduboy": ""
+			"arduboy": "",
+			"codeName": "OBN-Y03",
+			"nickName": "chribocchi"
 		},
 		{
 			"title": "Chie Magari Ita",
@@ -115,7 +121,9 @@
 				}
 			],
 			"license": "MIT",
-			"arduboy": ""
+			"arduboy": "",
+			"codeName": "OBN-Y04",
+			"nickName": "chiemagari"
 		},
 		{
 			"title": "Psi Colo",
@@ -143,7 +151,9 @@
 				}
 			],
 			"license": "MIT",
-			"arduboy": ""
+			"arduboy": "",
+			"codeName": "OBN-Y05",
+			"nickName": "psicolo"
 		},
 		{
 			"title": "Reversi",
@@ -171,7 +181,9 @@
 				}
 			],
 			"license": "MIT",
-			"arduboy": ""
+			"arduboy": "",
+			"codeName": "OBN-Y06",
+			"nickName": "reversi"
 		},
 		{
 			"title": "Lasers",
@@ -199,7 +211,9 @@
 				}
 			],
 			"license": "MIT",
-			"arduboy": ""
+			"arduboy": "",
+			"codeName": "OBN-Y07",
+			"nickName": "lasers"
 		},
 		{
 			"title": "Quarto!",
@@ -227,7 +241,9 @@
 				}
 			],
 			"license": "MIT",
-			"arduboy": ""
+			"arduboy": "",
+			"codeName": "OBN-Y08",
+			"nickName": "quarto"
 		},
 		{
 			"title": "Stairs Sweep",
@@ -255,7 +271,9 @@
 				}
 			],
 			"license": "MIT",
-			"arduboy": ""
+			"arduboy": "",
+			"codeName": "OBN-Y09",
+			"nickName": "stairssweep"
 		},
 		{
 			"title": "π 24k",
@@ -284,7 +302,9 @@
 				}
 			],
 			"license": "MIT",
-			"arduboy": ""
+			"arduboy": "",
+			"codeName": "OBN-Y10",
+			"nickName": "pi24k"
 		}
 	]
 }
