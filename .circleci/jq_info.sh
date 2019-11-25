@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-if [ $# -lt 2 ]
+if [ $# -lt 3 ]
 then
-	echo "Usage: $0 <project> <version>"
+	echo "Usage: $0 <project> <app_code> <version>"
 	exit 1
 fi
 
@@ -11,7 +11,8 @@ HEX_URL_BASE='https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/
 IMG_URL_BASE='https://obono.github.io/ArduboyWorks/img/'
 
 project=$1
-version=$2
+app_code=$2
+version=$3
 
 base_json=`cat ${project}/info.json` || exit 1
 title=`echo ${base_json} | jq '.title'`
@@ -39,5 +40,7 @@ echo ${base_json} | jq ". | .+
 		}
 	],
 	\"license\": \"MIT\",
-	\"arduboy\": \"\"
+	\"arduboy\": \"\",
+	\"codeName\": \"${app_code}\",
+	\"nickName\": \"${project}\"
 }" || exit 1

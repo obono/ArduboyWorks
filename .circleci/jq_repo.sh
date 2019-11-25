@@ -10,6 +10,7 @@ repo='{
 	"website": "https://github.com/obono/ArduboyWorks",
 	"items": []
 }'
+num=1
 
 for project in ${projects}
 do
@@ -19,7 +20,9 @@ do
 		echo "Failed to get version of \"${project}\"" >&2
 		exit 1
 	fi
-	ITEM=`${BIN_DIR}/jq_info.sh ${project} ${version} | sed -e 's/"/\\"/g'` || exit 1
+	app_code=`printf OBN-Y%02d $num`
+	ITEM=`${BIN_DIR}/jq_info.sh ${project} ${app_code} ${version} | sed -e 's/"/\\"/g'` || exit 1
 	repo=`echo ${repo} | jq ".items |= .+[${ITEM}]"` || exit 1
+	let num++
 done
 echo ${repo} | jq --tab

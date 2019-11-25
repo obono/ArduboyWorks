@@ -7,7 +7,12 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
 
 ## Products
 
-{{ProductsInfo}}
+{{#items}}
+* {{{codeName}}} {{#url}}[{{{title}}}]({{{url}}}){{/url}}{{^url}}{{{title}}}{{/url}}{{#extraNote}} ({{{extraNote}}}){{/extraNote}}
+  * {{{description}}}
+  * Depend on Arduboy Library 1.1.1\
+    ![title](docs/img/{{{nickName}}}1.gif) ![playing](docs/img/{{{nickName}}}2.gif)
+{{/items}}
 
 ## License
 
