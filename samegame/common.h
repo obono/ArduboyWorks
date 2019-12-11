@@ -8,7 +8,7 @@
 #define FPS             60
 #define APP_TITLE       "SAMEGAME"
 #define APP_CODE        "OBN-Y11"
-#define APP_VERSION     "0.01"
+#define APP_VERSION     "0.02"
 #define APP_RELEASED    "DECEMBER 2019"
 
 enum MODE_T {
@@ -82,7 +82,7 @@ extern MyArduboy    arduboy;
 extern RECORD_T     record;
 
 extern int8_t   padX, padY, padRepeatCount;
-extern uint32_t lastScore;
+extern uint16_t lastScore;
 extern bool     isInvalid, isRecordDirty;
 
 /*  For Debugging  */

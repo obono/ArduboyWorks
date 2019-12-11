@@ -19,7 +19,7 @@ enum RECORD_STATE_T {
 MyArduboy   arduboy;
 RECORD_T    record;
 int8_t      padX, padY, padRepeatCount;
-uint32_t    lastScore;
+uint16_t    lastScore;
 bool        isInvalid, isRecordDirty;
 
 /*  Local Functions  */
