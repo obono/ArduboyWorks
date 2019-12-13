@@ -7,13 +7,9 @@
 #define FIELD_H         10
 #define GRID_SIZE       6
 #define OBJECT_TYPES    5
-#define ERASING_ANIM    5
+#define ERASING_ANIM    7
+#define RESULT_ANIM     45
 #define PERFECT_BONUS   1000
-
-#define circulate(n, v, m)  (((n) + (v) + (m)) % (m))
-#define getField(x, y)      ((field.objects[x] >> (y) * 3) & 7)
-#define getLinkedFlag(x, y) (bitRead(linkedFlag[x], y))
-#define getOffsetX()        (WIDTH / 2 - fieldWidth * GRID_SIZE / 2)
 
 enum STATE_T {
     STATE_INIT = 0,
@@ -29,7 +25,7 @@ enum STATE_T {
 typedef struct {
     uint32_t    objects[FIELD_W];
     uint16_t    score;
-    int8_t      cursorX, cursorY;
+    int8_t      cursorX, cursorY, width, height;
 } FIELD_T;
 
 /*  Local Functions  */
@@ -43,7 +39,7 @@ static void     checkLinkedObjects(void);
 static void     checkLinkedObjectsInColumn(int8_t x, int8_t y1, int8_t y2);
 static void     removeLinkedObjects(void);
 static bool     closeField(void);
-static uint32_t closeFieldInColumn(int8_t x);
+static uint32_t closeFieldInColumn(int8_t x, int8_t &h);
 static bool     judgeGameOver(void);
 static void     backupField(void);
 static void     restoreField(void);
@@ -64,14 +60,20 @@ static void     drawEraser(void);
 static void     drawResult(bool isFullUpdate);
 static void     drawResultLabel(int16_t dy, uint8_t anim);
 static void     drawResultScore(int16_t dy, uint8_t anim);
-static void     drawResultNewRecord(int16_t dy);
+
+/*  Local Functions (macros)  */
+
+#define circulate(n, v, m)  (((n) + (v) + (m)) % (m))
+#define getField(x, y)      ((field.objects[x] >> (y) * 3) & 7)
+#define getLinkedFlag(x, y) (bitRead(linkedFlag[x], y))
+#define getOffsetX()        (WIDTH / 2 - field.width * GRID_SIZE / 2)
 
 /*  Local Variables  */
 
 static STATE_T  state = STATE_INIT;
 static FIELD_T  field, lastField;
 static uint16_t linkedFlag[FIELD_W], displayScore;
-static uint8_t  counter, fieldWidth, linkedTarget, linkedCount;
+static uint8_t  counter, linkedTarget, linkedCount;
 static bool     isTouched, isPerfect, isHiscore, isBackable;
 
 /*---------------------------------------------------------------------------*/
@@ -158,8 +160,8 @@ static void handlePlaying(void)
 {
     if (padX != 0 || padY != 0) {
         playSoundTick();
-        field.cursorX = circulate(field.cursorX, padX, fieldWidth);
-        field.cursorY = circulate(field.cursorY, padY, FIELD_H);
+        field.cursorX = circulate(field.cursorX, padX, field.width);
+        field.cursorY = circulate(field.cursorY, -padY, field.height);
         if (!getLinkedFlag(field.cursorX, field.cursorY)) {
             if (linkedCount > 1) isInvalid = true;
             checkLinkedObjects();
@@ -206,10 +208,10 @@ static void handlePlaying(void)
         isInvalid = true;
     }
     if (dbgRecvChar == 'x') {
-        for (int8_t x = 0; x < fieldWidth; x++) {
-            linkedFlag[x] = (1 << FIELD_H) - 1;
+        for (int8_t x = 0; x < field.width; x++) {
+            linkedFlag[x] = (1 << field.height) - 1;
         }
-        linkedCount = fieldWidth * FIELD_H;
+        linkedCount = field.width * field.height;
         counter = 0;
         state = STATE_ERASING;
         isInvalid = true;
@@ -231,7 +233,7 @@ static void handleErasing(void)
     removeLinkedObjects();
     if (closeField()) arduboy.playScore2(soundFall, SND_PRIO_EFFECTS);
     if (judgeGameOver()) {
-        if (fieldWidth == 0) {
+        if (field.width == 0) {
             arduboy.playScore2(soundPerfect, SND_PRIO_OVER);
             isPerfect = true;
             field.score += PERFECT_BONUS;
@@ -256,10 +258,10 @@ static void handleOver(void)
 {
     if (counter < FPS * 2) return;
 
-    if (counter == FPS * 2 && isPerfect) arduboy.stopScore2();
-    if (counter >= 192) counter -= 16;
-    if (arduboy.buttonDown(A_BUTTON)) {
+    if (counter >= 240) counter -= 16; // Trick!
+    if (arduboy.buttonDown(A_BUTTON) || isPerfect && counter == FPS * 2) {
         playSoundClick();
+        if (isPerfect) arduboy.stopScore2();
         clearMenuItems();
         addMenuItem(F("RETRY GAME"), onRetry);
         addMenuItem(F("BACK TO TITLE"), onQuit);
@@ -284,7 +286,8 @@ static void initField(void)
     field.score = 0;
     field.cursorX = FIELD_W / 2;
     field.cursorY = FIELD_H / 2;
-    fieldWidth = FIELD_W;
+    field.width = FIELD_W;
+    field.height = FIELD_H;
     isTouched = false;
     checkLinkedObjects();
 }
@@ -322,9 +325,9 @@ static void checkLinkedObjectsInColumn(int8_t x, int8_t y1, int8_t y2)
 
 static void removeLinkedObjects(void)
 {
-    for (int8_t x = 0; x < fieldWidth; x++) {
+    for (int8_t x = 0; x < field.width; x++) {
         uint32_t value = field.objects[x];
-        for (int8_t y = 0; y < FIELD_H; y++) {
+        for (int8_t y = 0; y < field.height; y++) {
             if (bitRead(linkedFlag[x], y)) {
                 value &= ~(7UL << y * 3);
             }
@@ -339,49 +342,55 @@ static void removeLinkedObjects(void)
 static bool closeField(void)
 {
     bool isFalled = false;
-    int8_t destX = 0;
-    for (int8_t srcX = 0; srcX < fieldWidth; srcX++) {
-        if (srcX == field.cursorX) field.cursorX = destX;
+    int8_t destX = 0, maxY = 0;
+    for (int8_t srcX = 0; srcX < field.width; srcX++) {
         uint32_t lastValue = field.objects[srcX];
-        uint32_t value = closeFieldInColumn(srcX);
+        uint32_t value = closeFieldInColumn(srcX, maxY);
         if (value) {
             field.objects[destX] = value;
             destX++;
             if (value != lastValue) isFalled = true;
         }
+        if (srcX == field.cursorX) field.cursorX = (destX > 0) ? destX - 1 : 0;
     }
-    if (destX < fieldWidth) {
-        memset(field.objects + destX, 0, (fieldWidth - destX) * sizeof(*field.objects));
-        fieldWidth = destX;
+    if (destX < field.width) {
+        memset(field.objects + destX, 0, (field.width - destX) * sizeof(*field.objects));
+        field.width = destX;
         isFalled = true;
     }
+    field.height = maxY;
+    if (field.cursorY >= maxY) field.cursorY = maxY - 1;
     dprint(F("Field width="));
-    dprintln(fieldWidth);
+    dprintln(field.width);
+    dprint(F("Field height="));
+    dprintln(field.height);
     return isFalled;
 }
 
-static uint32_t closeFieldInColumn(int8_t x)
+static uint32_t closeFieldInColumn(int8_t x, int8_t &maxY)
 {
     if (!field.objects[x]) return 0;
+    int8_t destY = 0;
     uint32_t value = 0;
-    for (int8_t srcY = FIELD_H - 1, destY = FIELD_H - 1; srcY >= 0; srcY--) {
+    for (int8_t srcY = 0; srcY < field.height; srcY++) {
         uint8_t object = getField(x, srcY);
         if (object) {
             value |= (uint32_t) object << destY * 3;
-            destY--;
+            destY++;
         }
     }
+    if (maxY < destY) maxY = destY;
     return value;
 }
 
 static bool judgeGameOver(void)
 {
-    for (int8_t x = 0; x < fieldWidth; x++) {
+    for (int8_t x = 0; x < field.width; x++) {
         uint8_t lastObject = 0;
-        for (int8_t y = 0; y < FIELD_H; y++) {
+        for (int8_t y = 0; y < field.height; y++) {
             uint8_t object = getField(x, y);
             if (object) {
-                if (object == lastObject || x < fieldWidth - 1 && object == getField(x + 1, y)) {
+                if (object == lastObject || x < field.width - 1 && object == getField(x + 1, y)) {
                     return false;
                 }
             }
@@ -400,9 +409,6 @@ static void backupField(void)
 static void restoreField(void)
 {
     memcpy(&field, &lastField, sizeof(field));
-    while (fieldWidth < FIELD_W && field.objects[fieldWidth]) {
-        fieldWidth++;
-    }
     checkLinkedObjects();
     displayScore = field.score;
     isBackable = false;
@@ -476,13 +482,13 @@ static void drawField(bool isFullUpdate)
     if (!isFullUpdate && linkedCount <= 1) return;
     int16_t offsetX = getOffsetX();
     uint8_t blinkFrac = counter & 7;
-    for (int8_t x = 0; x < fieldWidth; x++) {
-        for (int8_t y = 0; y < FIELD_H; y++) {
+    for (int8_t x = 0; x < field.width; x++) {
+        for (int8_t y = 0; y < field.height; y++) {
             uint8_t object = getField(x, y);
             if (object) {
                 bool isLinked = getLinkedFlag(x, y);
                 int16_t dx = x * GRID_SIZE + offsetX;
-                int16_t dy = y * GRID_SIZE + 4;
+                int16_t dy = 58 - y * GRID_SIZE;
                 if (isFullUpdate || isLinked && ((x + y) & 7) == blinkFrac) {
                     arduboy.drawBitmap(dx, dy, imgObject[object],
                             IMG_OBJECT_W, IMG_OBJECT_H, WHITE);
@@ -515,25 +521,24 @@ static void drawCursor(void)
 static void drawCursorActual(int8_t x, int8_t y, uint8_t imgId)
 {
     int16_t dx = x * GRID_SIZE + getOffsetX() - 1;
-    int16_t dy = y * GRID_SIZE + 3;
+    int16_t dy = 57 - y * GRID_SIZE;
     uint8_t color = (imgId == IMG_CURSOR_ID_CLEAR) ? BLACK : WHITE;
     arduboy.drawBitmap(dx, dy, imgCursor[imgId], IMG_CURSOR_W, IMG_CURSOR_H, color);
 }
 
 static void drawEraser(void)
 {
-    int16_t offsetX = getOffsetX();
-    for (int8_t x = 0; x < fieldWidth; x++) {
-        for (int8_t y = 0; y < FIELD_H; y++) {
+    int16_t offsetX = getOffsetX() - 1;
+    for (int8_t x = 0; x < field.width; x++) {
+        for (int8_t y = 0; y < field.height; y++) {
             if (getLinkedFlag(x, y)) {
                 int16_t dx = x * GRID_SIZE + offsetX;
-                int16_t dy = y * GRID_SIZE + 4;
+                int16_t dy = 57 - y * GRID_SIZE;
                 int8_t anim = counter - abs(field.cursorX - x) - abs(field.cursorY - y);
-                if (anim >= 0 && anim < ERASING_ANIM) {
-                    arduboy.drawBitmap(dx, dy, imgEraser[anim], IMG_OBJECT_W, IMG_OBJECT_H, WHITE);
-                } else if (anim >= ERASING_ANIM && anim < ERASING_ANIM * 2) {
-                    arduboy.drawBitmap(dx, dy, imgEraser[anim - ERASING_ANIM],
-                            IMG_OBJECT_W, IMG_OBJECT_H, BLACK);
+                if (anim >= 0 && anim < ERASING_ANIM * 2) {
+                    uint8_t color = (anim < ERASING_ANIM) ? WHITE : BLACK;
+                    if (color == BLACK) anim -= ERASING_ANIM;
+                    arduboy.drawBitmap(dx, dy, imgEraser[anim], IMG_ERASER_W, IMG_ERASER_H, color);
                 }
             }
         }
@@ -542,27 +547,27 @@ static void drawEraser(void)
 
 static void drawResult(bool isFullUpdate)
 {
-    if (counter > FPS * 2 && !isPerfect && arduboy.buttonPressed(B_BUTTON)) return;
+    if (counter > FPS * 2 && arduboy.buttonPressed(B_BUTTON)) return;
 
+    if (isPerfect && counter < FPS  - RESULT_ANIM) {
+        arduboy.fillCircle(WIDTH / 2, HEIGHT / 2, counter * 5 + 2, WHITE);
+    }
     int16_t dy = (isPerfect) ? 14 : 0;
-    if (counter >= 0 && (isFullUpdate || counter < FPS)) {
+    if (counter >= FPS  - RESULT_ANIM && (isFullUpdate || counter < FPS)) {
         drawResultLabel(dy, (counter < FPS) ? FPS - 1 - counter : 0);
     }
-    if (counter >= FPS && (isFullUpdate || counter < FPS * 2)) {
-        drawResultScore(dy + IMG_OVER_H + 2, (counter < FPS * 2) ? FPS * 2 - 1 - counter : 0);
-    }
-    if (isHiscore && counter >= FPS * 2 && (isFullUpdate || (counter & 7) == 0)) {
-        drawResultNewRecord(dy + IMG_OVER_H + IMG_DIGIT_H + 4);
+    if (counter >= FPS * 2 - RESULT_ANIM && (isFullUpdate || counter < FPS * 2)) {
+        drawResultScore(dy + 10, (counter < FPS * 2) ? FPS * 2 - 1 - counter : 0);
     }
 }
 
 static void drawResultLabel(int16_t dy, uint8_t anim)
 {
-    arduboy.fillRect2(0, dy, WIDTH, IMG_OVER_H + 2, BLACK);
-    int16_t dx = anim * anim / 28;
+    arduboy.fillRect2(0, dy, WIDTH, 10, isPerfect);
+    int16_t dx = anim * anim / 18;
     if (isPerfect) {
         dx += (WIDTH - IMG_PERFECT_W) / 2;
-        arduboy.drawBitmap(dx, dy, imgPerfect, IMG_PERFECT_W, IMG_PERFECT_H, WHITE);
+        arduboy.drawBitmap(dx, dy, imgPerfect, IMG_PERFECT_W, IMG_PERFECT_H, BLACK);
     } else {
         dx += (WIDTH - IMG_OVER_W) / 2;
         arduboy.drawBitmap(dx, dy, imgOver, IMG_OVER_W, IMG_OVER_H, WHITE);
@@ -571,20 +576,21 @@ static void drawResultLabel(int16_t dy, uint8_t anim)
 
 static void drawResultScore(int16_t dy, uint8_t anim)
 {
-    arduboy.fillRect2(0, dy, WIDTH, IMG_DIGIT_H + 2, BLACK);
-    int16_t dx = anim * anim / 28 + 25;
-    arduboy.printEx(dx, dy + 11, F("SCORE"));
-    dx += 66;
-    uint16_t tmp = field.score;
-    while (tmp > 0) {
-        arduboy.drawBitmap(dx, dy, imgDigit[tmp % 10], IMG_DIGIT_W, IMG_DIGIT_H, WHITE);
-        tmp /= 10;
-        dx -= IMG_DIGIT_W;
+    uint8_t digits = 0;
+    for (uint16_t tmp = field.score; tmp > 0; tmp /= 10) {
+        digits++;
     }
-}
-
-static void drawResultNewRecord(int16_t dy)
-{
-    arduboy.fillRect2(30, dy, 67, 6, BLACK);
-    if (bitRead(counter, 3)) arduboy.printEx(31, dy, F("NEW RECORD!"));
+    arduboy.fillRect2(0, dy, WIDTH, (isHiscore) ? 24 : 18, isPerfect);
+    arduboy.setTextColor(!isPerfect, !isPerfect);
+    int16_t dx = anim * anim / 18;
+    if (isHiscore) arduboy.printEx(dx + 31, dy + 18, F("NEW RECORD!"));
+    int16_t dw = 30 + IMG_DIGIT_W * digits;
+    dx += WIDTH / 2 - dw / 2;
+    arduboy.printEx(dx, dy + 9, F("SCORE"));
+    arduboy.setTextColor(WHITE, BLACK);
+    dx += dw;
+    for (uint16_t tmp = field.score; tmp > 0; tmp /= 10) {
+        dx -= IMG_DIGIT_W;
+        arduboy.drawBitmap(dx, dy, imgDigit[tmp % 10], IMG_DIGIT_W, IMG_DIGIT_H, !isPerfect);
+    }
 }
