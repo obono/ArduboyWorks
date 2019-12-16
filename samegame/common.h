@@ -8,13 +8,19 @@
 #define FPS             60
 #define APP_TITLE       "SAMEGAME"
 #define APP_CODE        "OBN-Y11"
-#define APP_VERSION     "0.03"
+#define APP_VERSION     "0.04"
 #define APP_RELEASED    "DECEMBER 2019"
+
+#define OBJECT_TYPES    5
+#define IMG_OBJECT_W    5
+#define IMG_OBJECT_H    5
+#define PERFECT_BONUS   1000
 
 enum MODE_T {
     MODE_LOGO = 0,
     MODE_TITLE,
     MODE_GAME,
+    MODE_EDITOR,
 };
 
 /*  Typedefs  */
@@ -23,7 +29,8 @@ typedef struct {
     uint16_t    hiscore[10];
     uint32_t    playFrames;
     uint16_t    playCount;
-} RECORD_T; // sizeof(RECORD_T) must be within 26 bytes
+    uint8_t     imgObject[16];
+} RECORD_T; // sizeof(RECORD_T) == 42
 
 /*  Global Functions (Common)  */
 
@@ -34,6 +41,7 @@ bool    enterScore(uint32_t score);
 void    handleDPad(void);
 void    drawNumber(int16_t x, int16_t y, int32_t value);
 void    drawTime(int16_t x, int16_t y, uint32_t frames);
+void    restoreObjectImage(void);
 
 void    setSound(bool on);
 void    playSoundTick(void);
@@ -57,9 +65,12 @@ int8_t  getMenuItemPos(void);
 int8_t  getMenuItemCount(void);
 void    setMenuCoords(int8_t x, int8_t y, int8_t w, int8_t h, bool f, bool s);
 void    setMenuItemPos(int8_t pos);
+void    setConfirmMenu(int8_t y, void (*funcOk)(), void (*funcCancel)());
 void    handleMenu(void);
 void    drawMenuItems(bool isForced);
 void    drawSoundEnabled(void);
+void    restoreObjectImage(void);
+void    drawObject(int16_t x, int16_t y, uint8_t imgId);
 
 /*  Global Functions (Each Mode)  */
 
@@ -74,7 +85,10 @@ void    drawTitle(void);
 void    initGame(void);
 MODE_T  updateGame(void);
 void    drawGame(void);
-void    drawPiece(int16_t x, int16_t y, int16_t piece);
+
+void    initEditor(void);
+MODE_T  updateEditor(void);
+void    drawEditor(void);
 
 /*  Global Variables  */
 

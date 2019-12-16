@@ -77,6 +77,17 @@ void setMenuItemPos(int8_t pos)
     dprintln(menuItemPos);
 }
 
+void setConfirmMenu(int8_t y, void (*funcOk)(), void (*funcCancel)())
+{
+    playSoundClick();
+    clearMenuItems();
+    addMenuItem(F("OK"), funcOk);
+    addMenuItem(F("CANCEL"), funcCancel);
+    setMenuCoords(40, y, 47, 11, true, true);
+    setMenuItemPos(1);
+    isInvalidMenu = true;
+}
+
 void handleMenu(void)
 {
     if (arduboy.buttonDown(UP_BUTTON) && menuItemPos > 0) {

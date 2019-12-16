@@ -6,14 +6,11 @@
 #define FIELD_W         20
 #define FIELD_H         10
 #define GRID_SIZE       6
-#define OBJECT_TYPES    5
 #define ERASING_ANIM    7
 #define RESULT_ANIM     45
-#define PERFECT_BONUS   1000
 
 enum STATE_T {
-    STATE_INIT = 0,
-    STATE_PLAYING,
+    STATE_PLAYING = 0,
     STATE_ERASING,
     STATE_OVER,
     STATE_MENU,
@@ -46,11 +43,10 @@ static void     restoreField(void);
 
 static void     onContinue(void);
 static void     onUndo(void);
-static void     onRetryConfirm(void);
+static void     onConfirmRetry(void);
 static void     onRetry(void);
-static void     onQuitConfirm(void);
+static void     onConfirmQuit(void);
 static void     onQuit(void);
-static void     onConfirm(void (*func)());
 
 static void     drawField(bool isFullUpdate);
 static void     drawScore(void);
@@ -70,7 +66,7 @@ static void     drawResultScore(int16_t dy, uint8_t anim);
 
 /*  Local Variables  */
 
-static STATE_T  state = STATE_INIT;
+static STATE_T  state;
 static FIELD_T  field, lastField;
 static uint16_t linkedFlag[FIELD_W], displayScore;
 static uint8_t  counter, linkedTarget, linkedCount;
@@ -172,9 +168,9 @@ static void handlePlaying(void)
         clearMenuItems();
         addMenuItem(F("CONTINUE"), onContinue);
         if (isBackable) addMenuItem(F("UNDO LAST MOVE"), onUndo);
-        addMenuItem(F("RESTART GAME"), (isTouched) ? onRetryConfirm : onRetry);
-        addMenuItem(F("BACK TO TITLE"), (isTouched) ? onQuitConfirm : onQuit);
-        setMenuCoords(16, 20, 95, (isBackable) ? 23 : 17, true, true);
+        addMenuItem(F("RESTART GAME"), (isTouched) ? onConfirmRetry : onRetry);
+        addMenuItem(F("BACK TO TITLE"), (isTouched) ? onConfirmQuit : onQuit);
+        setMenuCoords(16, 20, 95, getMenuItemCount() * 6 - 1, true, true);
         setMenuItemPos((isTouched) ? 0 : 1);
         state = STATE_MENU;
         isInvalid = true;
@@ -436,10 +432,11 @@ static void onUndo(void)
     dprintln(F("Menu: undo"));
 }
 
-static void onRetryConfirm(void)
+static void onConfirmRetry(void)
 {
-    onConfirm(onRetry);
-    dprintln(F("Menu: retry confirm"));
+    int16_t y = getMenuItemPos() * 6 + 22;
+    setConfirmMenu(y, onRetry, onContinue);
+    dprintln(F("Menu: confirm retry"));
 }
 
 static void onRetry(void)
@@ -448,10 +445,11 @@ static void onRetry(void)
     initGame();
 }
 
-static void onQuitConfirm(void)
+static void onConfirmQuit(void)
 {
-    onConfirm(onQuit);
-    dprintln(F("Menu: quit confirm"));
+    int16_t y = getMenuItemPos() * 6 + 22;
+    setConfirmMenu(y, onQuit, onContinue);
+    dprintln(F("Menu: confirm quit"));
 }
 
 static void onQuit(void)
@@ -460,17 +458,6 @@ static void onQuit(void)
     writeRecord();
     state = STATE_LEAVE;
     dprintln(F("Menu: quit"));
-}
-
-static void onConfirm(void (*func)())
-{
-    playSoundClick();
-    clearMenuItems();
-    addMenuItem(F("OK"), func);
-    addMenuItem(F("CANCEL"), onContinue);
-    setMenuCoords(40, 34, 47, 11, true, true);
-    setMenuItemPos(1);
-    isInvalid = true;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -490,8 +477,7 @@ static void drawField(bool isFullUpdate)
                 int16_t dx = x * GRID_SIZE + offsetX;
                 int16_t dy = 58 - y * GRID_SIZE;
                 if (isFullUpdate || isLinked && ((x + y) & 7) == blinkFrac) {
-                    arduboy.drawBitmap(dx, dy, imgObject[object],
-                            IMG_OBJECT_W, IMG_OBJECT_H, WHITE);
+                    drawObject(dx, dy, object - 1);
                 }
                 if (!isFullUpdate && isLinked && ((x + y + 7) & 7) == blinkFrac) {
                     arduboy.fillRect2(dx, dy, IMG_OBJECT_W, IMG_OBJECT_H, BLACK);

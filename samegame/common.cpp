@@ -2,7 +2,7 @@
 
 /*  Defines  */
 
-#define EEPROM_ADDR_BASE    704
+#define EEPROM_ADDR_BASE    688
 #define EEPROM_SIGNATURE    0x114E424FUL // "OBN\x11"
 
 #define PAD_REPEAT_DELAY    (FPS / 4)
@@ -38,6 +38,10 @@ static void     eepWriteBlock(const void *p, size_t n);
 
 /*  Local Variables  */
 
+PROGMEM static const byte imgObjectDefault[] = {
+    0x2E, 0xD6, 0xE8, 0xA2, 0x22, 0x2A, 0xFE, 0xA8, 0x14, 0x41, 0xCF, 0x79, 0xA1, 0xAA, 0xAA, 0x0A
+};
+
 PROGMEM static const byte soundTick[] = {
     0x90, 69, 0, 10, 0x80, 0xF0 // arduboy.tone2(440, 10);
 };
@@ -68,6 +72,7 @@ void readRecord(void)
         dprintln(F("Read record from EEPROM"));
     } else {
         memset(&record, 0, sizeof(record));
+        restoreObjectImage();
         recordState = RECORD_INITIAL;
         isRecordDirty = true;
     }
@@ -171,6 +176,30 @@ void drawTime(int16_t x, int16_t y, uint32_t frames)
         arduboy.print(':');
         if (s < 10) arduboy.print('0');
         arduboy.print(s);
+    }
+}
+
+void restoreObjectImage(void)
+{
+    memcpy_P(record.imgObject, imgObjectDefault, sizeof(record.imgObject));
+}
+
+void drawObject(int16_t x, int16_t y, uint8_t imgId)
+{
+    if (x < 0 || x > WIDTH - IMG_OBJECT_W ||
+            y < 0 || y > HEIGHT - IMG_OBJECT_H || imgId >= OBJECT_TYPES) return;
+    uint8_t *pBuffer = arduboy.getBuffer() + (y >> 3) * WIDTH + x;
+    uint8_t yOffs = y &= 7;
+    uint8_t bit = imgId * IMG_OBJECT_W * IMG_OBJECT_H;
+    uint8_t *pImg = record.imgObject + (bit >> 3);
+    for (uint8_t i = 0; i < IMG_OBJECT_W; i++, pBuffer++) {
+        bit &= 7;
+        uint8_t pattern = *pImg >> bit;
+        if (bit > 8 - IMG_OBJECT_H) pattern |= *(pImg + 1) << (8 - bit);
+        pattern &= (1 << IMG_OBJECT_H) - 1;
+        *pBuffer |= pattern << yOffs;
+        if (yOffs >= 8 - IMG_OBJECT_H) *(pBuffer + WIDTH) |= pattern >> (8 - yOffs);
+        if ((bit += IMG_OBJECT_H) >= 8) pImg++;
     }
 }
 

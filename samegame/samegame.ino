@@ -6,9 +6,9 @@
 
 /*  Defines  */
 
-#define callInitFunc(idx)   ((void (*)(void)) pgm_read_word((uint16_t) &moduleTable[idx]))()
-#define callUpdateFunc(idx) ((MODE_T (*)(void)) pgm_read_word((uint16_t) &moduleTable[idx] + 2))()
-#define callDrawFunc(idx)   ((void (*)(void)) pgm_read_word((uint16_t) &moduleTable[idx] + 4))()
+#define callInitFunc(idx)   ((void (*)(void)) pgm_read_ptr((uint16_t) &moduleTable[idx]))()
+#define callUpdateFunc(idx) ((MODE_T (*)(void)) pgm_read_ptr((uint16_t) &moduleTable[idx] + 2))()
+#define callDrawFunc(idx)   ((void (*)(void)) pgm_read_ptr((uint16_t) &moduleTable[idx] + 4))()
 
 /*  Typedefs  */
 
@@ -25,6 +25,7 @@ PROGMEM static const MODULE_FUNCS moduleTable[] = {
     { initLogo,     updateLogo,     drawLogo },
     { initTitle,    updateTitle,    drawTitle },
     { initGame,     updateGame,     drawGame },
+    { initEditor,   updateEditor,   drawEditor },
 };
 
 static MODE_T mode;

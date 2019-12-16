@@ -7,19 +7,22 @@
 #define IMG_SUBTITLE_W  72
 #define IMG_SUBTITLE_H  8
 
+#define ONE_HOUR        (60UL * 60UL * FPS)
 
 enum STATE_T {
     STATE_INIT = 0,
     STATE_TITLE,
     STATE_RECORD,
     STATE_CREDIT,
-    STATE_STARTED,
+    STATE_START_GAME,
+    STATE_START_EDITOR,
 };
 
 /*  Local Functions  */
 
 static void initTitleMenu(bool isFromSettings);
 static void onStart(void);
+static void onEdit(void);
 static void onRecord(void);
 static void onCredit(void);
 static void handleAnyButton(void);
@@ -80,10 +83,14 @@ void initTitle(void)
     }
     clearMenuItems();
     addMenuItem(F("GAME START"), onStart);
+    if (record.hiscore[0] >= PERFECT_BONUS || record.playFrames >= ONE_HOUR) {
+        addMenuItem(F("EDIT PATTERN"), onEdit);
+    }
     addMenuItem(F("RECORD"), onRecord);
     addMenuItem(F("CREDIT"), onCredit);
-    setMenuItemPos(0);
-    setMenuCoords(28, 46, 71, 17, false, true);
+    setMenuItemPos((state == STATE_START_EDITOR) ? 1 : 0);
+    int8_t h = getMenuItemCount() * 6;
+    setMenuCoords(28, HEIGHT - h, 83, h, false, true);
     state = STATE_TITLE;
     isInvalid = true;
 }
@@ -94,7 +101,8 @@ MODE_T updateTitle(void)
     switch (state) {
     case STATE_TITLE:
         handleMenu();
-        if (state == STATE_STARTED) ret = MODE_GAME;
+        if (state == STATE_START_GAME)   ret = MODE_GAME;
+        if (state == STATE_START_EDITOR) ret = MODE_EDITOR;
         break;
     default:
         handleAnyButton();
@@ -118,6 +126,8 @@ void drawTitle(void)
         case STATE_CREDIT:
             drawCredit();
             break;
+        default:
+            break;
         }
     }
     if (state == STATE_TITLE) drawMenuItems(isInvalid);
@@ -130,8 +140,15 @@ void drawTitle(void)
 
 static void onStart(void)
 {
-    state = STATE_STARTED;
+    state = STATE_START_GAME;
     dprintln(F("Game start"));
+}
+
+static void onEdit(void)
+{
+    playSoundClick();
+    state = STATE_START_EDITOR;
+    dprintln(F("Edit pattern"));
 }
 
 static void onRecord(void)
