@@ -47,6 +47,10 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * A browser of π: circular constant. (24,576 digits)
   * Depend on Arduboy Library 1.1.1\
     ![title](docs/img/pi24k1.gif) ![playing](docs/img/pi24k2.gif)
+* OBN-Y11 [SameGame](https://community.arduboy.com/t/samegame-a-famous-tile-matching-puzzle/8407)
+  * A famous tile-matching puzzle. You can remove a group of adjoining blocks of the same type.
+  * Depend on Arduboy Library 1.1.1\
+    ![title](docs/img/samegame1.gif) ![playing](docs/img/samegame2.gif)
 
 ## License
 
