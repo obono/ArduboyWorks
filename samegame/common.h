@@ -8,7 +8,7 @@
 #define FPS             60
 #define APP_TITLE       "SAMEGAME"
 #define APP_CODE        "OBN-Y11"
-#define APP_VERSION     "0.04"
+#define APP_VERSION     "0.10"
 #define APP_RELEASED    "DECEMBER 2019"
 
 #define OBJECT_TYPES    5

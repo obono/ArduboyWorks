@@ -175,6 +175,12 @@ static void handlePlaying(void)
         state = STATE_MENU;
         isInvalid = true;
     } else if (linkedCount > 1 && arduboy.buttonDown(B_BUTTON)) {
+        if (!isTouched) {
+            isTouched = true;
+            record.playCount++;
+            writeRecord();
+            dprintln(F("Increase play count"));
+        }
         const byte *pSound;
         if (linkedCount < 20) {
             pSound = (const byte *)pgm_read_ptr(soundEraseTable + linkedCount / 5);
@@ -183,12 +189,6 @@ static void handlePlaying(void)
         }
         arduboy.playScore2(pSound, SND_PRIO_EFFECTS);
         backupField();
-        if (!isTouched) {
-            isTouched = true;
-            record.playCount++;
-            writeRecord();
-            dprintln(F("Increase play count"));
-        }
         uint16_t obtainedScore = (linkedCount - 2) * (linkedCount - 2);
         dprint(obtainedScore);
         dprintln(F(" points"));

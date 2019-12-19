@@ -84,13 +84,13 @@ void initTitle(void)
     clearMenuItems();
     addMenuItem(F("GAME START"), onStart);
     if (record.hiscore[0] >= PERFECT_BONUS || record.playFrames >= ONE_HOUR) {
-        addMenuItem(F("EDIT PATTERN"), onEdit);
+        addMenuItem(F("DESIGN PATTERN"), onEdit);
     }
     addMenuItem(F("RECORD"), onRecord);
     addMenuItem(F("CREDIT"), onCredit);
     setMenuItemPos((state == STATE_START_EDITOR) ? 1 : 0);
     int8_t h = getMenuItemCount() * 6;
-    setMenuCoords(28, HEIGHT - h, 83, h, false, true);
+    setMenuCoords(28, HEIGHT - h, 95, h, false, true);
     state = STATE_TITLE;
     isInvalid = true;
 }
@@ -148,7 +148,7 @@ static void onEdit(void)
 {
     playSoundClick();
     state = STATE_START_EDITOR;
-    dprintln(F("Edit pattern"));
+    dprintln(F("Design pattern"));
 }
 
 static void onRecord(void)

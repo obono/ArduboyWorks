@@ -1,5 +1,6 @@
 {
 	"title": "SameGame",
 	"description": "A famous tile-matching puzzle. You can remove a group of adjoining blocks of the same type.",
-	"genre": "Puzzle"
+	"genre": "Puzzle",
+	"url": "https://community.arduboy.com/t/samegame-a-famous-tile-matching-puzzle/8407"
 }

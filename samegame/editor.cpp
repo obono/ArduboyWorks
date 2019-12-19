@@ -2,7 +2,10 @@
 
 /*  Defines  */
 
-#define NO_COLOR    2
+#define IMG_BUTTONS_W   7
+#define IMG_BUTTONS_H   16
+
+#define NO_COLOR        2
 
 enum STATE_T {
     STATE_SELECTING = 0,
@@ -29,6 +32,10 @@ static void drawEditorGridCursor(bool isFullUpdate);
 static void drawEditorCursorActual(int16_t dx, int16_t dy, uint8_t size);
 
 /*  Local Variables  */
+
+PROGMEM static const uint8_t imgButtons[] = { // 7x16
+    0x7C, 0x8E, 0xD6, 0xDA, 0xDA, 0x82, 0x7C, 0x7C, 0x82, 0xAA, 0xAA, 0xA2, 0xCA, 0x7C
+};
 
 PROGMEM static const byte soundCancel[] = {
     0x90, 0x48, 0x00, 0x28, 0x90, 0x45, 0x00, 0x28, 0x90, 0x41, 0x00, 0x28, 0x80, 0xF0
@@ -84,6 +91,7 @@ void drawEditor(void)
 {
     if (state == STATE_LEAVE) return;
     if (state == STATE_MENU) {
+        if (isInvalid) arduboy.fillRect2(85, 49, 43, 15, BLACK);
         drawMenuItems(isInvalid);
         isInvalid = false;
         return;
@@ -218,25 +226,35 @@ static void onQuit(void)
 
 static void drawEditorAll(void)
 {
-    for (int8_t i = 0; i < OBJECT_TYPES; i++) {
-        drawObject(18, i * 10 + 10, i);
-    }
-    arduboy.drawRect2(15, targetObject * 10 + 7, 11, 11, WHITE);
+    arduboy.printEx(15, 0, F("PATTERN EDITOR"));
 
+    /*  Objects  */
+    for (int8_t i = 0; i < OBJECT_TYPES; i++) {
+        drawObject(10, i * 10 + 10, i);
+    }
+    arduboy.drawRect2(7, targetObject * 10 + 7, 11, 11, WHITE);
+
+    /*  Grid  */
     for (int8_t y = 0; y < IMG_OBJECT_H; y++) {
         for (int8_t x = 0; x < IMG_OBJECT_W; x++) {
             drawEditorGridCell(x, y, true);
         }
     }
     for (int8_t i = 0; i <= IMG_OBJECT_H; i++) {
-        arduboy.drawFastHLine2(39, i * 10 + 7, 51, WHITE);
-        arduboy.drawFastVLine2(i * 10 + 39, 7, 51, WHITE);
+        arduboy.drawFastHLine2(31, i * 10 + 7, 51, WHITE);
+        arduboy.drawFastVLine2(i * 10 + 31, 7, 51, WHITE);
     }
+
+    /*  Instruction  */
+    arduboy.drawBitmap(85, 48, imgButtons, IMG_BUTTONS_W, IMG_BUTTONS_H, WHITE);
+    bool isSelecting = (state == STATE_SELECTING);
+    arduboy.printEx(93, 50, (isSelecting) ? F("MENU") : F("SELECT"));
+    arduboy.printEx(93, 58, (isSelecting) ? F("DESIGN") : F("DOT"));
 }
 
 static void drawEditorTargetCursor(void)
 {
-    drawEditorCursorActual(14, targetObject * 10 + 6, 13);
+    drawEditorCursorActual(6, targetObject * 10 + 6, 13);
 }
 
 static void drawEditorGridCell(int8_t x, int8_t y, bool isFullUpdate)
@@ -244,7 +262,7 @@ static void drawEditorGridCell(int8_t x, int8_t y, bool isFullUpdate)
     uint8_t bit = calcBit(targetObject, x, y);
     uint8_t color = getPattern(bit);
     if (color == WHITE || !isFullUpdate) {
-        arduboy.fillRect2(x * 10 + 40, y * 10 + 8, 9, 9, color);
+        arduboy.fillRect2(x * 10 + 32, y * 10 + 8, 9, 9, color);
     }
 }
 
@@ -252,11 +270,11 @@ static void drawEditorGridCursor(bool isFullUpdate)
 {
     static int8_t lastX, lastY;
     if (!isFullUpdate) {
-        arduboy.fillRect2(18, targetObject * 10 + 10, IMG_OBJECT_W, IMG_OBJECT_H, BLACK);
-        drawObject(18, targetObject * 10 + 10, targetObject);
+        arduboy.fillRect2(10, targetObject * 10 + 10, IMG_OBJECT_W, IMG_OBJECT_H, BLACK);
+        drawObject(10, targetObject * 10 + 10, targetObject);
         drawEditorGridCell(lastX, lastY, false);
     }
-    drawEditorCursorActual(cursorX * 10 + 40, cursorY * 10 + 8, 9);
+    drawEditorCursorActual(cursorX * 10 + 32, cursorY * 10 + 8, 9);
     lastX = cursorX;
     lastY = cursorY;
 }

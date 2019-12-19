@@ -2,6 +2,8 @@
 
 /*  Defines  */
 
+#define IMG_SOUND_W     16
+#define IMG_SOUNDM_W    6
 #define MENU_COUNT_MAX  6
 
 /*  Typedefs  */
@@ -14,13 +16,13 @@ typedef struct
 
 /*  Local Variables  */
 
-PROGMEM static const uint8_t imgSound[14] = {
-    0x3E, 0x47, 0x6B, 0x6D, 0x6D, 0x41, 0x3E, 0x00, 0x1C, 0x1C, 0x00, 0x1C, 0x3E, 0x7F
+PROGMEM static const uint8_t imgSound[] = { // 16x8
+    0x00, 0x7C, 0x8E, 0xD6, 0xDA, 0xDA, 0x82, 0x7C, 0x00, 0x38, 0x38, 0x00, 0x38, 0x7C, 0xFE, 0x00
 };
 
-PROGMEM static const uint8_t imgSoundOffOn[2][6] = {
-    { 0x00, 0x00, 0x50, 0x20, 0x50, 0x00 },
-    { 0x14, 0x08, 0x22, 0x1C, 0x41, 0x3E },
+PROGMEM static const uint8_t imgSoundOffOn[][6] = { // 6x8 x2
+    { 0x00, 0x00, 0xA0, 0x40, 0xA0, 0x00 },
+    { 0x28, 0x10, 0x44, 0x38, 0x82, 0x7C },
 };
 
 static int8_t   menuX, menuY, menuW, menuH;
@@ -132,7 +134,7 @@ void drawMenuItems(bool isForced)
 
 void drawSoundEnabled(void)
 {
-    arduboy.fillRect2(106, 56, 22, 8, BLACK);
-    arduboy.drawBitmap(107, 57, imgSound, 14, 7, WHITE);
-    arduboy.drawBitmap(122, 57, imgSoundOffOn[arduboy.audio.enabled()], 6, 7, WHITE);
+    uint8_t *p = arduboy.getBuffer();
+    memcpy_P(p + WIDTH * 8 - IMG_SOUND_W - IMG_SOUNDM_W, imgSound, IMG_SOUND_W);
+    memcpy_P(p + WIDTH * 8 - IMG_SOUNDM_W, imgSoundOffOn[arduboy.audio.enabled()], IMG_SOUNDM_W);
 }
