@@ -8,7 +8,7 @@
 #define FPS             60
 #define APP_TITLE       "KNIGHT MOVE"
 #define APP_CODE        "OBN-Y12"
-#define APP_VERSION     "0.01"
+#define APP_VERSION     "0.02"
 #define APP_RELEASED    "FEBRUARY 2020"
 
 #define OBJECT_TYPES    5
@@ -41,7 +41,7 @@ uint32_t getHiscore(uint8_t r, bool isB);
 void    setHiscore(uint8_t r, bool isB, uint32_t score);
 void    handleDPad(void);
 void    drawNumber(int16_t x, int16_t y, int32_t value);
-void    drawNumberR(int16_t x, int16_t y, int32_t value);
+int8_t  drawNumberR(int16_t x, int16_t y, int32_t value);
 void    drawTime(int16_t x, int16_t y, uint32_t frames);
 void    restoreObjectImage(void);
 

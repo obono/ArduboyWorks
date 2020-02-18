@@ -165,14 +165,17 @@ void drawNumber(int16_t x, int16_t y, int32_t value)
     arduboy.print(value);
 }
 
-void drawNumberR(int16_t x, int16_t y, int32_t value)
+int8_t drawNumberR(int16_t x, int16_t y, int32_t value)
 {
+    int8_t ret = 0;
     do {
         arduboy.setCursor(x, y);
         arduboy.print((char)('0' + value % 10));
         value /= 10;
         x -= 6;
+        ret++;
     } while (value > 0);
+    return ret;
 }
 
 void drawTime(int16_t x, int16_t y, uint32_t frames)
