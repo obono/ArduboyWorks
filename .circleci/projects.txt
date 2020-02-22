@@ -9,3 +9,4 @@ quarto
 stairssweep
 pi24k
 samegame
+knightmove
