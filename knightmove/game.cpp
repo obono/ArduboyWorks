@@ -16,10 +16,11 @@
 #define KNIGHT_RAD_MAX  768
 #define KNIGHT_RAD_HALF (KNIGHT_RAD_MAX / 2)
 #define KNIGHT_JUMP     16
-#define KNIGHT_WAIT_MAX 6
+#define KNIGHT_WAIT_MAX 8
 
 #define SCORE_MAX       9999999UL
 #define LEVEL_MAX       30
+#define HOLES_MAX       999
 #define HEART_LIFE_MAX  6
 #define POINT_LIFE_MAX  (FPS / 2)
 #define EVAL_LIFE_MAX   (FPS * 2)
@@ -92,7 +93,7 @@ static STATE_T  state;
 static int8_t   field[FIELD_H][FIELD_W];
 static uint32_t score, point;
 static uint16_t holes, knightRad, heartLife, heartLifeMax;
-static int8_t   knightX, knightY, knightVx, knightVy, knightDir, knightWait;
+static int8_t   knightX, knightY, knightVx, knightVy, knightDir, knightVDir, knightWait;
 static int8_t   heartX, heartY, heartNorm, heartNormMax;
 static int8_t   petitX, petitY, petitH, petitCounter;
 static uint8_t  level, floors, continuous, pointLife, evalLife, counter;
@@ -174,10 +175,7 @@ static void initGameParams(void)
     floors = FIELD_H * FIELD_W;
     knightX = random(FIELD_W);
     knightY = random(FIELD_H);
-    knightDir = random(KNIGHT_DIR_MAX);
     knightRad = 0;
-    knightWait = 0;
-    steerKnight(1);
     heartX = -1;
     heartLife = 0;
     setHeartParams(level, isBMode);
@@ -193,9 +191,14 @@ static void handleStart(void)
         record.playCount++;
         isRecordDirty = true;
         writeRecord();
-        arduboy.playScore2(soundBound, SND_PRIO_BOUND);
         field[knightY][knightX]--;
+        knightDir = random(KNIGHT_DIR_MAX);
+        steerKnight(1);
+        knightVDir = 1;
+        knightWait = 0;
         placeNewHeart();
+        heartLife -= KNIGHT_WAIT_MAX;
+        arduboy.playScore2(soundBound, SND_PRIO_BOUND);
         state = STATE_MOVING;
     }
     if (arduboy.buttonDown(A_BUTTON)) openMenu();
@@ -204,25 +207,27 @@ static void handleStart(void)
 
 static void handleMoving(void)
 {
-    if (!isFast) {
-        if (padX != 0) {
-            playSoundTick();
-            steerKnight(padX);
+    if (knightWait == 0) {
+        if (!isFast) {
+            if (padX != 0) {
+                playSoundTick();
+                steerKnight(padX);
+                knightVDir = padX;
+            }
+            if (arduboy.buttonDown(B_BUTTON)) {
+                arduboy.playScore2(soundFast, SND_PRIO_MISC);
+                isFast = true;
+            }
+
         }
-        if (arduboy.buttonDown(B_BUTTON)) {
-        arduboy.playScore2(soundFast, SND_PRIO_MISC);
-            isFast = true;
-        }
-    }
-    if (isFast) {
-        knightRad += KNIGHT_RAD_FAST;
-        score++;
-    } else {
-        if (knightWait > 0) {
-            knightWait--;
+        if (isFast) {
+            knightRad += KNIGHT_RAD_FAST;
+            score++;
         } else {
             knightRad += level + 2;
         }
+    } else {
+        knightWait--;
     }
     if (isBMode && heartLife > 0) heartLife--;
     if (continuous >= 8 && ledLevel < LED_LEVEL_POINT_BLK) {
@@ -245,6 +250,7 @@ static void handleMoving(void)
             dprintln(F("Game over"));
         } else {
             field[knightY][knightX] = floor;
+            steerKnight(KNIGHT_DIR_MAX / 2);
             knightWait = KNIGHT_WAIT_MAX;
             if (floor == FLOOR_OPEN) {
                 continuous++;
@@ -254,7 +260,8 @@ static void handleMoving(void)
                 pointLife = POINT_LIFE_MAX;
                 score += point;
                 if (score > SCORE_MAX) score = SCORE_MAX;
-                holes++;
+                if (holes < HOLES_MAX) holes++;
+                if (record.maxHoles < holes) record.maxHoles = holes;
                 floors--;
                 uint8_t idx = (continuous - 1) % 7;
                 arduboy.playScore2((continuous <= 7) ? soundPointLow[idx] : soundPointHigh[idx],
@@ -268,7 +275,7 @@ static void handleMoving(void)
                 if (evalLife == EVAL_LIFE_MAX) {
                     arduboy.playScore2(soundEvaluate, SND_PRIO_EVENT);
                 } else {
-                    arduboy.playScore2(soundBound, SND_PRIO_MISC);
+                    arduboy.playScore2(soundBound, SND_PRIO_BOUND);
                 }
             }
             if (knightX == heartX && knightY == heartY) {
@@ -293,7 +300,6 @@ static void handleMoving(void)
                 }
             }
         }
-        if (state == STATE_MOVING) steerKnight(KNIGHT_DIR_MAX / 2);
     }
     if (state != STATE_FALLING && arduboy.buttonDown(A_BUTTON)) openMenu();
     isInvalid = true;
@@ -327,8 +333,6 @@ static void handleLevelUp(void)
             if (++heartX >= FIELD_W) {
                 arduboy.playScore2(soundLevelUp, SND_PRIO_EVENT);
                 if (level < LEVEL_MAX) level++;
-                steerKnight(KNIGHT_DIR_MAX / 2);
-                knightWait = 0;
                 setHeartParams(level, isBMode);
                 placeNewHeart();
                 state = STATE_MOVING;
@@ -434,12 +438,11 @@ static uint32_t getPoint(int8_t n)
 
 static void evaluate(int8_t n)
 {
-#ifdef DEBUG
     if (n > 0) {
+        if (record.maxContinuous < n - 1) record.maxContinuous = n - 1;
         dprint(F("Continuous="));
         dprintln(n);
     }
-#endif
     if (n <= 7) {
         return;
     } else if (n <= 14) {
@@ -466,10 +469,15 @@ static void setCongratsParams(bool isMulti)
 
 static void forwardCongrats(void)
 {
+    if (state == STATE_OVER) {
+        petitCounter = 0;
+        return;
+    }
     petitH -= (petitCounter == 2) ? 1 : 2;
     if (petitH <= -PETIT_H_RANGE) {
         petitH = PETIT_H_RANGE;
         petitCounter--;
+        if (state == STATE_FALLING) petitCounter = 0;
     }
 }
 
@@ -582,7 +590,8 @@ static void drawKnight(void)
     if (state == STATE_OVER) return;
     int16_t dx = knightX * FLOOR_W + (int32_t)knightVx * knightRad * FLOOR_W / KNIGHT_RAD_MAX;
     int16_t dy = knightY * FLOOR_H + (int32_t)knightVy * knightRad * FLOOR_H / KNIGHT_RAD_MAX;
-    uint8_t idx = knightDir * 2 + bitRead(knightRad, 5);
+    int8_t  turnDir = knightWait * -knightVDir * (KNIGHT_DIR_MAX / 2) / KNIGHT_WAIT_MAX;
+    uint8_t idx = circulate(knightDir, turnDir, KNIGHT_DIR_MAX) * 2 + bitRead(knightRad, 5);
     int16_t h;
     if (state == STATE_START) {
         idx = 16 + bitRead(counter, 4);
@@ -597,7 +606,7 @@ static void drawKnight(void)
         if (bitRead(counter, 0)) {
             arduboy.drawBitmap(dx + 18, dy + 19, imgShadow, IMG_SHADOW_W, IMG_SHADOW_H, BLACK);
         }
-        if (state == STATE_MOVING) drawCursor();
+        if (state == STATE_MOVING && knightWait == 0) drawCursor();
         arduboy.drawBitmap(dx + 14, dy - h + 7, imgKnightMask[idx],
                 IMG_KNIGHT_W, IMG_KNIGHT_H, BLACK);
     }
@@ -617,11 +626,11 @@ static void drawCongrats(void)
     if (petitCounter <= 0) return;
     int16_t dx = petitX * FLOOR_W + 17;
     if (petitCounter == 2) {
-        int8_t v = counter & 15;
+        int8_t v = (petitH + 4) & 15;
         dx += (v < 8) ? v - 4 : 12 - v;
     }
     int16_t dy = petitY * FLOOR_H + 17 + petitH;
-    uint8_t idx = bitRead(counter, 1);
+    uint8_t idx = bitRead(petitH, 1);
     if (petitH < 0) arduboy.drawBitmap(dx, dy, imgPetitMask[idx], IMG_PETIT_W, IMG_PETIT_H, BLACK);
     arduboy.drawBitmap(dx, dy, imgPetit[idx], IMG_PETIT_W, IMG_PETIT_H, WHITE);
 }

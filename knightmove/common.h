@@ -8,7 +8,7 @@
 #define FPS             60
 #define APP_TITLE       "KNIGHT MOVE"
 #define APP_CODE        "OBN-Y12"
-#define APP_VERSION     "0.02"
+#define APP_VERSION     "0.10"
 #define APP_RELEASED    "FEBRUARY 2020"
 
 #define OBJECT_TYPES    5
@@ -26,7 +26,8 @@ enum MODE_T : uint8_t {
 
 typedef struct {
     uint8_t     hiscoreRaw[18];
-    uint8_t     dummy1, dummy2;
+    uint16_t    maxHoles : 10;
+    uint16_t    maxContinuous : 6;
     uint32_t    playFrames;
     uint16_t    playCount;
 } RECORD_T; // sizeof(RECORD_T) == 26
