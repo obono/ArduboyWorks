@@ -51,6 +51,10 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * A famous tile-matching puzzle. You can remove a group of adjoining blocks of the same type.
   * Depend on Arduboy Library 1.1.1\
     ![title](docs/img/samegame1.gif) ![playing](docs/img/samegame2.gif)
+* OBN-Y12 [Knight Move](https://community.arduboy.com/t/knight-move-a-puzzle-platform-game-using-knight/8587)
+  * An action puzzle game using a knight piece of the chess.
+  * Depend on Arduboy Library 1.1.1\
+    ![title](docs/img/knightmove1.gif) ![playing](docs/img/knightmove2.gif)
 
 ## License
 

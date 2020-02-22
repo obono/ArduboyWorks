@@ -335,6 +335,36 @@
 			"arduboy": "",
 			"codeName": "OBN-Y11",
 			"nickName": "samegame"
+		},
+		{
+			"title": "Knight Move",
+			"description": "An action puzzle game using a knight piece of the chess.",
+			"genre": "Action-Puzzle",
+			"url": "https://community.arduboy.com/t/knight-move-a-puzzle-platform-game-using-knight/8587",
+			"version": "0.10",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/knightmove",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Knight Move",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/knightmove_v0.10.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/knightmove2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/knightmove1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": "",
+			"codeName": "OBN-Y12",
+			"nickName": "knightmove"
 		}
 	]
 }
