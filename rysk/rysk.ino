@@ -1,8 +1,4 @@
-#include "MyArduboy.h"
-
-#if ARDUBOY_LIB_VER != ARDUBOY_LIB_VER_TGT
-#error Unexpected version of Arduboy Library
-#endif // It may work even if you use other version. So comment out the above line.
+#include "MyArduboy2.h"
 
 /*  Defines  */
 
@@ -10,20 +6,20 @@
 #define FPS             60
 #define APP_TITLE       "RYSK"
 #define APP_CODE        "OBN-Y00"
-#define APP_VERSION     "0.04"
-#define APP_RELEASED    "NOVEMBER 2019"
+#define APP_VERSION     "0.10"
+#define APP_RELEASED    "MARCH 2020"
 
 #define COOKIES         8
 #define ANIM_MAX        16
 
 #define PL_SIZE         4
-#define CK_SIZE         2
+#define CK_SIZE         3
 #define SCALE           64
 #define WIDTH_S         (WIDTH * SCALE)
 #define HEIGHT_S        (HEIGHT * SCALE)
 #define PL_SIZE_S       (PL_SIZE * SCALE)
 #define CK_SIZE_S       (CK_SIZE * SCALE)
-#define HIT_DIFF_S      PL_SIZE_S
+#define HIT_DIFF_S      ((PL_SIZE + CK_SIZE - 1) * SCALE)
 #define NEW_DIFF_S      (PL_SIZE_S * 4)
 
 #define GAME_DURATION   (FPS * 60)
@@ -137,8 +133,8 @@ PROGMEM static const uint8_t imgPlayer[9][8] = { // 8x8 x9
     { 0xFE, 0xFE, 0xFE, 0xC6, 0xBE, 0xBE, 0xC6, 0xFE }
 };
 
-PROGMEM static const uint8_t imgCookie[4] = { // 4x4
-    0x06, 0x09, 0x09, 0x06
+PROGMEM static const uint8_t imgCookie[6] = { // 6x6
+    0x0C, 0x12, 0x21, 0x21, 0x12, 0x0C
 };
 
 PROGMEM static const uint8_t imgFigures[10][16] = { // 8x12 x10
@@ -159,11 +155,8 @@ PROGMEM static const uint8_t imgTen[12] = { // 12x8
 };
 
 PROGMEM static const byte soundStart[] = {
-    0x90, 0x44, 0x00, 0x7D, 0x90, 0x43, 0x00, 0x7D, 0x90, 0x42, 0x00, 0x7D, 0x90, 0x41, 0x00, 0x7D,
-    0x90, 0x40, 0x00, 0x7D, 0x90, 0x41, 0x00, 0x7D, 0x90, 0x42, 0x00, 0x7D, 0x90, 0x43, 0x00, 0x7D,
-    0x90, 0x60, 0x00, 0x14, 0x90, 0x41, 0x00, 0x14, 0x90, 0x5B, 0x00, 0x14, 0x90, 0x56, 0x00, 0x14,
-    0x90, 0x51, 0x00, 0x14, 0x90, 0x4C, 0x00, 0x14, 0x90, 0x47, 0x00, 0x14, 0x90, 0x3C, 0x00, 0x14,
-    0x80, 0xF0
+    0xDF, 0x90, 0x44, 0x00, 0x7D, 0xE2, 0xD1, 0x90, 0x40, 0x00, 0x7D, 0xE2, 0xDB, 0x94, 0x60, 0x00,
+    0x14, 0xE3, 0x80, 0xF0
 };
 
 PROGMEM static const byte soundStep[] = {
@@ -175,8 +168,7 @@ PROGMEM static const byte soundCapture[] = {
 };
 
 PROGMEM static const byte soundOver[] = {
-    0x90, 0x37, 0x00, 0xC8, 0x90, 0x35, 0x00, 0xC8, 0x90, 0x37, 0x00, 0xC8, 0x90, 0x35, 0x00, 0xC8,
-    0x90, 0x32, 0x01, 0xF4, 0x80, 0xF0
+    0xD0, 0x9C, 0x37, 0x00, 0xC8, 0x9C, 0x35, 0x00, 0xC8, 0xE1, 0x9C, 0x32, 0x01, 0xF4, 0x80, 0xF0
 };
 
 PROGMEM static const uint8_t ledValues[] = {
@@ -184,7 +176,7 @@ PROGMEM static const uint8_t ledValues[] = {
     LED_VALUE(4, 1, 2), LED_VALUE(2, 1, 0), LED_VALUE(2, 0, 3), LED_VALUE(2, 4, 0), LED_VALUE(0, 3, 3)
 };
 
-MyArduboy   arduboy;
+MyArduboy2  arduboy;
 bool        isPlaying;
 int16_t     playerX, playerY;
 uint8_t     playerChr, playerAnim;
@@ -235,6 +227,7 @@ void setup()
 #endif
     arduboy.beginNoLogo();
     arduboy.setFrameRate(FPS);
+    arduboy.initAudio(1);
     initialize();
 }
 
@@ -259,8 +252,7 @@ static void initialize(void)
 {
     arduboy.setAudioEnabled(true);
     arduboy.drawBitmap(0, 24, imgTitle, IMG_TITLE_W, IMG_TITLE_H, WHITE);
-    arduboy.setCursor(40, 58);
-    arduboy.print(F("RYSK " APP_VERSION));
+    arduboy.printEx(40, 58, F("RYSK " APP_VERSION));
     isPlaying = false;
     arduboy.setRGBled(0, 0, 0);
 }
@@ -290,7 +282,7 @@ static void initGame(void)
     score = 0;
     gameTime = GAME_DURATION + FPS * 2;
     ledLevel = 0;
-    arduboy.playScore2(soundStart, 0);
+    arduboy.playScore(soundStart, 0);
 }
 
 static void updateGame(void)
@@ -303,7 +295,7 @@ static void updateGame(void)
             moveCookie(pCookie);
             if (isInRange(pCookie, HIT_DIFF_S)) {
                 score++;
-                arduboy.playScore2(soundCapture, 2);
+                arduboy.playScore(soundCapture, 2, score % 10);
                 newCookie(pCookie);
                 uint8_t ledValue = pgm_read_byte(ledValues + score % 10);
                 ledRed = ledValue / 25;
@@ -313,7 +305,7 @@ static void updateGame(void)
             }
         }
         if (gameTime == 0) {
-            arduboy.playScore2(soundOver, 1);
+            arduboy.playScore(soundOver, 1);
         }
     } else if (gameTime <= -FPS) {
         isPlaying = false;
@@ -328,7 +320,7 @@ static void movePlayer(void)
     if (arduboy.buttonPressed(RIGHT_BUTTON)) vx++;
     if (arduboy.buttonPressed(UP_BUTTON))    vy--;
     if (arduboy.buttonPressed(DOWN_BUTTON))  vy++;
-    int8_t vs = (vx != 0 && vy != 0) ? (SCALE * 3 / 8) : (SCALE / 2);
+    int8_t vs = (vx != 0 && vy != 0) ? (SCALE * 3 / 4) : SCALE;
     playerX += vx * vs;
     playerY += vy * vs;
     if (playerX < PL_SIZE_S)            playerX = PL_SIZE_S;
@@ -342,7 +334,7 @@ static void movePlayer(void)
         playerAnim = 0;
     } else {
         if (++playerAnim >= ANIM_MAX) {
-            arduboy.playScore2(soundStep, 3);
+            arduboy.playScore(soundStep, 3);
             playerAnim = 0;
         }
     }
@@ -365,8 +357,8 @@ static void newCookie(COOKIE_T *pCookie)
         pCookie->y = random(CK_SIZE_S, HEIGHT_S - CK_SIZE_S);
     } while (isInRange(pCookie, NEW_DIFF_S));
     float d = random(2048) * PI / 1024.0;
-    pCookie->vx = (int8_t) (cos(d) * (float) SCALE);
-    pCookie->vy = (int8_t) (sin(d) * (float) SCALE);
+    pCookie->vx = (int8_t) (cos(d) * (float) (SCALE / 2));
+    pCookie->vy = (int8_t) (sin(d) * (float) (SCALE / 2));
 }
 
 static bool isInRange(COOKIE_T *pCookie, int16_t range)
