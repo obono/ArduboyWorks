@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>MyArduboyPlaytune Simulator</title>
+<link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+<style type="text/css">
+body {
+	background: #eee;
+}
+.note {
+	background: #9f99;
+}
+.stop {
+	background: #9cc9;
+}
+.wait {
+	background: #fcc9;
+}
+.mark {
+	background: #ffc9;
+}
+.repeat {
+	background: #ccc9;
+}
+.item-handle {
+	cursor: move;
+	padding: 0px 8px;
+}
+.item-copy {
+	cursor: pointer;
+	padding: 0px 4px;
+}
+.item-delete {
+	cursor: pointer;
+	padding: 0px 4px;
+}
+div#info {
+	position: fixed;
+	top: 0px;
+	right: 0px;
+	margin: 8px;
+	font-size: small;
+}
+div#item_list {
+	position: absolute;
+	width: 340px;
+}
+div#execute_buttons {
+	position: absolute;
+	left: 356px;
+	width: 160px;
+	margin: 20px 0px;
+	text-align: center;
+}
+div#result {
+	position: absolute;
+	left: 520px;
+}
+audio#audio_preview {
+	width: 512px;
+}
+</style>
+<script type="text/javascript" src="http://sortablejs.github.io/Sortable/Sortable.js"></script>
+
+</head>
+
+<body>
+
+<h1>MyArduboyPlaytune Simulator</h1>
+<p>Version 0.1.0 (March 3, 2020)</p>
+
+<div id="info">
+	The confirmation was done only with Chrome.<br>
+	License: <a href="#" title="Copyright &copy; 2020 OBONO
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the &quot;Software&quot;), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.">MIT</a><br>
+	This script uses <a href="http://sortablejs.github.io/Sortable/" target="_blank">Sortable</a>. (License: <a href="https://github.com/SortableJS/Sortable#mit-license" target="_blank">MIT</a>)<br>
+</div>
+
+<hr>
+
+<template id="note_template">
+	<div class="note">
+		<span class="item-handle" title="Move">&#x2195;</span>
+		Note
+		<select onchange="clearPreview();">
+			<option value="0" selected>ch0</option>
+			<option value="1">ch1</option>
+		</select>
+		<select onchange="clearPreview();">
+			<option value="0" selected>50%</option>
+			<option value="1">33%</option>
+			<option value="2">25%</option>
+			<option value="3">20%</option>
+		</select>
+		<select onchange="clearPreview();">
+			<option value="0">o0</option>
+			<option value="1">o1</option>
+			<option value="2">o2</option>
+			<option value="3">o3</option>
+			<option value="4" selected>o4</option>
+			<option value="5">o5</option>
+			<option value="6">o6</option>
+			<option value="7">o7</option>
+			<option value="8">o8</option>
+			<option value="9">o9</option>
+		</select>
+		<select onchange="clearPreview();">
+			<option value="0">c</option>
+			<option value="1">c#</option>
+			<option value="2">d</option>
+			<option value="3">d#</option>
+			<option value="4">e</option>
+			<option value="5">f</option>
+			<option value="6">f#</option>
+			<option value="7">g</option>
+			<option value="8">g#</option>
+			<option value="9" selected>a</option>
+			<option value="10">a#</option>
+			<option value="11">b</option>
+		</select>
+		<span class="item-copy" title="Dupplicate" onclick="dupulicateItem(this);">&#x1f4c4;</span>
+		<span class="item-delete" title="Remove" onclick="removeItem(this);">&#x274c;</span>
+	</div>
+</template>
+<template id="stop_template">
+	<div class="stop">
+		<span class="item-handle" title="Move">&#x2195;</span>
+		Stop
+		<select onchange="clearPreview();">
+			<option value="0" selected>ch0</option>
+			<option value="1">ch1</option>
+		</select>
+		<span class="item-copy" title="Dupplicate" onclick="dupulicateItem(this);">&#x1f4c4;</span>
+		<span class="item-delete" title="Remove" onclick="removeItem(this);">&#x274c;</span>
+	</div>
+</template>
+<template id="wait_template">
+	<div class="wait">
+		<span class="item-handle" title="Move">&#x2195;</span>
+		Wait <input type="number" value="100" min="0" max="32767" step="10" onchange="clearPreview();"> msec
+		<span class="item-copy" title="Dupplicate" onclick="dupulicateItem(this);">&#x1f4c4;</span>
+		<span class="item-delete" title="Remove" onclick="removeItem(this);">&#x274c;</span>
+	</div>
+</template>
+<template id="mark_template">
+	<div class="mark">
+		<span class="item-handle" title="Move">&#x2195;</span>
+		Mark
+		<select onchange="clearPreview();">
+			<option value="9">-12</option>
+			<option value="10">-8</option>
+			<option value="11">-6</option>
+			<option value="12">-4</option>
+			<option value="13">-3</option>
+			<option value="14">-2</option>
+			<option value="15">-1</option>
+			<option value="0" selected>none</option>
+			<option value="1">+1</option>
+			<option value="2">+2</option>
+			<option value="3">+3</option>
+			<option value="4">+4</option>
+			<option value="5">+6</option>
+			<option value="6">+8</option>
+			<option value="7">+12</option>
+		</select>
+		<span class="item-copy" title="Dupplicate" onclick="dupulicateItem(this);">&#x1f4c4;</span>
+		<span class="item-delete" title="Remove" onclick="removeItem(this);">&#x274c;</span>
+	</div>
+</template>
+<template id="repeat_template">
+	<div class="repeat">
+		<span class="item-handle" title="Move">&#x2195;</span>
+		Repeat
+		<select onchange="clearPreview();">
+			<option value="0" selected>eternal</option>
+			<option value="1">2 times</option>
+			<option value="2">4 times</option>
+			<option value="3">8 times</option>
+			<option value="4">16 times</option>
+			<option value="5">32 times</option>
+			<option value="6">64 times</option>
+			<option value="7">128 times</option>
+		</select>
+		<span class="item-copy" title="Dupplicate" onclick="dupulicateItem(this);">&#x1f4c4;</span>
+		<span class="item-delete" title="Remove" onclick="removeItem(this);">&#x274c;</span>
+	</div>
+</template>
+
+<div>
+	<div id="item_list">
+		Add item: <input type="button" value="Note" onclick="newNoteItem();">
+		<input type="button" value="Stop" onclick="newStopItem();">
+		<input type="button" value="Wait" onclick="newWaitItem();">
+		<input type="button" value="Mark" onclick="newMarkItem();">
+		<input type="button" value="Repeat" onclick="newRepeatItem();">
+		<div id="score_list"></div>
+	</div>
+	<div id="execute_buttons">
+		Pitch <span id="span_pitch">0</span><br>
+		<input type="range" value="0" min="-24" max="24" step="1" oninput="changePitch(this);"><br>
+		<input type="button" value="&rarr; Encode &amp; Convert &rarr;" onclick="executeEncode();"><br>
+		<input type="button" value="&larr; Decode &amp; Convert &larr;" onclick="executeDecode();"><br>
+	</div>
+	<div id="result">
+		<textarea id="textarea_code" rows="5" cols="100" onInput="clearPreview();"></textarea><br>
+		<audio id="audio_preview" controls></audio><br>
+		<span id="span_message"></span><br>
+	</div>
+</div>
+
+<script type="text/javascript">
+
+const masterHz = 44100;
+const signalsMax = masterHz * 8;
+const channelsMax = 2;
+
+const noteHzArray = [
+	8,8,9,9,10,11,11,12,13,14,14,15,16,17,18,19,20,22,23,24,26,27,29,31,32,34,
+	36,39,41,43,46,49,52,55,58,61,65,69,73,78,82,87,92,98,104,110,116,123,131,
+	138,147,155,165,174,185,196,207,220,233,247,261,277,293,311,329,349,370,392,
+	415,440,466,494,523,554,587,622,659,698,740,784,830,880,932,988,1046,1108,
+	1174,1244,1318,1397,1480,1568,1661,1760,1864,1975,2093,2217,2349,2489,2637,
+	2794,2960,3136,3322,3520,3729,3951,4186,4435,4698,4978,5274,5587,5920,6272,
+	6645,7040,7458,7902,8372,8870,9397,9956,10548,11175,11840,12544
+];
+const tunePitchArray = [
+	0, 1, 2, 3, 4, 6, 8, 12, 0, -12, -8, -6, -4, -3, -2, -1
+];
+
+const listElm = $('score_list');
+const noteTemplateElm = $('note_template');
+const stopTemplateElm = $('stop_template');
+const waitTemplateElm = $('wait_template');
+const markTemplateElm = $('mark_template');
+const repeatTemplateElm = $('repeat_template');
+const pitchElm = $('span_pitch');
+const audioElm = $('audio_preview');
+const messageElm = $('span_message');
+const codeElm = $('textarea_code');
+
+var converted = false;
+var pitchDefault = 0;
+
+Sortable.create(listElm, { handle: '.item-handle', onChange: clearPreview });
+newNoteItem();
+newWaitItem();
+newStopItem();
+executeEncode();
+
+/*----------------------------------------------------------------------------*/
+
+function $(id) {
+	return document.getElementById(id);
+}
+
+function newNoteItem() {
+	return newItem(noteTemplateElm);
+}
+
+function newStopItem() {
+	return newItem(stopTemplateElm);
+}
+
+function newWaitItem() {
+	return newItem(waitTemplateElm);
+}
+
+function newMarkItem() {
+	return newItem(markTemplateElm);
+}
+
+function newRepeatItem() {
+	return newItem(repeatTemplateElm);
+}
+
+function newItem(templateElement) {
+	let item = document.importNode(templateElement.content.firstElementChild, true);
+	listElm.appendChild(item);
+	clearPreview();
+	return item;
+}
+
+function dupulicateItem(element) {
+	let item = element.parentNode;
+	let clone = item.cloneNode(true);
+	if (item.className == 'note') {
+		clone.childNodes[3].value = item.childNodes[3].value;
+		clone.childNodes[5].value = item.childNodes[5].value;
+		clone.childNodes[7].value = item.childNodes[7].value;
+		clone.childNodes[9].value = item.childNodes[9].value;
+	}
+	if (item.className == 'stop' || item.className == 'mark' || item.className == 'repeat') {
+		clone.childNodes[3].value = item.childNodes[3].value;
+	}
+	listElm.insertBefore(clone, item.nextSibling);
+	clearPreview();
+}
+
+function removeItem(element) {
+	let item = element.parentNode;
+	listElm.removeChild(item);
+	clearPreview();
+}
+
+function changePitch(element) {
+	pitchDefault = Number(element.value);
+	pitchElm.innerHTML = pitchDefault;
+	clearPreview();
+}
+
+function clearPreview() {
+	if (converted) {
+		audioElm.src = '';
+		messageElm.innerHTML = '';
+		converted = false;
+	}
+}
+
+/*----------------------------------------------------------------------------*/
+
+function executeEncode() {
+	let convertedData = convertList();
+
+	let wavedata = generateWavData(masterHz, 1, 8, convertedData.signals);
+	let dataurl = "data:audio/wav;base64," + window.btoa(wavefile);
+	audioElm.src = dataurl;
+
+	let codeText = '';
+	let idx = 0;
+	convertedData.codes.forEach(function(v) {
+		codeText += '0x' + ('0' + v.toString(16).toUpperCase()).slice(-2) + ',';
+		codeText += (++idx % 16 == 0) ? '\n' : ' ';
+	});
+	codeElm.value = codeText.slice(0, -2);
+
+	let text = 'Converted Successfully';
+	if (convertedData.message) {
+		text += ' (' + convertedData.message + ')';
+	}
+	messageElm.innerHTML = text;
+	converted = true;
+}
+
+function convertList() {
+	let channels = new Array(channelsMax);
+	for (let c = 0; c < channelsMax; c++) {
+		channels[c] = { active: false, cycle: 1, phase: 0 };
+	}
+
+	let item = listElm.childNodes[0];
+	let markedItem = item;
+	let signals = '';
+	let codes = [];
+	let looped = false;
+	let eternal = false;
+	let played = false;
+	let message = null;
+	let pitch = pitchDefault;
+	let repeatCount = 0;
+
+	while (item && (!eternal || signals.length < signalsMax)) {
+		if (item.className == 'note') {
+			let c = Number(item.childNodes[3].value);
+			let duty = Number(item.childNodes[5].value) + 2;
+			let note = (Number(item.childNodes[7].value) + 1) * 12 + Number(item.childNodes[9].value);
+			if (c < channelsMax) {
+				let actualNote = note + pitch;
+				if (actualNote >= 0 && actualNote <= 127) {
+					channels[c].active = true;
+					channels[c].duty = duty;
+					channels[c].phase = 0;
+					channels[c].cycle = masterHz / noteHzArray[actualNote] / duty;
+					played = true;
+				}
+				if (!looped) {
+					codes.push(0x90 + c + (duty - 2) * 4);
+					codes.push(note);
+				}
+			} else {
+				message = 'Some Note items are skipped.';
+			}
+		}
+		if (item.className == 'stop') {
+			let c = Number(item.childNodes[3].value);
+			if (c < channelsMax) {
+				channels[c].active = false;
+				if (!looped) {
+					codes.push(0x80 + c);
+				}
+			} else {
+				message = 'Some Stop items are skipped.';
+			}
+		}
+		if (item.className == 'wait') {
+			let msec = Number(item.childNodes[3].value);
+			if (msec > 0 && msec < 32768) {
+				signals += playSound(channels, msec);
+				if (!looped) {
+					codes.push(msec >> 8);
+					codes.push(msec & 0xFF);
+				}
+			} else {
+				message = 'Some Wait items are skipped.';
+			}
+		}
+		if (item.className == 'mark') {
+			markedItem = item;
+			let tune = Number(item.childNodes[3].value);
+			if (looped) {
+				pitch += tunePitchArray[tune];
+			} else {
+				codes.push(0xD0 + tune);
+			}
+		}
+		if (item.className == 'repeat') {
+			let times = Number(item.childNodes[3].value);
+			if (!looped) {
+				codes.push(0xE0 + times);
+			}
+			repeatCount++;
+			if (times == 0 || times >= 8) {
+				looped = true;
+				eternal = true;
+			} else if (repeatCount < (1 << times)) {
+				looped = true;
+			} else {
+				looped = false;
+				repeatCount = 0;
+			}
+			if (looped) {
+				item = markedItem;
+				continue;
+			} else {
+				markedItem = item.nextSibling;
+				pitch = pitchDefault;
+			}
+		}
+		item = item.nextSibling;
+	}
+	if (!eternal) {
+		codes.push(0xF0);
+		for (let c = 0; c < channelsMax; c++) {
+			if (channels[c].active) {
+				message = 'Channel ' + c + ' is still active.';
+			}
+		}
+	}
+	if (!played) {
+		message = 'There are no notes.';
+	}
+	if (signals == '') {
+		message = 'The duration is zero.';
+	}
+	return { signals: signals, codes: codes, message: message };
+}
+
+function playSound(channels, msec) {
+	let signals = '';
+	let count = Math.floor(msec * masterHz / 1000);
+	for (let i = 0; i < count; i++) {
+		let signalOn = false;
+		for (let c = 0; c < channelsMax; c++) {
+			if (channels[c].active) {
+				if ((channels[c].phase + i) / channels[c].cycle % channels[c].duty < 1) {
+					signalOn = !signalOn;
+				}
+			}
+		}
+		signals += String.fromCharCode((signalOn) ? 0x90 : 0x70);
+	}
+	for (let c = 0; c < channelsMax; c++) {
+		channels[c].phase += count;
+	}
+	return signals;
+}
+
+function executeDecode() {
+	convertCode();
+	executeEncode();
+}
+
+function convertCode() {
+	while (listElm.firstChild ){
+		listElm.removeChild(listElm.firstChild);
+	}
+
+	let codes = codeElm.value.split(',');
+	let idx = 0;
+	while (idx < codes.length) {
+		let code = getCodeValue(codes, idx++);
+		let op = code & 0xF0;
+		if (code <= 0x7F) {
+			let msec = code << 8 | getCodeValue(codes, idx++);
+			let item = newWaitItem();
+			item.childNodes[3].value = msec;
+		} else if (op == 0x80) {
+			let c = code & 0xF;
+			if (c < channelsMax) {
+				let item = newStopItem();
+				item.childNodes[3].value = c;
+			}
+		} else if (op == 0x90) {
+			let c = code & 0x3;
+			let duty = (code & 0xC) / 4 + 2;
+			let note = getCodeValue(codes, idx++);
+			if (c < channelsMax && note <= 127) {
+				if (note < 12) { note = 12; } // Sorry...
+				let item = newNoteItem();
+				item.childNodes[3].value = c;
+				item.childNodes[5].value = duty - 2;
+				item.childNodes[7].value = Math.floor(note / 12) - 1;
+				item.childNodes[9].value = note % 12;
+			}
+		} else if (op == 0xD0) {
+			let tune = code & 0xF;
+			let item = newMarkItem();
+			if (tune == 8) { tune = 0; }
+			item.childNodes[3].value = tune;
+		} else if (op == 0xE0) {
+			let times = code & 0xF;
+			let item = newRepeatItem();
+			if (times >= 8) { times = 0; }
+			item.childNodes[3].value = times;
+		} else if (op == 0xF0) {
+			break;
+		}
+	}
+}
+
+function getCodeValue(codes, idx) {
+	let value = Math.floor(Number(codes[idx]));
+	if (value < 0)    { value = 0; }
+	if (value > 0xFF) { value = 0xFF; }
+	return value;
+
+}
+
+/*----------------------------------------------------------------------------*/
+
+function generateWavData(hz, channels, bit, signals){
+	if (channels != 1 && channels != 2) return null;
+	if (bit != 8 && bit != 16) return null;
+
+	let block = channels * bit / 8;
+	let spd = hz * block;
+
+	let header = "WAVEfmt "; // Wave header & "fmt" chunk label
+	header += String.fromCharCode(16, 0, 0, 0); // Chunk Length = 16
+	header += String.fromCharCode(1, 0); // FormatID = 1 (Linear PCM)
+	header += String.fromCharCode(channels, 0);	// Channels
+	header += String.fromCharCode(hz & 0xFF, hz >> 8 & 0xFF,
+			hz >> 16 & 0xFF, hz >> 24 & 0xFF); // Sampling rate
+	header += String.fromCharCode(spd & 0xFF, spd >> 8 & 0xFF,
+			spd >> 16 & 0xFF, spd >> 24 & 0xFF); // Bytes / sec
+	header += String.fromCharCode(block, 0); // Block size
+	header += String.fromCharCode(bit, 0); // Bits / sample
+	header += "data"; // "data" chunk label
+
+	let siglen = signals.length;
+	let sigsize = String.fromCharCode(siglen & 0xFF, siglen >> 8 & 0xFF,
+			siglen >> 16 & 0xFF, siglen >> 24 & 0xFF);
+	let wavlen = header.length + sigsize.length + siglen;
+	let wavsize = String.fromCharCode(wavlen & 0xFF, wavlen >> 8 & 0xFF,
+			wavlen >> 16 & 0xFF, wavlen >> 24 & 0xFF);
+
+	return wavefile = "RIFF" + wavsize + header + sigsize + signals;
+}
+
+</script>
+
+</body>
+</html>

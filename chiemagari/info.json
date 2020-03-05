@@ -1,6 +1,7 @@
 {
-	"title" : "Chie Magari Ita",
-	"description" : "Place 10 different pieces into the frame without overlapping.",
+	"title": "Chie Magari Ita",
+	"description": "Place 10 different pieces into the frame without overlapping.",
 	"genre": "Puzzle",
-	"url" : "https://community.arduboy.com/t/chie-magari-ita-a-placing-puzzle-game/5178"
+	"url": "https://community.arduboy.com/t/chie-magari-ita-a-placing-puzzle-game/5178",
+	"dependence": "Arduboy Library 1.1.1"
 }

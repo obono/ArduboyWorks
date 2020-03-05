@@ -1,6 +1,7 @@
 {
-	"title" : "Stairs Sweep",
-	"description" : "A falling block puzzle game. Boxes lined up horizontally can be deleted. Enemies can not but beaten by a ball.",
+	"title": "Stairs Sweep",
+	"description": "A falling block puzzle game. Boxes lined up horizontally can be deleted. Enemies can not but beaten by a ball.",
 	"genre": "Puzzle",
-	"url": "https://community.arduboy.com/t/stairs-sweep-a-falling-block-puzzle-game/8259"
+	"url": "https://community.arduboy.com/t/stairs-sweep-a-falling-block-puzzle-game/8259",
+	"dependence": "Arduboy Library 1.1.1"
 }

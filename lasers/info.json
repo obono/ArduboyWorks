@@ -1,6 +1,7 @@
 {
-	"title" : "Lasers",
-	"description" : "Switch the character's color and have it be hit with same color ray.",
+	"title": "Lasers",
+	"description": "Switch the character's color and have it be hit with same color ray.",
 	"genre": "Action",
-	"url" : "https://community.arduboy.com/t/lasers-a-simple-ikaruga-like-game/7310"
+	"url": "https://community.arduboy.com/t/lasers-a-simple-ikaruga-like-game/7310",
+	"dependence": "Arduboy Library 1.1.1"
 }

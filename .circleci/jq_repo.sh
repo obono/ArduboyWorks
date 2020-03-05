@@ -25,4 +25,4 @@ do
 	repo=`echo ${repo} | jq ".items |= .+[${ITEM}]"` || exit 1
 	let num++
 done
-echo ${repo} | jq --tab
+echo ${repo} | jq --tab .

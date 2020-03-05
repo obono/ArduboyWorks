@@ -1,6 +1,7 @@
 {
-	"title" : "Reversi",
-	"description" : "A simple board game.",
+	"title": "Reversi",
+	"description": "A simple board game.",
 	"genre": "Board game",
-	"url" : "https://community.arduboy.com/t/reversi-a-simple-board-game/6754"
+	"url": "https://community.arduboy.com/t/reversi-a-simple-board-game/6754",
+	"dependence": "Arduboy Library 1.1.1"
 }

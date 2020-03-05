@@ -1,5 +1,6 @@
 {
-	"title" : "RYSK",
-	"description" : "For my lovely sons...",
-	"genre": "Action"
+	"title": "RYSK",
+	"description": "For my lovely sons...",
+	"genre": "Action",
+	"dependence": "Arduboy2 Library 5.2.1"
 }

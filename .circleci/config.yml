@@ -21,9 +21,7 @@ jobs:
           command: .circleci/build.sh all
       - run:
           name: Update information
-          command: |
-            .circleci/jq_repo.sh > docs/repo.json
-            cat docs/repo.json | mustache .circleci/README.md.mustache > README.md
+          command: .circleci/jq_repo.sh | tee docs/repo.json | mustache .circleci/README.md.mustache > README.md
       - run:
           name: Push to GitHub
           command: .circleci/git_push.sh

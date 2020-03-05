@@ -1,6 +1,7 @@
 {
-	"title" : "Hopper",
-	"description" : "Jump on panels and go up (foreground side). If you fall toward bottom, the game is over.",
+	"title": "Hopper",
+	"description": "Jump on panels and go up (foreground side). If you fall toward bottom, the game is over.",
 	"genre": "Action",
-	"url" : "https://community.arduboy.com/t/hopper-a-simple-action-game/4293"
+	"url": "https://community.arduboy.com/t/hopper-a-simple-action-game/4293",
+	"dependence": "Arduboy Library 1.1.1"
 }
