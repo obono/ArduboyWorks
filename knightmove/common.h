@@ -11,11 +11,6 @@
 #define APP_VERSION     "0.10"
 #define APP_RELEASED    "FEBRUARY 2020"
 
-#define OBJECT_TYPES    5
-#define IMG_OBJECT_W    5
-#define IMG_OBJECT_H    5
-#define PERFECT_BONUS   1000
-
 enum MODE_T : uint8_t {
     MODE_LOGO = 0,
     MODE_TITLE,
