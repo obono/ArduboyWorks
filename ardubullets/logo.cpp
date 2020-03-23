@@ -2,7 +2,7 @@
 
 /*  Defines  */
 
-#define COUNTER_MAX     (FPS * 2)  // 2 secs 
+#define COUNTER_MAX     (FPS * 2)  // 2 secs
 #define SIGNAL_PTN      0xEEE3AA3AU  // "OBN" in Morse code
 
 /*  Local Variables  */
@@ -37,9 +37,6 @@ PROGMEM static const uint8_t imgSoft[] = { // 32x8
     0x00, 0xFF, 0xFF, 0xFF, 0x1B, 0x1B, 0x1B, 0x03, 0x00, 0x03, 0x03, 0xFF, 0xFF, 0xFF, 0x03, 0x03,
 };
 
-static uint8_t  counter;
-static bool     signalOn;
-
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
 /*---------------------------------------------------------------------------*/
@@ -51,22 +48,21 @@ void initLogo(void)
 
 MODE_T updateLogo(void)
 {
-    counter--;
-    signalOn = (SIGNAL_PTN >> (counter - FPS / 4) / (FPS / 20)) & 1;
-    arduboy.setRGBled(0, 0, signalOn * 127);
-    MODE_T ret = (counter == 0) ? MODE_TITLE : MODE_LOGO;
-    if (ret) {
+    if (--counter == 0) {
         dprintln(F("Start " APP_TITLE " Version " APP_VERSION));
+        return MODE_TITLE;
     }
-    return ret;
+    return MODE_LOGO;
 }
 
 void drawLogo(void)
 {
+    bool isSignalOn = (SIGNAL_PTN >> (counter - FPS / 4) / (FPS / 20)) & 1;
+    arduboy.setRGBled(0, 0, isSignalOn * 127);
     arduboy.clear();
     int shake = (COUNTER_MAX - counter) / (44 * FPS / 60);
     for (int i = 0; i < 3; i++) {
-        int y = 12 + (i == shake) * signalOn;
+        int y = 12 + (i == shake) * isSignalOn;
         arduboy.drawBitmap(28 + i * 24, y, imgOBN[i], 24, 32, WHITE);
     }
     arduboy.drawBitmap(68, 44, imgSoft, 32, 8, WHITE);

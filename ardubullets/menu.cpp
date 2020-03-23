@@ -4,7 +4,7 @@
 
 #define IMG_SOUND_W     16
 #define IMG_SOUNDM_W    6
-#define MENU_COUNT_MAX  7
+#define MENU_COUNT_MAX  6
 
 /*  Typedefs  */
 

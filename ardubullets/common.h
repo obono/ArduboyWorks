@@ -8,10 +8,17 @@
 #define FPS             60
 #define APP_TITLE       "ARDUBULLET"
 #define APP_CODE        "OBN-Y13"
-#define APP_VERSION     "0.01"
+#define APP_VERSION     "0.02"
 #define APP_RELEASED    "MARCH 2020"
 
-enum MODE_T {
+#define GAME_RANK_DEFAULT   3
+
+#define GAME_SEED_MAX       14348907UL  // = 27*27*27*27*27
+#define GAME_SEED_TOKEN_MAX 5
+#define GAME_SEED_TOKEN_VAL 27
+#define GAME_SEED_TOKEN_ALP 26
+
+enum MODE_T : uint8_t {
     MODE_LOGO = 0,
     MODE_TITLE,
     MODE_GAME,
@@ -20,9 +27,13 @@ enum MODE_T {
 /*  Typedefs  */
 
 typedef struct {
-    unsigned long   gameSeed;
-    uint32_t        playFrames;
-    uint16_t        playCount;
+    uint32_t    gameSeed:24;
+    uint32_t    gameRank:4;
+    uint32_t    isCodeManual:1;
+    uint32_t    isCleared:1;
+    uint32_t    dummy:2;
+    uint32_t    playFrames;
+    uint16_t    playCount;
 } RECORD_T; // sizeof(RECORD_T) is 10 bytes
 
 /*  Global Functions (Common)  */
@@ -32,6 +43,8 @@ void    writeRecord(void);
 void    clearRecord(void);
 void    handleDPad(void);
 void    drawTime(int16_t x, int16_t y, uint32_t frames);
+void    printGameSeed(int16_t x, int16_t y, uint32_t seed);
+void    drawButtonIcon(int16_t x, int16_t y, bool isB);
 
 void    setSound(bool on);
 void    playSoundTick(void);
@@ -79,6 +92,7 @@ void    drawGame(void);
 extern MyArduboy2   arduboy;
 extern RECORD_T     record;
 
+extern uint8_t  counter;
 extern int8_t   padX, padY, padRepeatCount;
 extern bool     isInvalid, isRecordDirty;
 

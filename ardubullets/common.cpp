@@ -8,6 +8,9 @@
 #define PAD_REPEAT_DELAY    (FPS / 4)
 #define PAD_REPEAT_INTERVAL (FPS / 12)
 
+#define IMG_BUTTONS_W       7
+#define IMG_BUTTONS_H       7
+
 enum RECORD_STATE_T {
     RECORD_NOT_READ = 0,
     RECORD_INITIAL,
@@ -18,6 +21,7 @@ enum RECORD_STATE_T {
 
 MyArduboy2  arduboy;
 RECORD_T    record;
+uint8_t     counter;
 int8_t      padX, padY, padRepeatCount;
 bool        isInvalid, isRecordDirty;
 
@@ -36,6 +40,11 @@ static void     eepWrite32(uint32_t val);
 static void     eepWriteBlock(const void *p, size_t n);
 
 /*  Local Variables  */
+
+PROGMEM static const uint8_t imgButtons[][7] = { // 7x7 x2
+    { 0x3E, 0x47, 0x6B, 0x6D, 0x6D, 0x41, 0x3E },
+    { 0x3E, 0x41, 0x55, 0x55, 0x51, 0x65, 0x3E }
+};
 
 static RECORD_STATE_T   recordState = RECORD_NOT_READ;
 static int16_t          eepAddr;
@@ -59,6 +68,8 @@ void readRecord(void)
         dprintln(F("Read record from EEPROM"));
     } else {
         memset(&record, 0, sizeof(record));
+        record.gameRank = GAME_RANK_DEFAULT;
+        record.gameSeed = GAME_SEED_MAX;
         recordState = RECORD_INITIAL;
         isRecordDirty = true;
     }
@@ -142,6 +153,23 @@ void drawTime(int16_t x, int16_t y, uint32_t frames)
         if (s < 10) arduboy.print('0');
         arduboy.print(s);
     }
+}
+
+void printGameSeed(int16_t x, int16_t y, uint32_t seed)
+{
+    arduboy.setCursor(x, y);
+    for (int i = 0; i < GAME_SEED_TOKEN_MAX; i++) {
+        int token = seed % GAME_SEED_TOKEN_VAL;
+        char c = (token < GAME_SEED_TOKEN_ALP) ? 'A' + token : '.';
+        arduboy.print(c);
+        seed /= GAME_SEED_TOKEN_VAL;
+    }
+}
+
+void drawButtonIcon(int16_t x, int16_t y, bool isB)
+{
+    arduboy.drawBitmap(x, y, imgButtons[isB],
+            IMG_BUTTONS_W, IMG_BUTTONS_H, arduboy.getTextColor());
 }
 
 /*---------------------------------------------------------------------------*/
