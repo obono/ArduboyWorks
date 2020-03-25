@@ -21,7 +21,6 @@ enum STATE_T : uint8_t {
 
 /*  Local Functions  */
 
-static void initTitleMenu(bool isFromSettings);
 static void onStart(void);
 static void onRecord(void);
 static void onCredit(void);

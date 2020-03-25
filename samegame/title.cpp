@@ -20,7 +20,6 @@ enum STATE_T {
 
 /*  Local Functions  */
 
-static void initTitleMenu(bool isFromSettings);
 static void onStart(void);
 static void onEdit(void);
 static void onRecord(void);
