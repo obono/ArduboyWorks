@@ -29,7 +29,7 @@ static void onNewBattle(void);
 static void onSettings(void);
 static void onCredit(void);
 static void onMenuDifficulty(void);
-static void onMenuCodeManual(void);
+static void onMenuToggleItem(void);
 
 static void drawTop(void);
 static void drawSettings(void);
@@ -134,12 +134,14 @@ static void handleSettings(void)
     case 0:
         if (padX != 0) {
             playSoundTick();
-            record.gameRank = circulate(record.gameRank - 1, padX, 10) + 1;
+            record.gameRank = circulate(record.gameRank - 1, padX, GAME_RANK_MAX) + 1;
             isSettingChenged = true;
         }
         break;
     case 1:
-        if (arduboy.buttonDown(LEFT_BUTTON | RIGHT_BUTTON)) onMenuCodeManual();
+    case 2:
+    case 3:
+        if (arduboy.buttonDown(LEFT_BUTTON | RIGHT_BUTTON)) onMenuToggleItem();
         break;
     default:
         break;
@@ -204,12 +206,15 @@ static void onTop(void)
 {
     if (state == STATE_SETTINGS) playSoundClick();
     clearMenuItems();
-    if (record.playCount > 0) addMenuItem(F("RETRY"), onStart);
+    if (record.playCount > 0) {
+        addMenuItem(F("RETRY"), onStart);
+        addMenuItem(NULL, NULL);
+    }
     addMenuItem(F("NEW BATTLE"), onNewBattle);
     addMenuItem(F("SETTINGS"), onSettings);
     addMenuItem(F("CREDIT"), onCredit);
-    setMenuItemPos((state == STATE_SETTINGS) ? getMenuItemCount() - 2 : record.isCleared);
-    setMenuCoords(44, 40, 84, 24, false, true);
+    setMenuItemPos((state == STATE_SETTINGS) ? getMenuItemCount() - 2 : record.isCleared * 2);
+    setMenuCoords(44, 39, 84, 25, false, true);
     state = STATE_TOP;
     isInvalid = true;
     dprintln(F("Title screen"));
@@ -243,10 +248,12 @@ static void onSettings(void)
     playSoundClick();
     clearMenuItems();
     addMenuItem(F("DIFFICULTY"), onMenuDifficulty);
-    addMenuItem(F("PATTERN"), onMenuCodeManual);
+    addMenuItem(F("PATTERN"), onMenuToggleItem);
+    addMenuItem(F("LED BLINK"), onMenuToggleItem);
+    addMenuItem(F("DETECT EDGE"), onMenuToggleItem);
     addMenuItem(F("EXIT"), onTop);
     setMenuItemPos(0);
-    setMenuCoords(4, 18, 120, 18, false, false);
+    setMenuCoords(2, 12, 124, 30, false, false);
     state = STATE_SETTINGS;
     isInvalid = true;
     isSettingChenged = true;
@@ -264,14 +271,14 @@ static void onCredit(void)
 static void onMenuDifficulty(void)
 {
     playSoundClick();
-    record.gameRank = record.gameRank % 10 + 1;
+    record.gameRank = record.gameRank % GAME_RANK_MAX + 1;
     isSettingChenged = true;
 }
 
-static void onMenuCodeManual(void)
+static void onMenuToggleItem(void)
 {
     playSoundClick();
-    record.isCodeManual = !record.isCodeManual;
+    bitToggle(*((uint8_t *)&record + 3), getMenuItemPos() + 3); // Trick!!
     isSettingChenged = true;
 }
 
@@ -283,24 +290,44 @@ static void drawTop(void)
 {
     if (isInvalid) drawTitleLogo();
     drawMenuItems(isInvalid);
+    if (record.playCount > 0 && getMenuItemPos() == 0) {
+        arduboy.setTextColor(bitRead(counter, 0));
+        printGameSeed(88, 39, record.gameSeed);
+        arduboy.setTextColor(WHITE);
+    }
 }
 
 static void drawSettings(void)
 {
     if (isInvalid) {
-        arduboy.printEx(34, 10, F("[SETTINGS]"));
-        arduboy.drawFastHLine(0, 38, 128, WHITE);
-        arduboy.printEx(10, 42, F("PLAY COUNT "));
+        arduboy.printEx(34, 4, F("[SETTINGS]"));
+        arduboy.drawFastHLine(0, 44, 128, WHITE);
+        arduboy.printEx(10, 48, F("PLAY COUNT "));
         arduboy.print(record.playCount);
-        arduboy.printEx(10, 48, F("PLAY TIME"));
-        drawTime(76, 48, record.playFrames);
+        arduboy.printEx(10, 54, F("PLAY TIME"));
+        drawTime(76, 54, record.playFrames);
     }
     drawMenuItems(isInvalid);
     if (isSettingChenged) {
-        arduboy.printEx(82 - (getMenuItemPos() == 0) * 4, 18, record.gameRank);
-        arduboy.print(' ');
-        arduboy.printEx(82 - (getMenuItemPos() == 1) * 4, 24,
-                record.isCodeManual ? F("SPECIFY") : F("RANDOM "));
+        for (int i = 0; i < 4; i++) {
+            int16_t dx = 86 - (getMenuItemPos() == i) * 4, dy = i * 6 + 12;
+            bool isConfigSet = bitRead(*((uint8_t *)&record + 3), i + 3);
+            switch (i) {
+            case 0:
+                arduboy.printEx(dx, dy, record.gameRank);
+                arduboy.print(' ');
+                break;
+            case 1:
+                arduboy.printEx(dx, dy, (isConfigSet) ? F("SPECIFY") : F("RANDOM "));
+                break;
+            case 2:
+            case 3:
+                arduboy.printEx(dx, dy, (isConfigSet) ? F("ON ") : F("OFF"));
+                break;
+            default:
+                break;
+            }
+        }
         isSettingChenged = false;
     }
 }

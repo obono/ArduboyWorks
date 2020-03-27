@@ -24,6 +24,11 @@
 #define ENEMY_LIFE_INIT 15
 #define ENEMY_ACTIVE    (FPS * 12)
 #define ENEMY_FADE      6
+#define START_OMIT      FPS
+#define START_DURATION  (FPS * 2)
+#define GAME_DURATION   (GROUP_INT * GROUP_TOTAL)
+#define OVER_OMIT       FPS
+#define EDGE_THRESHOLD  12
 
 enum STATE_T : uint8_t {
     STATE_START = 0,
@@ -57,25 +62,26 @@ typedef struct {
 } BULLET_T; // sizeof(BULLET_T) is 5 bytes
 
 typedef struct {
-    uint16_t    type:3;
-    uint16_t    xRad:5;
+    uint16_t    type:4;
+    uint16_t    xRad:6;
     uint16_t    yRad:5;
-    uint16_t    fireCycle:3;
-    uint8_t     xCoef:4;
-    uint8_t     yCoef:4;
+    uint16_t    yFlip:1;
+    uint16_t    xCoef:6;
+    uint16_t    yCoef:6;
+    uint16_t    fireGap:4;
     uint8_t     fireTimes:4;
     uint8_t     fireNum:4;
-    uint16_t    fireInt:7;
-    uint16_t    fireExSpd:2;
-    uint16_t    fireGap:4;
-    uint16_t    entryInt:3;
-} GROUP_T; // sizeof(GROUP_T) is 6 bytes
+    uint8_t     fireCycle:3;
+    uint8_t     fireExSpd:2;
+    uint8_t     entryInt:3;
+    uint8_t     fireInt;
+} GROUP_T; // sizeof(GROUP_T) is 7 bytes
 
 typedef struct {
     uint16_t    bx:6;
     uint16_t    by:6;
     uint16_t    life:4;
-    uint8_t     cycleGap;
+    uint8_t     framesGap;
     int8_t      fireDeg;
 } ENEMY_T; // sizeof(ENEMY_T) is 4 bytes
 
@@ -96,6 +102,7 @@ static void     handleStart(void);
 static void     handlePlaying(void);
 static void     handleOver(void);
 static void     openGameMenu(void);
+static void     sparkleLed(uint8_t idx);
 
 static void     updatePlayer(void);
 static void     newShot(uint8_t g);
@@ -104,7 +111,7 @@ static void     updateExplo(void);
 
 static void     newGroup(uint8_t groupIdx);
 static bool     updateEnemies(void);
-static Point    getEnemyCoords(GROUP_T *pG, ENEMY_T *pB);
+static Point    getEnemyCoords(GROUP_T *pG, ENEMY_T *pE, uint16_t frames);
 
 static void     newBullet(int16_t x, int16_t y, int8_t deg, int8_t spd);
 static void     newNeedleBullets(int16_t x, int16_t y, int8_t deg, int8_t spd, uint8_t num);
@@ -118,11 +125,13 @@ static void     onConfirmQuit(void);
 static void     onQuit(void);
 
 static void     drawLetters(void);
+static void     drawLettersGameSeed(void);
 static void     drawPlayer(void);
 static void     drawShots(void);
 static void     drawBullets(void);
 static void     drawEnemies(void);
 static void     drawExplosion(void);
+static void     drawBackground(void);
 
 /*  Local Functions (macros)  */
 
@@ -148,7 +157,9 @@ static uint8_t  gameRank, bulletsNum;
 static uint8_t  playerX, playerY, playerFire, playerSlow;
 static uint8_t  ledLevel, ledRed, ledGreen, ledBlue;
 static bool     isDefeated, isMenu;
-//static const __FlashStringHelper *evalLabel;
+#ifdef DEBUG
+static bool     isMuteki = false;
+#endif
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -158,8 +169,9 @@ void initGame(void)
 {
     arduboy.playScore(soundStart, SND_PRIO_START);
     initGameParams();
-    isMenu = false;
     counter = 0;
+    ledLevel = 0;
+    isMenu = false;
     state = STATE_START;
     isInvalid = true;
 }
@@ -192,8 +204,9 @@ void drawGame(void)
         drawBullets();
         drawEnemies();
         drawExplosion();
+        drawBackground();
     }
-    //arduboy.setRGBled(ledRed * ledLevel, ledGreen * ledLevel, ledBlue * ledLevel);
+    arduboy.setRGBled(ledRed * ledLevel, ledGreen * ledLevel, ledBlue * ledLevel);
     isInvalid = false;
 }
 
@@ -215,6 +228,10 @@ static void initGameParams(void)
     initEnemies();
     explo.a = IMG_EXPLO_ID_MAX;
     randomSeed(record.gameSeed + 1);
+    dprint(F("Game start: seed="));
+    dprint(record.gameSeed);
+    dprint(F(" rank="));
+    dprintln(gameRank);
 }
 
 static void initShots(void)
@@ -237,11 +254,11 @@ static void initEnemies(void)
 
 static void handleStart()
 {
-    if (counter > FPS) {
+    if (counter >= START_OMIT) {
         updateShots();
         updatePlayer();
     }
-    if (counter == FPS * 2) {
+    if (counter == START_DURATION) {
         record.playCount++;
         isRecordDirty = true;
         writeRecord();
@@ -263,9 +280,29 @@ static void handlePlaying()
     record.playFrames++;
     isRecordDirty = true;
 
+#ifdef DEBUG
+    if (gameFrames % FPS == 0) {
+        dprint(F("Bullets="));
+        dprintln(bulletsNum);
+    }
+    if (dbgRecvChar == 'a') {
+        isMuteki = !isMuteki;
+        dprint(F("Muteki="));
+        dprintln(isMuteki);
+    }
+    if (dbgRecvChar == 'q') isCleared = true;
+#endif
+
     if (isDefeated || isCleared) {
-        arduboy.playScore((isDefeated) ? soundOver : soundClear, SND_PRIO_OVER);
-        if (isCleared) record.isCleared = true;
+        if (isDefeated) {
+            arduboy.playScore(soundOver, SND_PRIO_OVER);
+            sparkleLed(LED_IDX_OVER);
+            dprintln(F("Game over..."));
+        } else {
+            arduboy.playScore(soundClear, SND_PRIO_OVER);
+            record.isCleared = true;
+            dprintln(F("Clear!!"));
+        }
         writeRecord();
         counter = 0;
         state = STATE_OVER;
@@ -277,14 +314,14 @@ static void handlePlaying()
 
 static void handleOver()
 {
-    if (!isDefeated || counter >= FPS) {
+    if (!isDefeated || counter >= OVER_OMIT) {
         updateShots();
         updateExplo();
         updateBullets();
         updateEnemies();
-        if (gameFrames < GROUP_INT * GROUP_TOTAL + ENEMY_ACTIVE) gameFrames++;
+        if (gameFrames < GAME_DURATION + ENEMY_ACTIVE) gameFrames++;
     }
-    if (counter >= FPS) {
+    if (counter >= OVER_OMIT) {
         if (counter >= 128) counter -= 8;
         if (arduboy.buttonDown(B_BUTTON)) {
             (isDefeated) ? onRetry() : onQuit();
@@ -308,6 +345,15 @@ static void openGameMenu(void)
     isMenu = true;
 }
 
+static void sparkleLed(uint8_t idx)
+{
+    if (!record.isBlinkLED) return;
+    uint8_t ledValue = pgm_read_byte(ledValues + idx);
+    ledRed = ledValue / 25;
+    ledGreen = ledValue / 5 % 5;
+    ledBlue = ledValue % 5;
+    ledLevel = (idx == LED_IDX_OVER) ? LED_LEVEL_OVER : LED_LEVEL_NORMAL;
+}
 
 /*-----------------------------------------------------------------------------------------------*/
 
@@ -360,24 +406,25 @@ static void updateExplo(void)
 
 static void newGroup(uint8_t groupIdx)
 {
+    dprint(F("New group "));
+    dprintln(groupIdx);
     int idx = groupIdx % GROUP_MAX;
     GROUP_T *pG = &groups[idx];
 
     /*  Moving path design  */
-    pG->xRad = random(4, 32);
-    pG->yRad = random(4, 25);
-    pG->xCoef = random(8, 64) / pG->xRad;
-    pG->yCoef = random(8, 64) / pG->yRad;
-    if (pG->xCoef == 0) pG->xCoef = 1;
-    if (pG->yCoef == 0) pG->yCoef = 1;
+    pG->xRad = random(4, 37);
+    pG->yRad = random(3, 28);
+    pG->yFlip = random(2);
+    pG->xCoef = random(4, 64);
+    pG->yCoef = random(4, 64);
     pG->entryInt = random(8);
 
     /*  Bullets design  */
     pG->type = random(ENEMY_TYPE_MAX);
-    pG->fireInt = random(FPS * 2 + 1);
+    pG->fireInt = random(FPS, FPS * 3 + 1);
     pG->fireCycle = random(8);
     pG->fireExSpd = random(4);
-    uint8_t fires = gameRank * (pG->fireInt + FPS) / FPS / 2;
+    uint8_t fires = gameRank * pG->fireInt / FPS / 2;
     if (fires == 0) fires = 1;
     uint8_t fireDiv = (random(4)) ? 1 : random(1, sqrt(fires) + 1);
     uint8_t fireThick = fires / fireDiv;
@@ -388,7 +435,7 @@ static void newGroup(uint8_t groupIdx)
         pG->fireTimes = fireThick;
         pG->fireNum = fireDiv;
     }
-    uint16_t fireCycleMax = (pG->fireInt + FPS) / pG->fireTimes - BULLET_CYC_BASE;
+    uint16_t fireCycleMax = pG->fireInt / pG->fireTimes - BULLET_CYC_BASE;
     if (pG->fireCycle > fireCycleMax) pG->fireCycle = fireCycleMax;
     if ((pG->type == ENEMY_TYPE_FUNWISE || pG->type == ENEMY_TYPE_MOWING) && fireThick > 1) {
         uint8_t mowGap = random(32, 64) / (fireThick - 1);
@@ -404,8 +451,8 @@ static void newGroup(uint8_t groupIdx)
         pE->bx = random(pG->xRad / 2, WIDTH / 2 - 3 - pG->xRad);
         pE->by = random(pG->yRad + 3, HEIGHT - 3 - pG->yRad);
         pE->life = ENEMY_LIFE_INIT;
-        pE->cycleGap = random(256);
-        Point enemyPoint = getEnemyCoords(pG, pE);
+        pE->framesGap = random(256);
+        Point enemyPoint = getEnemyCoords(pG, pE, 0);
         pE->fireDeg = myAtan2f(y - enemyPoint.y, x - enemyPoint.x);
     }
 }
@@ -413,7 +460,7 @@ static void newGroup(uint8_t groupIdx)
 static bool updateEnemies(void)
 {
     /*  New group  */
-    if (gameFrames < GROUP_INT * GROUP_TOTAL && gameFrames % GROUP_INT == 0) {
+    if (gameFrames < GAME_DURATION && gameFrames % GROUP_INT == 0) {
         newGroup(gameFrames / GROUP_INT);
     }
 
@@ -440,7 +487,7 @@ static bool updateEnemies(void)
         }
 
         /*  Hit judgement  */
-        Point enemyPoint = getEnemyCoords(pG, pE);
+        Point enemyPoint = getEnemyCoords(pG, pE, enemyFrames);
         Rect enemyRect = Rect(enemyPoint.x - 3, enemyPoint.y - 3, 7, 7);
         for (SHOT_T *pS = shots; pE->life > 0 && pS < &shots[SHOT_MAX]; pS++) {
             if (pS->x < WIDTH && arduboy.collide(Point(pS->x, pS->y), enemyRect)) {
@@ -451,15 +498,17 @@ static bool updateEnemies(void)
         }
         if (pE->life == 0) { // Defeat!
             arduboy.playScore(soundDefeat, SND_PRIO_DEFEAT);
+            sparkleLed(pG->type);
             explo.x = enemyPoint.x;
             explo.y = enemyPoint.y;
             explo.a = 0;
+            dprintln(F("Defeat!"));
             continue;
         }
         enemyLives++;
 
         /*  Should it fire?  */
-        uint16_t firePhase = (gameFrames + pE->cycleGap) % (pG->fireInt + FPS);
+        uint16_t firePhase = (enemyFrames + pE->framesGap) % pG->fireInt;
         uint8_t fireCycle = pG->fireCycle + BULLET_CYC_BASE;
         if (firePhase % fireCycle > 0) continue;
         uint8_t fireCnt = firePhase / fireCycle;
@@ -501,14 +550,14 @@ static bool updateEnemies(void)
         }
     }
     if (isDamaged) arduboy.playTone(200, 10);
-    return (enemyLives == 0 && gameFrames >= GROUP_INT * GROUP_TOTAL);
+    return (enemyLives == 0 && gameFrames >= GAME_DURATION);
 }
 
-static Point getEnemyCoords(GROUP_T *pG, ENEMY_T *pE)
+static Point getEnemyCoords(GROUP_T *pG, ENEMY_T *pE, uint16_t frames)
 {
-    uint16_t seed = gameFrames + pE->cycleGap;
-    int8_t xDeg = seed * pG->xCoef;
-    int8_t yDeg = seed * pG->yCoef;
+    frames += pE->framesGap;
+    int8_t xDeg = (frames * pG->xCoef) / pG->xRad;
+    int8_t yDeg = (frames * pG->yCoef) / pG->yRad + pG->yFlip * 128;
     return Point(pE->bx + WIDTH / 2 + myCos(xDeg, pG->xRad), pE->by + mySin(yDeg, pG->yRad));
 }
 
@@ -557,8 +606,11 @@ static bool updateBullets(void)
             if (!arduboy.collide(bulletPoint, screenRect)) {
                 pB->spd = 0;
                 bulletsNum--;
-            } else if (arduboy.collide(bulletPoint, playerRect)) { // Be defeated...
-                ret = true;
+            } else if (arduboy.collide(bulletPoint, playerRect)) {
+                ret = true; // Game over...
+#ifdef DEBUG
+                ret = !isMuteki;
+#endif
             }
         }
     }
@@ -611,14 +663,17 @@ static void onQuit(void)
 
 static void drawLetters(void)
 {
-    if (state == STATE_START) {
+    switch (state) {
+    case STATE_START:
         if (bitRead(counter, 3)) {
             arduboy.drawBitmap((WIDTH - IMG_READY_W) / 2, 24, imgReady, IMG_READY_W, IMG_READY_H);
         }
-        arduboy.printEx(25, 49, F("PATTERN:"));
-        printGameSeed(73, 49, record.gameSeed);
-    }
-    if (state == STATE_OVER) {
+        drawLettersGameSeed();
+        break;
+    case STATE_PLAYING:
+        drawTime(104, 0, (gameFrames < GAME_DURATION) ? GAME_DURATION - 1 - gameFrames : 0);
+        break;
+    case STATE_OVER:
         if (isDefeated) {
             int16_t a = 30 - min(counter, 30);
             arduboy.drawBitmap((WIDTH - IMG_FAILED_W) / 2 + a * a / 10, 24, imgFailed,
@@ -628,14 +683,23 @@ static void drawLetters(void)
             arduboy.drawBitmap((WIDTH - IMG_COMPLETED_W) / 2, dy, imgCompleted,
                     IMG_COMPLETED_W, IMG_COMPLETED_H);
         }
-        if (counter >= FPS) {
+        if (counter >= OVER_OMIT) {
             arduboy.printEx(55, 49, (isDefeated) ? F("RETRY") : F("TITLE"));
             drawButtonIcon(43, 48, true);
+            drawLettersGameSeed();
         }
+        break;
+    default:
+        break;
     }
-#if 1 // def DEBUG
-    drawTime(104, 0, gameFrames);
-#endif
+}
+
+static void drawLettersGameSeed(void)
+{
+    arduboy.printEx(19, 17, F("PATTERN:"));
+    printGameSeed(67, 17, record.gameSeed);
+    arduboy.print('-');
+    arduboy.print(gameRank);
 }
 
 static void drawPlayer(void)
@@ -647,7 +711,7 @@ static void drawPlayer(void)
             arduboy.drawBitmap(dx - 7, dy - 7, imgExplo[a], IMG_EXPLO_W, IMG_EXPLO_H);
         }
     } else {
-        if (state == STATE_START && counter < FPS) dx -= (FPS - counter) / 3;
+        if (state == STATE_START && counter < START_OMIT) dx -= (START_OMIT - counter) / 3;
         if (state == STATE_OVER) {
             int16_t a = counter - 16;
             dx += a * a / 32 - 8;
@@ -688,7 +752,7 @@ static void drawEnemies(void)
         if (pE->life > 0) {
             int16_t fade = enemyFrames - ENEMY_ACTIVE / 2;
             fade = abs(fade) - (ENEMY_ACTIVE / 2 - ENEMY_FADE);
-            Point enemyPoint = getEnemyCoords(pG, pE);
+            Point enemyPoint = getEnemyCoords(pG, pE, enemyFrames);
             if (fade <= 0) {
                 arduboy.drawBitmap(enemyPoint.x - 3, enemyPoint.y - 3,
                         imgEnemy[pG->type], IMG_SHIP_W, IMG_SHIP_H);
@@ -705,5 +769,33 @@ static void drawExplosion(void)
 {
     if (explo.a < IMG_EXPLO_ID_MAX) {
         arduboy.drawBitmap(explo.x - 7, explo.y - 7, imgExplo[explo.a], IMG_EXPLO_W, IMG_EXPLO_H);
+    }
+}
+
+static void drawBackground(void)
+{
+    /*  Starts  */
+    uint8_t g = counter & 3;
+    uint8_t d = g * 71;
+    uint8_t *p = (uint8_t *)drawBackground + g * 3;
+    int16_t s = (state == STATE_START) ? counter - START_DURATION : gameFrames;
+    for (int16_t y = g; y < HEIGHT; y += 4, p += 12) {
+        d += pgm_read_byte(p) + 29;
+        int16_t x = (d - (s * ((pgm_read_byte(p + 1) & 15) + 8) >> 6)) & (WIDTH - 1);
+        arduboy.drawPixel(x, y);
+    }
+
+    /*  Edge detection  */
+    if (!record.isDrawEdge || state >= STATE_OVER || bitRead(counter, 0)) return;
+    int16_t dx = playerX / PLAYER_SCALE - (EDGE_THRESHOLD - 1);
+    int16_t dy = playerY / PLAYER_SCALE;
+    if (dx <= 0) {
+        arduboy.drawFastVLine(0, dy - (EDGE_THRESHOLD - 1), EDGE_THRESHOLD * 2 - 1, WHITE);
+    }
+    if (dy < EDGE_THRESHOLD) {
+        arduboy.drawFastHLine(dx, 0, EDGE_THRESHOLD * 2 - 1, WHITE);
+    }
+    if (dy >= HEIGHT - EDGE_THRESHOLD) {
+        arduboy.drawFastHLine(dx, HEIGHT - 1, EDGE_THRESHOLD * 2 - 1, WHITE);
     }
 }

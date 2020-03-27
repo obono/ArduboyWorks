@@ -1,7 +1,6 @@
 {
-	"title": "Ardubullets",
-	"description": "HOGE",
-	"genre": "HOGE",
-	"url": "HOGE",
+	"title": "ARDUBULLETs",
+	"description": "Avoid voluminous bullets and defeat enemy squadron in one minute.",
+	"genre": "Shmups",
 	"dependence": "Arduboy2 Library 5.2.1"
 }

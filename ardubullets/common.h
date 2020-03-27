@@ -8,9 +8,10 @@
 #define FPS             60
 #define APP_TITLE       "ARDUBULLET"
 #define APP_CODE        "OBN-Y13"
-#define APP_VERSION     "0.02"
+#define APP_VERSION     "0.03"
 #define APP_RELEASED    "MARCH 2020"
 
+#define GAME_RANK_MAX       10
 #define GAME_RANK_DEFAULT   3
 
 #define GAME_SEED_MAX       14348907UL  // = 27*27*27*27*27
@@ -30,8 +31,9 @@ typedef struct {
     uint32_t    gameSeed:24;
     uint32_t    gameRank:4;
     uint32_t    isCodeManual:1;
+    uint32_t    isBlinkLED:1;
+    uint32_t    isDrawEdge:1;
     uint32_t    isCleared:1;
-    uint32_t    dummy:2;
     uint32_t    playFrames;
     uint16_t    playCount;
 } RECORD_T; // sizeof(RECORD_T) is 10 bytes

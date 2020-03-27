@@ -70,6 +70,7 @@ void readRecord(void)
         memset(&record, 0, sizeof(record));
         record.gameRank = GAME_RANK_DEFAULT;
         record.gameSeed = GAME_SEED_MAX;
+        record.isBlinkLED = true;
         recordState = RECORD_INITIAL;
         isRecordDirty = true;
     }

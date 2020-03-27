@@ -47,8 +47,10 @@ void addMenuItem(const __FlashStringHelper *label, void (*func)(void))
     pItem->label = label;
     pItem->func = func;
     menuItemCount++;
-    dprint(F("Add menu items: "));
-    dprintln(label);
+    if (label != NULL) {
+        dprint(F("Add menu items: "));
+        dprintln(label);
+    }
 }
 
 int8_t getMenuItemPos(void)
@@ -93,18 +95,14 @@ void setConfirmMenu(int8_t y, void (*funcOk)(), void (*funcCancel)())
 void handleMenu(void)
 {
     if (arduboy.buttonDown(UP_BUTTON) && menuItemPos > 0) {
-        do {
-            menuItemPos--;
-        } while(menuItemAry[menuItemPos].func == NULL);
+        while (!(menuItemAry[--menuItemPos].func)) { ; }
         playSoundTick();
         isInvalidMenu = true;
         dprint(F("menuItemPos="));
         dprintln(menuItemPos);
     }
     if (arduboy.buttonDown(DOWN_BUTTON) && menuItemPos < menuItemCount - 1) {
-        do {
-            menuItemPos++;
-        } while(menuItemAry[menuItemPos].func == NULL);
+        while (!(menuItemAry[++menuItemPos].func)) { ; }
         playSoundTick();
         isInvalidMenu = true;
         dprint(F("menuItemPos="));
@@ -132,11 +130,7 @@ void drawMenuItems(bool isForced)
     for (int i = 0; i < menuItemCount; i++, pItem++) {
         if (pItem->label != NULL) {
             arduboy.printEx(menuX + 12 - (i == menuItemPos) * 4, y, pItem->label);
-            if (i == menuItemPos) {
-                int8_t x = menuX;
-                if (pgm_read_byte(menuItemAry[menuItemPos].label) == ' ') x += 6;
-                arduboy.fillRect(x, y, 5, 5, WHITE);
-            }
+            if (i == menuItemPos) arduboy.fillRect(menuX, y, 5, 5, WHITE);
             y += 6;
         } else {
             y += 2;
