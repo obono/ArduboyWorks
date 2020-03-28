@@ -1,0 +1,7 @@
+{
+	"title": "ARDUBULLETs",
+	"description": "Avoid voluminous bullets and defeat enemy squadron in one minute.",
+	"genre": "Shmups",
+	"url": "https://community.arduboy.com/t/ardubullets-a-short-time-shmups-game/8684",
+	"dependence": "Arduboy2 Library 5.2.1"
+}
