@@ -8,7 +8,7 @@
 #define FPS             60
 #define APP_TITLE       "ARDUBULLET"
 #define APP_CODE        "OBN-Y13"
-#define APP_VERSION     "0.03"
+#define APP_VERSION     "0.10"
 #define APP_RELEASED    "MARCH 2020"
 
 #define GAME_RANK_MAX       10

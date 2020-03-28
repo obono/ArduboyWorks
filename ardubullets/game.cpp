@@ -124,14 +124,15 @@ static void     onRetry(void);
 static void     onConfirmQuit(void);
 static void     onQuit(void);
 
-static void     drawLetters(void);
-static void     drawLettersGameSeed(void);
 static void     drawPlayer(void);
 static void     drawShots(void);
 static void     drawBullets(void);
 static void     drawEnemies(void);
 static void     drawExplosion(void);
 static void     drawBackground(void);
+static void     drawLetters(void);
+static void     drawLettersBigLabel(int16_t x, int16_t y, const uint8_t *bitmap, uint8_t w, uint8_t h);
+static void     drawLettersGameSeed(void);
 
 /*  Local Functions (macros)  */
 
@@ -198,13 +199,13 @@ void drawGame(void)
         ledLevel = 0;
     } else if (isInvalid) {
         arduboy.clear();
-        drawLetters();
         drawPlayer();
         drawShots();
         drawBullets();
         drawEnemies();
         drawExplosion();
         drawBackground();
+        drawLetters();
     }
     arduboy.setRGBled(ledRed * ledLevel, ledGreen * ledLevel, ledBlue * ledLevel);
     isInvalid = false;
@@ -661,47 +662,6 @@ static void onQuit(void)
 /*                              Draw Functions                               */
 /*---------------------------------------------------------------------------*/
 
-static void drawLetters(void)
-{
-    switch (state) {
-    case STATE_START:
-        if (bitRead(counter, 3)) {
-            arduboy.drawBitmap((WIDTH - IMG_READY_W) / 2, 24, imgReady, IMG_READY_W, IMG_READY_H);
-        }
-        drawLettersGameSeed();
-        break;
-    case STATE_PLAYING:
-        drawTime(104, 0, (gameFrames < GAME_DURATION) ? GAME_DURATION - 1 - gameFrames : 0);
-        break;
-    case STATE_OVER:
-        if (isDefeated) {
-            int16_t a = 30 - min(counter, 30);
-            arduboy.drawBitmap((WIDTH - IMG_FAILED_W) / 2 + a * a / 10, 24, imgFailed,
-                    IMG_FAILED_W, IMG_FAILED_H);
-        } else {
-            int16_t dy = min(counter, 40) - 16;
-            arduboy.drawBitmap((WIDTH - IMG_COMPLETED_W) / 2, dy, imgCompleted,
-                    IMG_COMPLETED_W, IMG_COMPLETED_H);
-        }
-        if (counter >= OVER_OMIT) {
-            arduboy.printEx(55, 49, (isDefeated) ? F("RETRY") : F("TITLE"));
-            drawButtonIcon(43, 48, true);
-            drawLettersGameSeed();
-        }
-        break;
-    default:
-        break;
-    }
-}
-
-static void drawLettersGameSeed(void)
-{
-    arduboy.printEx(19, 17, F("PATTERN:"));
-    printGameSeed(67, 17, record.gameSeed);
-    arduboy.print('-');
-    arduboy.print(gameRank);
-}
-
 static void drawPlayer(void)
 {
     int16_t dx = playerX / PLAYER_SCALE, dy = playerY / PLAYER_SCALE;
@@ -716,7 +676,7 @@ static void drawPlayer(void)
             int16_t a = counter - 16;
             dx += a * a / 32 - 8;
         }
-        arduboy.drawBitmap(dx - 3, dy - 3, imgPlayer, IMG_SHIP_W, IMG_SHIP_H);
+        arduboy.drawBitmap(dx - 3, dy - 3, imgPlayer, IMG_CRAFT_W, IMG_CRAFT_H);
     }
 }
 
@@ -755,11 +715,11 @@ static void drawEnemies(void)
             Point enemyPoint = getEnemyCoords(pG, pE, enemyFrames);
             if (fade <= 0) {
                 arduboy.drawBitmap(enemyPoint.x - 3, enemyPoint.y - 3,
-                        imgEnemy[pG->type], IMG_SHIP_W, IMG_SHIP_H);
+                        imgEnemy[pG->type], IMG_CRAFT_W, IMG_CRAFT_H);
             } else if (fade <= ENEMY_FADE) {
                 int8_t z = min(fade, 3);
                 arduboy.fillRect(enemyPoint.x - 3 + z, enemyPoint.y - fade * 2,
-                        IMG_SHIP_W - z * 2, IMG_SHIP_H + fade * 4, WHITE);
+                        IMG_CRAFT_W - z * 2, IMG_CRAFT_H + fade * 4, WHITE);
             }
         }
     }
@@ -779,7 +739,7 @@ static void drawBackground(void)
     uint8_t d = g * 71;
     uint8_t *p = (uint8_t *)drawBackground + g * 3;
     int16_t s = (state == STATE_START) ? counter - START_DURATION : gameFrames;
-    for (int16_t y = g; y < HEIGHT; y += 4, p += 12) {
+    for (int16_t y = g * 2; y < HEIGHT; y += 8, p += 12) {
         d += pgm_read_byte(p) + 29;
         int16_t x = (d - (s * ((pgm_read_byte(p + 1) & 15) + 8) >> 6)) & (WIDTH - 1);
         arduboy.drawPixel(x, y);
@@ -798,4 +758,57 @@ static void drawBackground(void)
     if (dy >= HEIGHT - EDGE_THRESHOLD) {
         arduboy.drawFastHLine(dx, HEIGHT - 1, EDGE_THRESHOLD * 2 - 1, WHITE);
     }
+}
+
+static void drawLetters(void)
+{
+    switch (state) {
+    case STATE_START:
+        if (bitRead(counter, 3)) {
+            drawLettersBigLabel((WIDTH - IMG_READY_W) / 2, 24, imgReady, IMG_READY_W, IMG_READY_H);
+        }
+        drawLettersGameSeed();
+        break;
+    case STATE_PLAYING:
+        drawTime(104, 0, (gameFrames < GAME_DURATION) ? GAME_DURATION - 1 - gameFrames : 0);
+        break;
+    case STATE_OVER:
+        if (isDefeated) {
+            int16_t a = 30 - min(counter, 30);
+            drawLettersBigLabel((WIDTH - IMG_FAILED_W) / 2 + a * a / 10, 24, imgFailed,
+                    IMG_FAILED_W, IMG_FAILED_H);
+        } else {
+            int16_t dy = min(counter, 40) - 16;
+            drawLettersBigLabel((WIDTH - IMG_COMPLETED_W) / 2, dy, imgCompleted,
+                    IMG_COMPLETED_W, IMG_COMPLETED_H);
+        }
+        if (counter >= OVER_OMIT) {
+           arduboy.fillRect(42, 48, 43, 7, BLACK);
+            arduboy.printEx(55, 49, (isDefeated) ? F("RETRY") : F("TITLE"));
+            drawButtonIcon(43, 48, true);
+            drawLettersGameSeed();
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+static void drawLettersBigLabel(int16_t x, int16_t y, const uint8_t *bitmap, uint8_t w, uint8_t h)
+{
+    for (int i = 1; i <= 7; i += 2) {
+        arduboy.drawBitmap(x + i % 3 - 1, y + i / 3 - 1, bitmap, w, h, BLACK);
+    }
+    arduboy.drawBitmap(x, y, bitmap, w, h);
+}
+
+static void drawLettersGameSeed(void)
+{
+    bool is2Digits = (gameRank >= 10);
+    int16_t dx = 19 - is2Digits * 3;
+    arduboy.fillRect(dx - 1, 16, 91 + is2Digits * 6, 7, BLACK);
+    arduboy.printEx(dx, 17, F("PATTERN:"));
+    printGameSeed(dx + 48, 17, record.gameSeed);
+    arduboy.print('-');
+    arduboy.print(gameRank);
 }

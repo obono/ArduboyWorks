@@ -4,8 +4,8 @@
 /*                                Image Data                                 */
 /*---------------------------------------------------------------------------*/
 
-#define IMG_SHIP_W 7
-#define IMG_SHIP_H 7
+#define IMG_CRAFT_W 7
+#define IMG_CRAFT_H 7
 
 PROGMEM static const uint8_t imgPlayer[7] = { // 7x7
     0x36, 0x7F, 0x77, 0x55, 0x14, 0x08, 0x08
