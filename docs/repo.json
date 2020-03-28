@@ -377,6 +377,37 @@
 			"arduboy": "",
 			"codeName": "OBN-Y12",
 			"nickName": "knightmove"
+		},
+		{
+			"title": "ARDUBULLETs",
+			"description": "Avoid voluminous bullets and defeat enemy squadron in one minute.",
+			"genre": "Shmups",
+			"url": "https://community.arduboy.com/t/ardubullets-a-short-time-shmups-game/8684",
+			"dependence": "Arduboy2 Library 5.2.1",
+			"version": "0.10",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/ardubullets",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "ARDUBULLETs",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/ardubullets_v0.10.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/ardubullets2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/ardubullets1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": "",
+			"codeName": "OBN-Y13",
+			"nickName": "ardubullets"
 		}
 	]
 }

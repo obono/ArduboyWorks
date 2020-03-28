@@ -55,6 +55,10 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * An action puzzle game using a knight piece of the chess.
   * Depends on Arduboy Library 1.1.1\
     ![title](docs/img/knightmove1.gif) ![playing](docs/img/knightmove2.gif)
+* OBN-Y13 [ARDUBULLETs](https://community.arduboy.com/t/ardubullets-a-short-time-shmups-game/8684)
+  * Avoid voluminous bullets and defeat enemy squadron in one minute.
+  * Depends on Arduboy2 Library 5.2.1\
+    ![title](docs/img/ardubullets1.gif) ![playing](docs/img/ardubullets2.gif)
 
 ## License
 
