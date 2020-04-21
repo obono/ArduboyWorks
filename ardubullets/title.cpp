@@ -330,7 +330,7 @@ static void drawTop(void)
     drawMenuItems(isInvalid);
     if (record.playCount > 0 && getMenuItemPos() == 0) {
         arduboy.setTextColor(bitRead(counter, 0));
-        printGameSeed(88, 39, record.gameSeed);
+        printGameSeed(88, 38, record.gameSeed);
         arduboy.setTextColor(WHITE);
     }
 }
