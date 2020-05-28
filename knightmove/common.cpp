@@ -2,7 +2,8 @@
 
 /*  Defines  */
 
-#define EEPROM_ADDR_BASE    688
+#define EEPROM_ADDR_BASE    656
+#define EEPROM_ADDR_MIGRATE 688
 #define EEPROM_SIGNATURE    0x124E424FUL // "OBN\x12"
 
 #define PAD_REPEAT_DELAY    (FPS / 4)
@@ -57,15 +58,19 @@ static int16_t          eepAddr;
 void readRecord(void)
 {
     bool isVerified = false;
-    eepSeek(EEPROM_ADDR_BASE);
-    if (eepRead32() == EEPROM_SIGNATURE) {
-        eepReadBlock(&record, sizeof(record));
-        isVerified = (eepRead16() == calcCheckSum());
+    bool isMigrated = false;
+    for (int i = 0; !isVerified && i < 2; i++) {
+        eepSeek((i == 0) ? EEPROM_ADDR_BASE : EEPROM_ADDR_MIGRATE);
+        if (eepRead32() == EEPROM_SIGNATURE) {
+            eepReadBlock(&record, sizeof(record));
+            isVerified = (eepRead16() == calcCheckSum());
+            isMigrated = (isVerified && i == 1);
+        }
     }
 
     if (isVerified) {
-        recordState = RECORD_STORED;
-        isRecordDirty = false;
+        recordState = (isMigrated) ? RECORD_INITIAL : RECORD_STORED;
+        isRecordDirty = isMigrated;
         dprintln(F("Read record from EEPROM"));
     } else {
         memset(&record, 0, sizeof(record));

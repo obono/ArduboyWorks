@@ -8,7 +8,7 @@
 #define FPS             60
 #define APP_TITLE       "KNIGHT MOVE"
 #define APP_CODE        "OBN-Y12"
-#define APP_VERSION     "0.10"
+#define APP_VERSION     "0.11"
 #define APP_RELEASED    "FEBRUARY 2020"
 
 enum MODE_T : uint8_t {
