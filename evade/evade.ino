@@ -62,7 +62,10 @@ void setup()
     arduboy.beginNoLogo();
     arduboy.setFrameRate(FPS);
     //arduboy.setTextColors(WHITE, WHITE);
-    mode = MODE_LOGO;
+    dprintln(F("Start " APP_TITLE " Version " APP_VERSION));
+    arduboy.initAudio(1);
+    readRecord();
+    mode = (record.simpleMode) ? MODE_TITLE : MODE_LOGO;
     callInitFunc(mode);
 }
 

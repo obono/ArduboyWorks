@@ -48,11 +48,7 @@ void initLogo(void)
 
 MODE_T updateLogo(void)
 {
-    if (--counter == 0) {
-        dprintln(F("Start " APP_TITLE " Version " APP_VERSION));
-        return MODE_TITLE;
-    }
-    return MODE_LOGO;
+    return (--counter == 0) ? MODE_TITLE : MODE_LOGO;
 }
 
 void drawLogo(void)

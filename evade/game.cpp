@@ -3,10 +3,13 @@
 
 /*  Defines  */
 
-#define PILLARS_NUM 16
-#define SPEED       2       // 1 - 5
-#define THICKNESS   3       // 1 - 5
-#define DENSITY     3       // 1 - 5
+#define PILLARS_NUM     16
+#define PILLAR_X_MIN    -128
+#define PILLAR_X_MAX    128
+#define PILLAR_Z_MAX    255
+#define CAM_F           64
+#define SCORE_MAX       59999
+#define ACCEL_INT_BASE  900
 
 enum STATE_T : uint8_t {
     STATE_INIT = 0,
@@ -25,8 +28,11 @@ typedef struct {
 
 /*  Local Functions  */
 
+static void     handlePlaying(void);
+static void     handleOver(void);
+
 static void     initPillars(void);
-static bool     updatePillars(int8_t vx, int8_t vz);
+static bool     updatePillars(int8_t vx, uint8_t speed);
 
 static void     onContinue(void);
 static void     onConfirmRetry(void);
@@ -34,9 +40,17 @@ static void     onRetry(void);
 static void     onConfirmQuit(void);
 static void     onQuit(void);
 
+static void     drawPlaying(void);
+static void     drawOver(void);
 static void     drawPillars(void);
 static void     fillDitheredRect(int16_t x, int16_t y, uint8_t w, int8_t h, uint8_t dither);
 static void     drawPlayer(void);
+static void     drawMenu(void);
+
+/*  Local Functions (macros)  */
+
+#define callHandlerFunc(n)  ((void (*)(void)) pgm_read_ptr(handlerFuncTable + n))()
+#define callDrawerFunc(n)   ((void (*)(void)) pgm_read_ptr(drawerFuncTable + n))()
 
 /*  Local Variables  */
 
@@ -44,11 +58,19 @@ PROGMEM static const uint8_t ditherPatterns[] = { // 8 grades
     0x11, 0x00, 0x55, 0x00, 0x55, 0x22, 0x55, 0xAA, 0x77, 0xAA, 0xFF, 0xAA, 0xFF, 0xBB, 0xFF, 0xFF
 };
 
+PROGMEM static void(*const handlerFuncTable[])(void) = {
+    NULL, handlePlaying, handleMenu, handleOver
+};
+
+PROGMEM static void(*const drawerFuncTable[])(void) = {
+    NULL, drawPlaying, drawMenu, drawOver
+};
+
 static STATE_T  state = STATE_INIT;
 static PILLAR_T pillars[PILLARS_NUM];
-static uint32_t score;
-static uint8_t  pillarsTopIdx;
-static int8_t   playerVx, pillarAAA;
+static uint16_t score, accelInt;
+static uint8_t  pillarsTopIdx, pillarsSpeed, pillarsZOdd;
+static int8_t   playerVx, nextDistance;
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -56,10 +78,10 @@ static int8_t   playerVx, pillarAAA;
 
 void initGame(void)
 {
+    dprintln(F("Initalize game"))
     arduboy.playScore(soundStart, SND_PRIO_START);
     initPillars();
     score = 0;
-    counter = 0;
     record.playCount++;
     isRecordDirty = true;
     writeRecord();
@@ -69,32 +91,75 @@ void initGame(void)
 
 MODE_T updateGame(void)
 {
-    counter++;
-    handleDPad();
-    switch (state) {
-    case STATE_PLAYING:
-        record.playFrames++;
-        isRecordDirty = true;
-        playerVx = 0;
-        if (arduboy.buttonPressed(LEFT_BUTTON))  playerVx--;
-        if (arduboy.buttonPressed(RIGHT_BUTTON)) playerVx++;
-        if (updatePillars(playerVx, SPEED + 1)) {
-            arduboy.playScore(soundOver, SND_PRIO_OVER);
-            writeRecord();
-            state = STATE_OVER;
-        } else if (arduboy.buttonDown(A_BUTTON)) {
-            playSoundClick();
-            clearMenuItems();
-            addMenuItem(F("CONTINUE"), onContinue);
-            addMenuItem(F("RESTART GAME"), onConfirmRetry);
-            addMenuItem(F("BACK TO TITLE"), onConfirmQuit);
-            setMenuCoords(19, 23, 89, 17, true, true);
-            setMenuItemPos(0);
-            state = STATE_MENU;
+    callHandlerFunc(state);
+    return (state == STATE_LEAVE) ? MODE_TITLE : MODE_GAME;
+}
+
+void drawGame(void)
+{
+    if (state == STATE_LEAVE) return;
+    if (isInvalid && state != STATE_MENU) arduboy.clear();
+    callDrawerFunc(state);
+    isInvalid = false;
+}
+
+/*---------------------------------------------------------------------------*/
+/*                             Control Functions                             */
+/*---------------------------------------------------------------------------*/
+
+static void handlePlaying(void)
+{
+    record.playFrames++;
+    isRecordDirty = true;
+    if (score <= SCORE_MAX) score++;
+    if (record.acceleration > 0 && score % accelInt == 0) {
+        pillarsSpeed++;
+        dprint(F("Speed="));
+        dprintln(pillarsSpeed);
+    }
+    playerVx = 0;
+    if (arduboy.buttonPressed(LEFT_BUTTON))  playerVx--;
+    if (arduboy.buttonPressed(RIGHT_BUTTON)) playerVx++;
+    if (updatePillars(playerVx, pillarsSpeed)) {
+        arduboy.playScore(soundOver, SND_PRIO_OVER);
+        if (record.hiscore < score) {
+            record.hiscore = score;
         }
-        isInvalid = true;
-        break;
-    case STATE_OVER:
+        writeRecord();
+        counter = 0;
+        state = STATE_OVER;
+        dprintln(F("Game over!!"));
+    } else if (!record.simpleMode && arduboy.buttonDown(A_BUTTON)) {
+        playSoundClick();
+        clearMenuItems();
+        addMenuItem(F("CONTINUE"), onContinue);
+        addMenuItem(F("RESTART GAME"), onConfirmRetry);
+        addMenuItem(F("BACK TO TITLE"), onConfirmQuit);
+        setMenuCoords(19, 23, 89, 17, true, true);
+        setMenuItemPos(0);
+        state = STATE_MENU;
+    }
+    isInvalid = true;
+}
+
+static void handleOver(void)
+{
+    if (record.simpleMode) {
+        if (arduboy.buttonPressed(DOWN_BUTTON)) {
+            if (counter < FPS + 8) counter++;
+        } else {
+            counter = 0;
+        }
+        if (counter >= FPS) {
+            if (arduboy.buttonDown(A_BUTTON)) {
+                setSound(!arduboy.isAudioEnabled());
+                playSoundClick();
+            }
+            if (arduboy.buttonDown(B_BUTTON)) state = STATE_LEAVE;
+        } else {
+            if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) initGame();
+        }
+    } else {
         if (arduboy.buttonDown(A_BUTTON)) {
             playSoundClick();
             clearMenuItems();
@@ -103,71 +168,55 @@ MODE_T updateGame(void)
             setMenuCoords(19, 26, 89, 11, true, false);
             setMenuItemPos(0);
             state = STATE_MENU;
-            isInvalid = true;
         } else if (arduboy.buttonDown(B_BUTTON)) {
             initGame();
         }
-        break;
-    case STATE_MENU:
-        handleMenu();
-        break;
     }
-    return (state == STATE_LEAVE) ? MODE_TITLE : MODE_GAME;
+    isInvalid = true;
 }
-
-void drawGame(void)
-{
-    if (state == STATE_LEAVE) return;
-    if (state == STATE_MENU) {
-        drawMenuItems(isInvalid);
-        isInvalid = false;
-        return;
-    }
-    if (isInvalid) {
-        arduboy.clear();
-        drawPillars();
-        drawPlayer();
-        if (state == STATE_OVER) {
-            arduboy.printEx(37, 29, F("GAME OVER"));
-        }
-    }
-    isInvalid = false;
-}
-
-/*---------------------------------------------------------------------------*/
-/*                             Control Functions                             */
-/*---------------------------------------------------------------------------*/
 
 static void initPillars(void)
 {
     memset(pillars, 0, sizeof(pillars));
     pillarsTopIdx = 0;
-    pillarAAA = 0;
+    pillarsSpeed = (record.speed + 3) << 3;
+    pillarsZOdd = 0;
+    nextDistance = 0;
+    accelInt = ACCEL_INT_BASE >> record.acceleration;
+    dprint(F("Speed="));
+    dprintln(pillarsSpeed);
 }
 
-static bool updatePillars(int8_t vx, int8_t vz)
+static bool updatePillars(int8_t vx, uint8_t speed)
 {
     bool ret = false;
+    pillarsZOdd += speed;
+    uint8_t vz = pillarsZOdd >> 4;
+    pillarsZOdd &= 0xF;
+
+    /*  Scroll pillars  */
     for (PILLAR_T *p = pillars; p < pillars + PILLARS_NUM; p++) {
         if (!p->w) continue;
-        p->x -= vx * 2; // TODO
-        if (p->z < 256 - vz) {
+        p->x -= vx * ((speed >> 5) + 1);
+        if (p->z <= PILLAR_Z_MAX - vz) {
             p->z += vz;
         } else if (p->x >= -p->w && p->x < p->w) {
-            p->z = 255;
-            ret = true; // game over !!
+            p->z = PILLAR_Z_MAX;
+            ret = true; // Game over!!
         } else {
-            p->w = 0; // remove
+            p->w = 0; // Remove a pillar
         }
     }
-    pillarAAA -= vz;
-    if (pillarAAA <= 0 && !ret) {
+    nextDistance -= vz;
+
+    /*  Append a pillar  */
+    if (nextDistance <= 0 && !ret) {
         PILLAR_T *p = &pillars[pillarsTopIdx];
-        p->x = random(-128, 128);
-        p->z = -pillarAAA;
-        p->w = random(THICKNESS) + THICKNESS + 3;
+        p->x = random(PILLAR_X_MIN, PILLAR_X_MAX);
+        p->z = -nextDistance;
+        p->w = random(record.thickness) + record.thickness + 3;
         pillarsTopIdx = (pillarsTopIdx + 1) % PILLARS_NUM;
-        pillarAAA += 36 - DENSITY * 4;
+        nextDistance += 36 - record.density * 4;
     }
     return ret;
 }
@@ -216,14 +265,33 @@ static void onQuit(void)
 /*                              Draw Functions                               */
 /*---------------------------------------------------------------------------*/
 
+static void drawPlaying(void)
+{
+    drawPillars();
+    drawPlayer();
+    arduboy.printEx(0, 0, score / 6);
+    arduboy.printEx(0, 8, pillarsSpeed);
+}
+
+static void drawOver(void)
+{
+    drawPillars();
+    arduboy.printEx(37, 29, F("GAME OVER"));
+    if (counter >= FPS) {
+        drawSimpleModeInstruction(HEIGHT - (counter - FPS));
+    }
+    arduboy.printEx(0, 0, score / 6);
+}
+
 static void drawPillars(void)
 {
     for (PILLAR_T *p = pillars; p < pillars + PILLARS_NUM; p++) {
         if (!p->w) continue;
-        int16_t h = 4096 / (319 - p->z);
+        int8_t h = (HEIGHT * CAM_F) / ((CAM_F + PILLAR_Z_MAX) - p->z);
         int16_t x = WIDTH / 2 + ((p->x - p->w) * h >> 6);
-        int16_t w = p->w * h >> 5;
-        fillDitheredRect(x, (HEIGHT - h) >> 1, w, h, (p->z < 128) ? p->z >> 4 : 7);
+        uint8_t w = p->w * h >> 5;
+        uint8_t dither = (p->z <= PILLAR_Z_MAX / 2) ? p->z >> 4 : 7;
+        fillDitheredRect(x, (HEIGHT - h) >> 1, w, h, dither);
     }
 }
 
@@ -262,8 +330,13 @@ static void fillDitheredRect(int16_t x, int16_t y, uint8_t w, int8_t h, uint8_t 
 static void drawPlayer(void)
 {
     uint8_t idx = (playerVx + 1) * 3;
-    uint8_t anim = counter >> 2 & 3;
+    uint8_t anim = score >> 2 & 3;
     if (anim & 1) idx += (anim >> 1) + 1;
     arduboy.drawBitmap(56, 48, imgPlayerMask[idx], IMG_PLAYER_W, IMG_PLAYER_H, BLACK);
     arduboy.drawBitmap(56, 48, imgPlayer[idx], IMG_PLAYER_W, IMG_PLAYER_H);
+}
+
+static void drawMenu(void)
+{
+    drawMenuItems(isInvalid);
 }

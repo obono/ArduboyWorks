@@ -20,7 +20,6 @@ MyArduboy2  arduboy;
 RECORD_T    record;
 uint8_t     counter;
 int8_t      padX, padY, padRepeatCount;
-uint16_t    lastScore;
 bool        isInvalid, isRecordDirty;
 
 /*  Local Functions  */
@@ -61,6 +60,10 @@ void readRecord(void)
         dprintln(F("Read record from EEPROM"));
     } else {
         memset(&record, 0, sizeof(record));
+        record.speed = 3;
+        record.acceleration = 1;
+        record.density = 3;
+        record.thickness = 3;
         recordState = RECORD_INITIAL;
         isRecordDirty = true;
     }
@@ -144,6 +147,12 @@ void drawTime(int16_t x, int16_t y, uint32_t frames)
         if (s < 10) arduboy.print('0');
         arduboy.print(s);
     }
+}
+
+void drawSimpleModeInstruction(int16_t y)
+{
+    arduboy.printEx(1, y, F("A:SOUND     B:SETTING"));
+    arduboy.printEx(49, y, arduboy.audio.enabled() ? F("ON") : F("OFF"));
 }
 
 /*---------------------------------------------------------------------------*/

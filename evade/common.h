@@ -7,8 +7,8 @@
 //#define DEBUG
 #define FPS             60
 #define APP_TITLE       "EVADE"
-#define APP_CODE        "OBN-Y14" // TODO: Modify
-#define APP_VERSION     "0.01"
+#define APP_CODE        "OBN-Y14"
+#define APP_VERSION     "0.02"
 #define APP_RELEASED    "AUGUST 2020"
 
 enum MODE_T : uint8_t {
@@ -20,7 +20,13 @@ enum MODE_T : uint8_t {
 /*  Typedefs  */
 
 typedef struct {
-    uint32_t    dummy;
+    uint16_t    speed:4;
+    uint16_t    acceleration:2;
+    uint16_t    density:3;
+    uint16_t    thickness:3;
+    uint16_t    simpleMode:1;
+    uint16_t    dummy:3;
+    uint16_t    hiscore;
     uint32_t    playFrames;
     uint16_t    playCount;
 } RECORD_T; // sizeof(RECORD_T) is 10 bytes
@@ -32,6 +38,7 @@ void    writeRecord(void);
 void    clearRecord(void);
 void    handleDPad(void);
 void    drawTime(int16_t x, int16_t y, uint32_t frames);
+void    drawSimpleModeInstruction(int16_t y);
 
 void    setSound(bool on);
 void    playSoundTick(void);
@@ -74,13 +81,17 @@ void    initGame(void);
 MODE_T  updateGame(void);
 void    drawGame(void);
 
+/*  Grobal Functions (macros)  */
+
+#define circulate(n, v, m)      (((n) + (v) + (m)) % (m))
+#define circulateOne(n, v, m)   (((n) + (v) + (m) - 1) % (m) + 1)
+
 /*  Global Variables  */
 
 extern MyArduboy2   arduboy;
 extern RECORD_T     record;
 extern uint8_t      counter;
 extern int8_t       padX, padY, padRepeatCount;
-extern uint16_t     lastScore;
 extern bool         isInvalid, isRecordDirty;
 
 /*  For Debugging  */

@@ -2,26 +2,44 @@
 
 /*  Defines  */
 
+#define SPEED_MAX       9
+#define ACCEL_MAX       3
+#define DENSITY_MAX     5
+#define THICKNESS_MAX   5
+
 enum STATE_T : uint8_t {
     STATE_INIT = 0,
-    STATE_TITLE,
-    STATE_RECORD,
+    STATE_TOP,
+    STATE_SETTINGS,
     STATE_CREDIT,
     STATE_STARTED,
 };
 
 /*  Local Functions  */
 
-static void initTitleMenu(bool isFromSettings);
-static void onStart(void);
-static void onRecord(void);
-static void onCredit(void);
+static void handleTop(void);
+static void handleSettings(void);
 static void handleAnyButton(void);
 
-static void drawTitleImage(void);
-static void drawRecord(void);
+static void onTop(void);
+static void onStart(void);
+static void onSettings(void);
+static void onCredit(void);
+static void onMenuSpeed(void);
+static void onMenuAccel(void);
+static void onMenuDensity(void);
+static void onMenuThickness(void);
+static void onMenuSimpleMode(void);
+
+static void drawTop(void);
+static void drawSettings(void);
 static void drawCredit(void);
 static void drawText(const char *p, int lines);
+
+/*  Local Functions (macros)  */
+
+#define callHandlerFunc(n)  ((void (*)(void)) pgm_read_ptr(handlerFuncTable + n))()
+#define callDrawerFunc(n)   ((void (*)(void)) pgm_read_ptr(drawerFuncTable + n))()
 
 /*  Local Variables  */
 
@@ -31,8 +49,18 @@ PROGMEM static const uint8_t imgTitle[] = { // TODO
 PROGMEM static const char creditText[] = \
         "- " APP_TITLE " -\0\0\0" APP_RELEASED "\0PROGREMMED BY OBONO\0\0" \
         "THIS PROGRAM IS\0RELEASED UNDER\0THE MIT LICENSE.\0\e";
+PROGMEM static const char accelText[] = "OFF \0SLOW\0FAST";
+
+PROGMEM static void(*const handlerFuncTable[])(void) = {
+    NULL, handleTop, handleSettings, handleAnyButton
+};
+
+PROGMEM static void(*const drawerFuncTable[])(void) = {
+    NULL, drawTop, drawSettings, drawCredit
+};
 
 static STATE_T  state = STATE_INIT;
+static bool     isSettingChenged;
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -41,52 +69,27 @@ static STATE_T  state = STATE_INIT;
 void initTitle(void)
 {
     if (state == STATE_INIT) {
-        arduboy.initAudio(1); // TODO: 1 or 2
-        readRecord();
+        // do nothing?
     }
-    clearMenuItems();
-    addMenuItem(F("GAME START"), onStart);
-    addMenuItem(F("SETTINGS"), onRecord);
-    addMenuItem(F("CREDIT"), onCredit);
-    setMenuItemPos(0);
-    setMenuCoords(22, 46, 83, 18, false, true);
-    state = STATE_TITLE;
-    isInvalid = true;
+    if (record.simpleMode && state == STATE_STARTED) {
+        onSettings();
+    } else {
+        onTop();
+    }
 }
 
 MODE_T updateTitle(void)
 {
-    MODE_T ret = MODE_TITLE;
-    switch (state) {
-    case STATE_TITLE:
-        handleMenu();
-        if (state == STATE_STARTED) ret = MODE_GAME;
-        break;
-    default:
-        handleAnyButton();
-        break;
-    }
+    callHandlerFunc(state);
     randomSeed(rand() ^ micros()); // Shuffle random
-    return ret;
+    return (state == STATE_STARTED) ? MODE_GAME : MODE_TITLE;
 }
 
 void drawTitle(void)
 {
-    if (isInvalid) {
-        arduboy.clear();
-        switch (state) {
-        case STATE_TITLE:
-            drawTitleImage();
-            break;
-        case STATE_RECORD:
-            drawRecord();
-            break;
-        case STATE_CREDIT:
-            drawCredit();
-            break;
-        }
-    }
-    if (state == STATE_TITLE) drawMenuItems(isInvalid);
+    if (state == STATE_STARTED) return;
+    if (isInvalid) arduboy.clear();
+    callDrawerFunc(state);
     isInvalid = false;
 }
 
@@ -94,20 +97,108 @@ void drawTitle(void)
 /*                             Control Functions                             */
 /*---------------------------------------------------------------------------*/
 
+static void handleTop(void)
+{
+    if (record.simpleMode) {
+        if (arduboy.buttonPressed(DOWN_BUTTON)) {
+            if (counter < FPS + 8) counter++;
+        } else {
+            counter = (counter >= FPS) ? 0 : 1;
+        }
+        if (counter >= FPS) {
+            if (arduboy.buttonDown(A_BUTTON)) {
+                setSound(!arduboy.isAudioEnabled());
+                playSoundClick();
+            }
+            if (arduboy.buttonDown(B_BUTTON)) onSettings();
+        } else {
+            if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) onStart();
+        }
+    } else {
+        handleMenu();
+    }
+}
+
+static void handleSettings(void)
+{
+    handleDPad();
+    uint8_t pos = getMenuItemPos();
+    if (pos <= 3) {
+        if (padX != 0) {
+            playSoundTick();
+            switch (pos) {
+            case 0: record.speed = circulateOne(record.speed, padX, SPEED_MAX); break;
+            case 1: record.acceleration = circulate(record.acceleration, padX, ACCEL_MAX); break;
+            case 2: record.density = circulateOne(record.density, padX, DENSITY_MAX); break;
+            case 3: record.thickness = circulateOne(record.thickness, padX, THICKNESS_MAX); break;
+            }
+            isSettingChenged = true;
+        }
+    } else if (pos == 4 && arduboy.buttonDown(LEFT_BUTTON | RIGHT_BUTTON)) {
+        onMenuSimpleMode();
+    }
+    handleMenu();
+    if (isSettingChenged) {
+        record.hiscore = 0;
+        isRecordDirty = true;
+    }
+    if (arduboy.buttonDown(UP_BUTTON | DOWN_BUTTON)) isSettingChenged = true;
+}
+
+static void handleAnyButton(void)
+{
+    if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
+        playSoundClick();
+        state = STATE_TOP;
+        isInvalid = true;
+    }
+}
+
+/*---------------------------------------------------------------------------*/
+/*                               Menu Handlers                               */
+/*---------------------------------------------------------------------------*/
+
+static void onTop(void)
+{
+    if (state == STATE_SETTINGS) {
+        writeRecord();
+        playSoundClick();
+    }
+    clearMenuItems();
+    addMenuItem(F("GAME START"), onStart);
+    addMenuItem(F("SETTINGS"), onSettings);
+    addMenuItem(F("CREDIT"), onCredit);
+    setMenuItemPos((state == STATE_SETTINGS) ? 1 : 0);
+    setMenuCoords(22, 46, 83, 18, false, true);
+    counter = 0;
+    state = STATE_TOP;
+    isInvalid = true;
+    dprintln(F("Title screen"));
+}
+
 static void onStart(void)
 {
     state = STATE_STARTED;
     dprintln(F("Game start"));
 }
 
-static void onRecord(void)
+static void onSettings(void)
 {
     playSoundClick();
-    state = STATE_RECORD;
+    clearMenuItems();
+    addMenuItem(F("SPEED"), onMenuSpeed);
+    addMenuItem(F("ACCELERATION"), onMenuAccel);
+    addMenuItem(F("DENSITY"), onMenuDensity);
+    addMenuItem(F("THICKNESS"), onMenuThickness);
+    addMenuItem(F("SIMPLE MODE"), onMenuSimpleMode);
+    addMenuItem(F("EXIT"), onTop);
+    setMenuItemPos(0);
+    setMenuCoords(10, 8, 112, 35, false, false);
+    state = STATE_SETTINGS;
     isInvalid = true;
-    dprintln(F("Show record"));
+    isSettingChenged = true;
+    dprintln(F("Show settings"));
 }
-
 
 static void onCredit(void)
 {
@@ -117,48 +208,102 @@ static void onCredit(void)
     dprintln(F("Show credit"));
 }
 
-static void handleAnyButton(void)
+static void onMenuSpeed(void)
 {
-    if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
-        playSoundClick();
-        state = STATE_TITLE;
-        isInvalid = true;
-    }
+    playSoundClick();
+    record.speed = circulateOne(record.speed, 1, SPEED_MAX);
+    isSettingChenged = true;
+}
+
+static void onMenuAccel(void)
+{
+    playSoundClick();
+    record.acceleration = circulate(record.acceleration, 1, ACCEL_MAX);
+    isSettingChenged = true;
+}
+
+static void onMenuDensity(void)
+{
+    playSoundClick();
+    record.density = circulateOne(record.density, 1, DENSITY_MAX);
+    isSettingChenged = true;
+}
+
+static void onMenuThickness(void)
+{
+    playSoundClick();
+    record.thickness = circulateOne(record.thickness, 1, THICKNESS_MAX);
+    isSettingChenged = true;
+}
+
+static void onMenuSimpleMode(void)
+{
+    playSoundClick();
+    record.simpleMode = !record.simpleMode;
+    isSettingChenged = true;
 }
 
 /*---------------------------------------------------------------------------*/
 /*                              Draw Functions                               */
 /*---------------------------------------------------------------------------*/
 
-static void drawTitleImage(void)
+static void drawTop(void)
 {
-    //arduboy.drawBitmap(0, 0, imgTitle, IMG_TITLE_W, IMG_TITLE_H, WHITE);
-    arduboy.printEx(16, 8, F(APP_TITLE));
-    arduboy.printEx(16, 14, F("TITLE SCREEN"));
+    if (isInvalid) {
+        //arduboy.drawBitmap(0, 0, imgTitle, IMG_TITLE_W, IMG_TITLE_H, WHITE);
+        arduboy.printEx(16, 8, F(APP_TITLE));
+        arduboy.printEx(16, 14, F("TITLE SCREEN"));
 #ifdef DEBUG
-    arduboy.printEx(16, 20, F("DEBUG"));
+        arduboy.printEx(16, 20, F("DEBUG"));
 #endif
-    if (lastScore > 0) arduboy.printEx(0, 0, lastScore);
+    }
+    if (record.simpleMode) {
+        if (counter == 0) {
+            arduboy.fillRect(0, 56, WIDTH, 8, BLACK);
+        } else if (counter >= FPS) {
+            drawSimpleModeInstruction(HEIGHT - (counter - FPS));
+        }
+    } else {
+        drawMenuItems(isInvalid);
+    }
 }
 
-static void drawRecord(void)
+static void drawSettings(void)
 {
-    /*arduboy.printEx(22, 4, F("BEST 10 SCORES"));
-    arduboy.drawFastHLine(0, 12, 128, WHITE);
-    for (int i = 0; i < 2; i++) {
-        for (int j = 0; j < 5; j++) {
-            int r = i * 5 + j;
-            arduboy.printEx(i * 60 + 4 - (r == 9) * 6, j * 6 + 14, F("["));
-            arduboy.print(r + 1);
-            arduboy.print(F("] "));
-            arduboy.print(record.hiscore[r]);
+    if (isInvalid) {
+        arduboy.printEx(34, 0, F("[SETTINGS]"));
+        arduboy.drawFastHLine(0, 44, 128, WHITE);
+        arduboy.printEx(10, 48, F("PLAY COUNT "));
+        arduboy.print(record.playCount);
+        arduboy.printEx(10, 54, F("PLAY TIME"));
+        drawTime(76, 54, record.playFrames);
+    }
+    drawMenuItems(isInvalid);
+    if (isSettingChenged) {
+        for (int i = 0; i < 5; i++) {
+            int16_t dx = 100 - (getMenuItemPos() == i) * 4, dy = i * 6 + 8;
+            const char *p;
+            switch (i) {
+            case 0:
+                arduboy.printEx(dx, dy, record.speed);
+                break;
+            case 1:
+                p = accelText + record.acceleration * 5;
+                arduboy.printEx(dx, dy, (const __FlashStringHelper *)p);
+                break;
+            case 2:
+                arduboy.printEx(dx, dy, record.density);
+                break;
+            case 3:
+                arduboy.printEx(dx, dy, record.thickness);
+                break;
+            case 4:
+                arduboy.printEx(dx, dy, record.simpleMode ? F("ON ") : F("OFF"));
+                break;
+            }
         }
-    }*/
-    arduboy.drawFastHLine(0, 44, 128, WHITE);
-    arduboy.printEx(10, 48, F("PLAY COUNT "));
-    arduboy.print(record.playCount);
-    arduboy.printEx(10, 54, F("PLAY TIME"));
-    drawTime(76, 54, record.playFrames);
+        isSettingChenged = false;
+    }
 }
 
 static void drawCredit(void)
