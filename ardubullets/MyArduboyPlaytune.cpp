@@ -221,12 +221,13 @@ void MyArduboy2::saveAudioOnOff(void)
 void MyArduboy2::playTone(uint16_t frequency, uint16_t duration,
         uint8_t priority = 0xFF, uint8_t dutyCycle = DUTY_CYCLE_MIN)
 {
-    if (!outputEnabled() || numChans == 0) return;
+    if (numChans == 0) return;
     if (numChans == 1 && isScorePlaying) {
         if (priority > audioPriority) return;
         stopScore();
     }
 
+    isAllMuted = !outputEnabled();
     frequency = min(frequency, FREQUENCY_MAX);
     dutyCycle = constrain(dutyCycle, DUTY_CYCLE_MIN, DUTY_CYCLE_MAX);
     unsigned long toggle_count = ((unsigned long)duration * frequency * dutyCycle + 500) / 1000;
