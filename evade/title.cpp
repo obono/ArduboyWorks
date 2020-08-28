@@ -100,20 +100,9 @@ void drawTitle(void)
 static void handleTop(void)
 {
     if (record.simpleMode) {
-        if (arduboy.buttonPressed(DOWN_BUTTON)) {
-            if (counter < FPS + 8) counter++;
-        } else {
-            counter = (counter >= FPS) ? 0 : 1;
-        }
-        if (counter >= FPS) {
-            if (arduboy.buttonDown(A_BUTTON)) {
-                setSound(!arduboy.isAudioEnabled());
-                playSoundClick();
-            }
-            if (arduboy.buttonDown(B_BUTTON)) onSettings();
-        } else {
-            if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) onStart();
-        }
+        SIMPLE_OP_T op = handleSimpleMode();
+        if (op == SIMPLE_OP_START) onStart();
+        if (op == SIMPLE_OP_SETTINGS) onSettings();
     } else {
         handleMenu();
     }
@@ -257,15 +246,7 @@ static void drawTop(void)
         arduboy.printEx(16, 20, F("DEBUG"));
 #endif
     }
-    if (record.simpleMode) {
-        if (counter == 0) {
-            arduboy.fillRect(0, 56, WIDTH, 8, BLACK);
-        } else if (counter >= FPS) {
-            drawSimpleModeInstruction(HEIGHT - (counter - FPS));
-        }
-    } else {
-        drawMenuItems(isInvalid);
-    }
+    (record.simpleMode) ? drawSimpleModeInstruction() : drawMenuItems(isInvalid);
 }
 
 static void drawSettings(void)

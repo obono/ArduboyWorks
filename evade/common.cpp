@@ -40,6 +40,7 @@ static void     eepWriteBlock(const void *p, size_t n);
 
 static RECORD_STATE_T   recordState = RECORD_NOT_READ;
 static int16_t          eepAddr;
+static bool             isInvalidInst;
 
 /*---------------------------------------------------------------------------*/
 /*                             Common Functions                              */
@@ -149,10 +150,47 @@ void drawTime(int16_t x, int16_t y, uint32_t frames)
     }
 }
 
-void drawSimpleModeInstruction(int16_t y)
+SIMPLE_OP_T handleSimpleMode(void)
 {
-    arduboy.printEx(1, y, F("A:SOUND     B:SETTING"));
-    arduboy.printEx(49, y, arduboy.audio.enabled() ? F("ON") : F("OFF"));
+    SIMPLE_OP_T op = SIMPLE_OP_NONE;
+    if (arduboy.buttonPressed(DOWN_BUTTON)) {
+        if (counter < FPS + 16) {
+            counter++; // TODO
+            isInvalidInst = (counter > FPS);
+        }
+    } else {
+        isInvalidInst = (counter > FPS);
+        counter = 0;
+    }
+    if (counter > FPS) {
+        if (arduboy.buttonDown(A_BUTTON)) {
+            setSound(!arduboy.isAudioEnabled());
+            playSoundClick();
+            isInvalidInst = true;
+            op = SIMPLE_OP_SOUND;
+        } 
+        if (arduboy.buttonDown(B_BUTTON)) op = SIMPLE_OP_SETTINGS;
+    } else {
+        if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) op = SIMPLE_OP_START;
+    }
+    return op;
+}
+
+void drawSimpleModeInstruction(void)
+{
+    if (!isInvalid && isInvalidInst) {
+        arduboy.fillRect(0, 48, WIDTH, 16, BLACK);
+    }
+    if (isInvalid || isInvalidInst) {
+        if (counter <= FPS) {
+            arduboy.printEx(25, 48, F("PRESS[A]OR[B]"));
+        } else {
+            int16_t y = HEIGHT - (counter - FPS);
+            arduboy.printEx(1, y, F("A:SOUND     B:SETTING"));
+            arduboy.printEx(49, y, arduboy.audio.enabled() ? F("ON") : F("OFF"));
+        }
+    }
+    isInvalidInst = false;
 }
 
 /*---------------------------------------------------------------------------*/

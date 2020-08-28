@@ -8,13 +8,20 @@
 #define FPS             60
 #define APP_TITLE       "EVADE"
 #define APP_CODE        "OBN-Y14"
-#define APP_VERSION     "0.02"
+#define APP_VERSION     "0.03"
 #define APP_RELEASED    "AUGUST 2020"
 
 enum MODE_T : uint8_t {
     MODE_LOGO = 0,
     MODE_TITLE,
     MODE_GAME,
+};
+
+enum SIMPLE_OP_T : uint8_t {
+    SIMPLE_OP_NONE = 0,
+    SIMPLE_OP_START,
+    SIMPLE_OP_SOUND,
+    SIMPLE_OP_SETTINGS,
 };
 
 /*  Typedefs  */
@@ -38,7 +45,8 @@ void    writeRecord(void);
 void    clearRecord(void);
 void    handleDPad(void);
 void    drawTime(int16_t x, int16_t y, uint32_t frames);
-void    drawSimpleModeInstruction(int16_t y);
+SIMPLE_OP_T handleSimpleMode(void);
+void    drawSimpleModeInstruction(void);
 
 void    setSound(bool on);
 void    playSoundTick(void);
