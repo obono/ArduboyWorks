@@ -8,7 +8,7 @@
 #define FPS             60
 #define APP_TITLE       "EVADE"
 #define APP_CODE        "OBN-Y14"
-#define APP_VERSION     "0.03"
+#define APP_VERSION     "0.10"
 #define APP_RELEASED    "AUGUST 2020"
 
 enum MODE_T : uint8_t {
@@ -45,6 +45,8 @@ void    writeRecord(void);
 void    clearRecord(void);
 void    handleDPad(void);
 void    drawTime(int16_t x, int16_t y, uint32_t frames);
+void    drawBitmapWithMask(int16_t x, int16_t y, const uint8_t *bitmap, uint8_t w, uint8_t h);
+void    drawBitmapBordered(int16_t x, int16_t y, const uint8_t *bitmap, uint8_t w, uint8_t h);
 SIMPLE_OP_T handleSimpleMode(void);
 void    drawSimpleModeInstruction(void);
 

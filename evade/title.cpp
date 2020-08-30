@@ -12,13 +12,29 @@ enum STATE_T : uint8_t {
     STATE_TOP,
     STATE_SETTINGS,
     STATE_CREDIT,
+    STATE_NOTICE,
     STATE_STARTED,
 };
 
+#define IMG_TITLE_W     78
+#define IMG_TITLE_H     24
+#define IMG_GUYPART_H   16
+#define IMG_BUTTON_W    7
+#define IMG_BUTTON_H    7
+
+/*  Typedefs  */
+
+typedef struct {
+    const uint8_t *bitmap;
+    uint8_t offsetX, width;
+} GUYPART_T;
+
 /*  Local Functions  */
 
+static void handleInit(void);
 static void handleTop(void);
 static void handleSettings(void);
+static void handleNotice(void);
 static void handleAnyButton(void);
 
 static void onTop(void);
@@ -31,36 +47,100 @@ static void onMenuDensity(void);
 static void onMenuThickness(void);
 static void onMenuSimpleMode(void);
 
+static void drawInit(void);
 static void drawTop(void);
 static void drawSettings(void);
 static void drawCredit(void);
+static void drawNotice(void);
+
+static void drawGuy(int16_t x);
 static void drawText(const char *p, int lines);
 
 /*  Local Functions (macros)  */
 
 #define callHandlerFunc(n)  ((void (*)(void)) pgm_read_ptr(handlerFuncTable + n))()
 #define callDrawerFunc(n)   ((void (*)(void)) pgm_read_ptr(drawerFuncTable + n))()
+#define getGameSettings()   (*((uint16_t *)&record) & 0xFFF) // trick!
 
 /*  Local Variables  */
 
-PROGMEM static const uint8_t imgTitle[] = { // TODO
+PROGMEM static const uint8_t imgTitle[] = { // 78x24
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0xC0, 0xC0, 0x80,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xE0, 0xF0, 0xF0, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0xC0, 0xC0, 0xC0, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0xC0, 0xC0, 0x80, 0x00, 0x03,
+    0x03, 0xFF, 0xFF, 0xFF, 0xC1, 0x61, 0x61, 0x61, 0x60, 0x60, 0x60, 0x60, 0x00, 0x00, 0x00, 0x01,
+    0x0F, 0x3F, 0xFE, 0xF0, 0x80, 0x00, 0x00, 0x80, 0xE0, 0xF8, 0x7E, 0x1F, 0x07, 0x01, 0x00, 0x00,
+    0xC0, 0xF8, 0xFE, 0xBF, 0x87, 0x81, 0x87, 0xFF, 0xFF, 0xF0, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF,
+    0xFF, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x03, 0xC7, 0xFE, 0xFC, 0x38, 0x00, 0x03, 0x03, 0xFF,
+    0xFF, 0xFF, 0xC1, 0x61, 0x61, 0x61, 0x60, 0x60, 0x60, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7F,
+    0x7F, 0x7F, 0x60, 0x60, 0x60, 0x60, 0x20, 0x30, 0x30, 0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x01, 0x0F, 0x3F, 0x78, 0x7E, 0x3F, 0x07, 0x01, 0x00, 0x00, 0x00, 0x00, 0x70, 0xFE, 0xFF, 0x07,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x3F, 0x3F, 0x30, 0x00, 0x00, 0x7F, 0x7F, 0x7F, 0x20,
+    0x30, 0x30, 0x38, 0x1C, 0x0E, 0x07, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7F, 0x7F, 0x7F,
+    0x60, 0x60, 0x60, 0x60, 0x20, 0x30, 0x30, 0x10, 0x10, 0x00
+};
+
+
+PROGMEM static const uint8_t imgGuyPart0[] = { // 36x16  +2
+    0x00, 0x00, 0x60, 0xA0, 0x2C, 0x14, 0x08, 0x0F, 0x01, 0x02, 0x1C, 0x08, 0x08, 0x34, 0x4C, 0x20,
+    0x10, 0xF0, 0xC0, 0x60, 0x30, 0xF8, 0xF8, 0xF8, 0xFC, 0x7C, 0xBC, 0x78, 0xB0, 0x70, 0xB0, 0xD0,
+    0xE0, 0xE0, 0xC0, 0x00, 0x02, 0x46, 0xA9, 0x30, 0x00, 0x00, 0x00, 0x00, 0x80, 0x80, 0x80, 0x00,
+    0x00, 0x00, 0xC0, 0xE0, 0xE0, 0x00, 0x00, 0xA4, 0xF7, 0xFB, 0x7F, 0xFF, 0xFF, 0xFE, 0xFE, 0xFE,
+    0xFC, 0xF8, 0xF9, 0xF3, 0xE7, 0xE7, 0xC3, 0x80
+};
+
+PROGMEM static const uint8_t imgGuyPart1[] = { // 46x16  +0
+    0xE0, 0xF0, 0xF0, 0xF0, 0xE0, 0xE1, 0xC1, 0x02, 0x87, 0x07, 0x07, 0x0F, 0x1F, 0x19, 0x1F, 0x1F,
+    0x1F, 0x0F, 0x07, 0x02, 0x03, 0x02, 0x85, 0xCA, 0xF5, 0xEE, 0xF7, 0xFF, 0xFF, 0xFF, 0x7F, 0xBF,
+    0x5F, 0xAF, 0x5F, 0xBF, 0xDF, 0xFF, 0x7F, 0x7E, 0x3C, 0x38, 0xB0, 0x80, 0x00, 0x00, 0x01, 0x01,
+    0x03, 0x03, 0x03, 0x05, 0x06, 0x0F, 0x0F, 0x1F, 0x1F, 0x3E, 0x3E, 0x7E, 0x7E, 0xFE, 0xFC, 0xFC,
+    0xF8, 0xF8, 0xFE, 0xFF, 0xFF, 0x7F, 0x3F, 0x9F, 0xCF, 0xC7, 0xE3, 0xE1, 0xE5, 0xF2, 0x75, 0xF2,
+    0xF9, 0xF9, 0x7C, 0xFC, 0xFE, 0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC, 0x80
+};
+
+PROGMEM static const uint8_t imgGuyPart2[] = { // 47x16  +16
+    0x00, 0x00, 0x01, 0x81, 0xE1, 0xF1, 0xF8, 0xFC, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F,
+    0x3F, 0x9E, 0x4D, 0x82, 0x45, 0x8B, 0x9F, 0x3F, 0x5F, 0xBF, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE,
+    0xFC, 0xF8, 0xF0, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x70,
+    0x7C, 0xFF, 0xFF, 0x7F, 0x7F, 0x7F, 0x3F, 0x3F, 0x1F, 0x1F, 0x1F, 0x0F, 0x0D, 0x06, 0x06, 0x07,
+    0x06, 0x03, 0x03, 0x07, 0x07, 0x07, 0x07, 0x0E, 0x0C, 0x09, 0x02, 0x05, 0x0B, 0x05, 0x0B, 0x17,
+    0x2F, 0x5F, 0x3F, 0x7F, 0xFE, 0x7E, 0xFC, 0xFC, 0xFC, 0xF8, 0xF8, 0xF0, 0xC0, 0x80
+};
+
+PROGMEM static const uint8_t imgGuyPart3[] = { // 15x16  +56
+    0x01, 0x02, 0x05, 0x03, 0x07, 0x0F, 0x17, 0x2F, 0xD0, 0xFE, 0xFE, 0xFE, 0xFC, 0xC0, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1E, 0x3D, 0x3F, 0x3F, 0x1F, 0x0F
+};
+
+PROGMEM static const GUYPART_T guyPartTable[] = {
+    { imgGuyPart0, 2, 36 }, { imgGuyPart1, 0, 46 }, { imgGuyPart2, 16, 47 }, { imgGuyPart3, 56, 15 }
+};
+
+PROGMEM static const uint8_t imgButton[2][7] = { // 7x7 x2
+    { 0x3E, 0x47, 0x6B, 0x6D, 0x6D, 0x41, 0x3E }, { 0x3E, 0x41, 0x55, 0x55, 0x51, 0x65, 0x3E }
 };
 
 PROGMEM static const char creditText[] = \
         "- " APP_TITLE " -\0\0\0" APP_RELEASED "\0PROGREMMED BY OBONO\0\0" \
         "THIS PROGRAM IS\0RELEASED UNDER\0THE MIT LICENSE.\0\e";
 PROGMEM static const char accelText[] = "OFF \0SLOW\0FAST";
+PROGMEM static const char noticeText[] = \
+        "[SIMPLE MODE]\0\0\0IN THIS MODE,\0YOU CAN ACCESS\0THE SETTINGS BY\0" \
+        "HOLDING D-PAD DOWN.\0\0  OK    CANCEL\0\e";
 
 PROGMEM static void(*const handlerFuncTable[])(void) = {
-    NULL, handleTop, handleSettings, handleAnyButton
+    handleInit, handleTop, handleSettings, handleAnyButton, handleNotice
 };
 
 PROGMEM static void(*const drawerFuncTable[])(void) = {
-    NULL, drawTop, drawSettings, drawCredit
+    drawInit, drawTop, drawSettings, drawCredit, drawNotice
 };
 
 static STATE_T  state = STATE_INIT;
-static bool     isSettingChenged;
+static uint16_t lastSettings;
+static bool     lastSimpleMode, isSettingChenged;
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -69,9 +149,8 @@ static bool     isSettingChenged;
 void initTitle(void)
 {
     if (state == STATE_INIT) {
-        // do nothing?
-    }
-    if (record.simpleMode && state == STATE_STARTED) {
+        counter = 0;
+    } else if (record.simpleMode && state == STATE_STARTED) {
         onSettings();
     } else {
         onTop();
@@ -96,6 +175,12 @@ void drawTitle(void)
 /*---------------------------------------------------------------------------*/
 /*                             Control Functions                             */
 /*---------------------------------------------------------------------------*/
+
+static void handleInit(void)
+{
+    if (++counter >= FPS) onTop();
+    isInvalid = true;
+}
 
 static void handleTop(void)
 {
@@ -127,11 +212,17 @@ static void handleSettings(void)
         onMenuSimpleMode();
     }
     handleMenu();
-    if (isSettingChenged) {
-        record.hiscore = 0;
-        isRecordDirty = true;
-    }
     if (arduboy.buttonDown(UP_BUTTON | DOWN_BUTTON)) isSettingChenged = true;
+}
+
+static void handleNotice(void)
+{
+    if (arduboy.buttonDown(A_BUTTON)) {
+        onTop();
+    } else if (arduboy.buttonDown(B_BUTTON)) {
+        record.simpleMode = false;
+        onSettings();
+    }
 }
 
 static void handleAnyButton(void)
@@ -149,16 +240,26 @@ static void handleAnyButton(void)
 
 static void onTop(void)
 {
-    if (state == STATE_SETTINGS) {
-        writeRecord();
+    if (state == STATE_SETTINGS || state == STATE_NOTICE) {
         playSoundClick();
+        if (state == STATE_SETTINGS && record.simpleMode && !lastSimpleMode) {
+            state = STATE_NOTICE;
+            isInvalid = true;
+            return;
+        }
+        if (getGameSettings() != lastSettings) {
+            record.hiscore = 0;
+            isRecordDirty = true;
+        }
+        if (record.simpleMode != lastSimpleMode) isRecordDirty = true;
+        writeRecord();
     }
     clearMenuItems();
     addMenuItem(F("GAME START"), onStart);
     addMenuItem(F("SETTINGS"), onSettings);
     addMenuItem(F("CREDIT"), onCredit);
     setMenuItemPos((state == STATE_SETTINGS) ? 1 : 0);
-    setMenuCoords(22, 46, 83, 18, false, true);
+    setMenuCoords(56, 2, 72, 17, false, true);
     counter = 0;
     state = STATE_TOP;
     isInvalid = true;
@@ -181,8 +282,12 @@ static void onSettings(void)
     addMenuItem(F("THICKNESS"), onMenuThickness);
     addMenuItem(F("SIMPLE MODE"), onMenuSimpleMode);
     addMenuItem(F("EXIT"), onTop);
-    setMenuItemPos(0);
+    setMenuItemPos((state == STATE_NOTICE) ? 4 : 0);
     setMenuCoords(10, 8, 112, 35, false, false);
+    if (state != STATE_NOTICE) {
+        lastSettings = getGameSettings();
+        lastSimpleMode = record.simpleMode;
+    }
     state = STATE_SETTINGS;
     isInvalid = true;
     isSettingChenged = true;
@@ -236,14 +341,32 @@ static void onMenuSimpleMode(void)
 /*                              Draw Functions                               */
 /*---------------------------------------------------------------------------*/
 
+static void drawInit(void)
+{
+    int16_t guyX = 0;
+    if (counter < FPS / 2) {
+        int16_t tmp = FPS / 2 - counter;
+        guyX = tmp * tmp / 7;
+    }
+    drawGuy(guyX);
+    if (counter >= FPS / 2) {
+        int16_t tmp = FPS - counter;
+        int16_t x = WIDTH - IMG_TITLE_W - tmp * tmp / 7;
+        drawBitmapBordered(x, 16, imgTitle, IMG_TITLE_W, IMG_TITLE_H);
+    }
+}
+
 static void drawTop(void)
 {
     if (isInvalid) {
-        //arduboy.drawBitmap(0, 0, imgTitle, IMG_TITLE_W, IMG_TITLE_H, WHITE);
-        arduboy.printEx(16, 8, F(APP_TITLE));
-        arduboy.printEx(16, 14, F("TITLE SCREEN"));
+        drawGuy(0);
+        arduboy.drawBitmap(WIDTH - IMG_TITLE_W, 16, imgTitle, IMG_TITLE_W, IMG_TITLE_H);
+        if (record.hiscore > 0) {
+            arduboy.printEx(0, 50, F("HI:"));
+            arduboy.print(record.hiscore / 6);
+        }
 #ifdef DEBUG
-        arduboy.printEx(16, 20, F("DEBUG"));
+        arduboy.printEx(98, 40, F("DEBUG"));
 #endif
     }
     (record.simpleMode) ? drawSimpleModeInstruction() : drawMenuItems(isInvalid);
@@ -289,7 +412,30 @@ static void drawSettings(void)
 
 static void drawCredit(void)
 {
-    drawText(creditText, 11);
+    if (isInvalid) drawText(creditText, 11);
+}
+
+static void drawNotice(void)
+{
+    if (isInvalid) {
+        arduboy.drawRect(2, 7, 123, 49, WHITE);
+        drawText(noticeText, 11);
+        for (int i = 0; i < 2; i++) {
+            arduboy.drawBitmap(21 + i * 36, 46, imgButton[i], IMG_BUTTON_W, IMG_BUTTON_H);
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------*/
+
+static void drawGuy(int16_t x)
+{
+    GUYPART_T guyPart;
+    for (int i = 0; i < 4; i++) {
+        memcpy_P(&guyPart, guyPartTable + i, sizeof(GUYPART_T));
+        arduboy.drawBitmap(x + guyPart.offsetX, IMG_GUYPART_H * i, guyPart.bitmap,
+                guyPart.width, IMG_GUYPART_H);
+    }
 }
 
 static void drawText(const char *p, int16_t y)

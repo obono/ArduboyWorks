@@ -1,7 +1,8 @@
 {
 	"title": "Evade",
-	"description": "Description (TODO)",
+	"extraNote": "for Game Jam 5.0",
+	"description": "Control the runing guy and evade pillars.",
 	"genre": "Action",
-	"url": "Url (TODO)",
+	"url": "https://community.arduboy.com/t/evade-a-simple-action-game/9226",
 	"dependence": "Arduboy2 Library 5.2.1"
 }

@@ -82,10 +82,6 @@ static void     fillDitheredRect(int16_t x, int16_t y, uint8_t w, int8_t h, uint
 
 /*  Local Variables  */
 
-PROGMEM static const uint8_t ditherPatterns[] = { // 8 grades
-    0x11, 0x00, 0x55, 0x00, 0x55, 0x22, 0x55, 0xAA, 0x77, 0xAA, 0xFF, 0xAA, 0xFF, 0xBB, 0xFF, 0xFF
-};
-
 PROGMEM static void(*const handlerFuncTable[])(void) = {
     handleStart, handlePlaying, handleDeath, handleOver, handleMenu
 };
@@ -108,7 +104,7 @@ static bool     isHiscore;
 
 void initGame(void)
 {
-    dprintln(F("Initalize game"))
+    dprintln(F("Initalize game"));
     arduboy.playScore(soundStart, SND_PRIO_START);
     initObjects();
     score = 0;
@@ -351,10 +347,10 @@ static void onQuit(void)
 
 static void drawStart(void)
 {
+    arduboy.drawBitmap((WIDTH - IMG_READY_W) / 2, 16, imgReady, IMG_READY_W, IMG_READY_H); 
     int16_t y = (counter * counter >> 5) - IMG_PLAYER_H;
     if (y > PLAYER_DY) y = PLAYER_DY;
     drawPlayer(PLAYER_DX, y, (y == PLAYER_DY));
-    arduboy.printEx(46, 29, F("READY?"));
 }
 
 static void drawPlaying(void)
@@ -372,8 +368,9 @@ static void drawDeath(void)
 {
     drawPillars();
     drawDotsDeath();
-    int16_t g = counter - JUMP_FRAMES;
-    drawPlayer(PLAYER_DX + shakeX, (g * g >> 4) + 23 + shakeY, 11 + (counter >= JUMP_FRAMES));
+    int16_t tmp = counter - JUMP_FRAMES;
+    int16_t y = (tmp * tmp >> 4) + 23;
+    drawPlayer(PLAYER_DX + shakeX, y + shakeY, 11 + (counter >= JUMP_FRAMES));
     drawScore();
 }
 
@@ -387,7 +384,8 @@ static void drawOver(void)
         arduboy.printEx(0, 14, "HI:");
         arduboy.print(record.hiscore / 6);
     }
-    arduboy.printEx(37, 29, F("GAME OVER"));
+    drawBitmapBordered((WIDTH - IMG_GAMEOVER_W) / 2, 16, imgGameOver,
+            IMG_GAMEOVER_W, IMG_GAMEOVER_H); 
     if (record.simpleMode) drawSimpleModeInstruction();
 }
 
@@ -413,8 +411,7 @@ static void drawPillars(void)
 
 static void drawPlayer(int16_t x, int16_t y, uint8_t idx)
 {
-    arduboy.drawBitmap(x, y, imgPlayerMask[idx], IMG_PLAYER_W, IMG_PLAYER_H, BLACK);
-    arduboy.drawBitmap(x, y, imgPlayer[idx], IMG_PLAYER_W, IMG_PLAYER_H);
+    drawBitmapWithMask(x, y, imgPlayer[idx][0], IMG_PLAYER_W, IMG_PLAYER_H);
 }
 
 static void drawDotsPlaying(void)
@@ -443,7 +440,15 @@ static void drawDotsDeath(void)
 
 static void drawScore(void)
 {
-    arduboy.printEx(0, 0, score / 6);
+    uint16_t tmp = score / 6;
+    uint8_t figures[4], digit = 0;
+    do {
+        figures[digit++] = tmp % 10;
+        tmp /= 10;
+    } while (tmp > 0);
+    for (int16_t x = 0; digit > 0; x += IMG_FIGURE_W) {
+        drawBitmapWithMask(x, 0, imgFigure[figures[--digit]][0], IMG_FIGURE_W, IMG_FIGURE_H);
+    }
 }
 
 static void fillDitheredRect(int16_t x, int16_t y, uint8_t w, int8_t h, uint8_t dither)
