@@ -59,6 +59,10 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * Avoid voluminous bullets and defeat enemy squadron in one minute.
   * Depends on Arduboy2 Library 5.2.1\
     ![title](docs/img/ardubullets1.gif) ![playing](docs/img/ardubullets2.gif)
+* OBN-Y14 [Evade](https://community.arduboy.com/t/evade-a-simple-action-game/9226) (for Game Jam 5.0)
+  * Control the runing guy and evade pillars.
+  * Depends on Arduboy2 Library 5.2.1\
+    ![title](docs/img/evade1.gif) ![playing](docs/img/evade2.gif)
 
 ## License
 
