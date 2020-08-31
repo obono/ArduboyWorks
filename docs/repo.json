@@ -410,36 +410,36 @@
 			"nickName": "ardubullets"
 		},
 		{
-			"title": "Evade",
+			"title": "Evasion",
 			"extraNote": "for Game Jam 5.0",
 			"description": "Control the runing guy and evade pillars.",
 			"genre": "Action",
-			"url": "https://community.arduboy.com/t/evade-a-simple-action-game/9226",
+			"url": "https://community.arduboy.com/t/evasion-a-simple-action-game/9226",
 			"dependence": "Arduboy2 Library 5.2.1",
 			"version": "0.10",
-			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/evade",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/evasion",
 			"author": "OBONO",
 			"binaries": [
 				{
-					"title": "Evade",
-					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/evade_v0.10.hex",
+					"title": "Evasion",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/evasion_v0.10.hex",
 					"device": "Arduboy"
 				}
 			],
 			"screenshots": [
 				{
-					"filename": "https://obono.github.io/ArduboyWorks/img/evade2.gif",
+					"filename": "https://obono.github.io/ArduboyWorks/img/evasion2.gif",
 					"title": "Game screen"
 				},
 				{
-					"filename": "https://obono.github.io/ArduboyWorks/img/evade1.gif",
+					"filename": "https://obono.github.io/ArduboyWorks/img/evasion1.gif",
 					"title": "Title screen"
 				}
 			],
 			"license": "MIT",
 			"arduboy": "",
 			"codeName": "OBN-Y14",
-			"nickName": "evade"
+			"nickName": "evasion"
 		}
 	]
 }
