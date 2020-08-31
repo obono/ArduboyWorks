@@ -6,7 +6,7 @@
 
 //#define DEBUG
 #define FPS             60
-#define APP_TITLE       "EVADE"
+#define APP_TITLE       "EVASION"
 #define APP_CODE        "OBN-Y14"
 #define APP_VERSION     "0.10"
 #define APP_RELEASED    "AUGUST 2020"
