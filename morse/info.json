@@ -1,0 +1,7 @@
+{
+	"title": "Morse Code Trainer",
+	"description": "Decode Morse code to Alphabet or Japanese letters.",
+	"genre": "Education",
+	"url": "T.B.D.",
+	"dependence": "Arduboy2 Library 5.2.1"
+}
