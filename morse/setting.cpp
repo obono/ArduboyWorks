@@ -3,6 +3,7 @@
 /*  Local Functions  */
 
 static void changeSetting(uint8_t pos, int8_t v, bool isDown);
+static void changeSettingCommon(void);
 static void onExit(void);
 static void onDecodeMode(void);
 static void onTestSignal(void);
@@ -47,10 +48,11 @@ void initSetting(void)
 MODE_T updateSetting(void)
 {
     nextMode = MODE_SETTING;
+    handleDPad();
+    if (counter > 0) padY = 0;
     if (arduboy.buttonDown(A_BUTTON)) {
         onExit();
     } else {
-        handleDPad();
         handleMenu();
         changeSetting(getMenuItemPos(), padX, arduboy.buttonDown(LEFT_BUTTON | RIGHT_BUTTON));
         if (padY != 0) isSettingChanged = true;
@@ -94,44 +96,42 @@ static void changeSetting(uint8_t pos, int8_t v, bool isDown)
             if (v != 0) {
                 record.unitFrames = circulate(record.unitFrames, -v, UNIT_FRAMES_MAX);
                 if (record.unitFrames == 9 || record.unitFrames == 11) record.unitFrames -= v;
-                playSoundTick();
-                isSettingChanged = true;
-                isRecordDirty = true;
+                changeSettingCommon();
             }
             break;
         case 3: // Sound
             if (isDown) {
                 arduboy.toggleAudioEnabled();
-                playSoundTick();
-                isSettingChanged = true;
-                isRecordDirty = true;
+                changeSettingCommon();
             }
             break;
         case 4: // Tone Freq
             if (v != 0) {
                 record.toneFreq = circulate(record.toneFreq, v, TONE_FREQ_MAX);
-                playSoundTick();
-                isSettingChanged = true;
-                isRecordDirty = true;
+                if (record.toneFreq > 40 && (record.toneFreq & 1)) record.toneFreq += v;
+                changeSettingCommon();
             }
             break;
         case 5: // LED
             if (isDown) {
                 record.led = circulate(record.led, v, LED_MAX);
-                playSoundTick();
-                isSettingChanged = true;
-                isRecordDirty = true;
+                changeSettingCommon();
             }
             break;
         case 6: // LED Color
             if (v != 0) {
                 record.ledColor = circulate(record.ledColor, v, LED_COLOR_MAX);
-                playSoundTick();
-                isSettingChanged = true;
-                isRecordDirty = true;
+                changeSettingCommon();
             }
             break;
     }
+}
+
+static void changeSettingCommon(void)
+{
+    if (counter == 0) playSoundTick();
+    isSettingChanged = true;
+    isRecordDirty = true;
 }
 
 static void onExit(void)
@@ -144,9 +144,7 @@ static void onExit(void)
 static void onDecodeMode(void)
 {
     record.decodeMode++;
-    playSoundTick();
-    isSettingChanged = true;
-    isRecordDirty = true;
+    changeSettingCommon();
 }
 
 static void onTestSignal(void)

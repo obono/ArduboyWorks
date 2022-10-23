@@ -28,6 +28,7 @@ public:
     void    toggleAudioEnabled(void);
     void    saveAudioOnOff(void);
     void    playTone(uint16_t frequency, uint16_t duration, uint8_t priority = 0xFF, uint8_t dutyCycle = 2);
+    void    stopTone(void);
     void    playScore(const byte *score, uint8_t priority = 0, int8_t pitch = 0);
     void    stopScore(void);
 

@@ -8,7 +8,7 @@
 #define FPS             60
 #define APP_TITLE       "MORSE CODE TRAINER"
 #define APP_CODE        "OBN-Y15"
-#define APP_VERSION     "0.01"
+#define APP_VERSION     "0.02"
 #define APP_RELEASED    "OCTOBER 2022"
 
 #define UNIT_FRAMES_MAX 13
@@ -18,6 +18,7 @@
 enum MODE_T : uint8_t {
     MODE_LOGO = 0,
     MODE_CONSOLE,
+    MODE_LIST,
     MODE_SETTING,
     MODE_CREDIT,
 };
@@ -42,7 +43,7 @@ typedef struct {
     uint8_t decodeMode:1;
     uint8_t led:2;
     uint8_t ledColor:4;
-    uint8_t toneFreq;
+    uint8_t toneFreq:7;
     uint8_t dummy[7];
 } RECORD_T; // sizeof(RECORD_T) is 10 bytes
 
@@ -54,7 +55,7 @@ void    clearRecord(void);
 void    handleDPad(void);
 void    drawTime(int16_t x, int16_t y, uint32_t frames);
 void    drawButtonIcon(int16_t x, int16_t y, bool isB);
-void    drawMorseCode(int16_t x, int16_t y, uint16_t code);
+uint8_t drawMorseCode(int16_t x, int16_t y, uint16_t code);
 void    indicateSignalOn(void);
 void    indicateSignalOff(void);
 
@@ -93,6 +94,10 @@ void    drawLogo(void);
 void    initConsole(void);
 MODE_T  updateConsole(void);
 void    drawConsole(void);
+
+void    initList(void);
+MODE_T  updateList(void);
+void    drawList(void);
 
 void    initSetting(void);
 MODE_T  updateSetting(void);

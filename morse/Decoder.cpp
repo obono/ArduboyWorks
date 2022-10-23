@@ -46,7 +46,7 @@ PROGMEM static const char basicTableJA[] = {
 };
 
 PROGMEM static const CODE_T extendedTableJA[] = {
-    { 82,  ')' }, { 84,  '\n'}, { 85,  ',' }, { 109, '(' }, { 0,   '\0'},
+    { 82,  ')' }, { 84,  '\n'}, { 85, 0x93 }, { 109, '(' }, { 0,   '\0'},
 };
 
 /*---------------------------------------------------------------------------*/
@@ -55,6 +55,7 @@ void Decoder::reset(uint8_t frames, uint8_t mode)
 {
     unitFrames = frames;
     isJapanese = (mode == DECODE_MODE_JA);
+    isParenthesisOpen = false;
     forceStable();
 }
 
@@ -86,6 +87,8 @@ char Decoder::appendSignal(bool isSignalOn)
         if (stateCounter == thresholdLong(unitFrames)) {
             ret = getCandidate();
             if (ret >= '\0' && ret < ' ') stateCounter = COUNTER_MAX;
+            if (ret == '(') isParenthesisOpen = true;
+            if (ret == ')') isParenthesisOpen = false;
             currentCode = CODE_INITIAL;
         } else if (stateCounter == thresholdBreak(unitFrames)) {
             ret = ' ';
@@ -103,20 +106,26 @@ uint16_t Decoder::getCurrentCode(void)
 
 char Decoder::getCandidate(void)
 {
+    char ret = '\0';
+
     if (currentCode < 64) {
-        const char *pTable = (isJapanese) ? basicTableJA : basicTableEN;
-        return pgm_read_byte(pTable + currentCode);
+        const char *pTable = (isJapanese && !isParenthesisOpen) ? basicTableJA : basicTableEN;
+        ret = pgm_read_byte(pTable + currentCode);
+        if (isJapanese && isParenthesisOpen &&
+                !(ret >= '0' && ret <= '9' || ret >= 'A' && ret <= 'Z')) ret = '\0';
     } else if (currentCode < 128) {
         const CODE_T *pTable = (isJapanese) ? extendedTableJA : extendedTableEN;
         uint8_t code;
         while ((code = pgm_read_byte(&pTable->code)) > 0) {
             if (code == currentCode) {
-                return pgm_read_byte(&pTable->letter);
+                ret = pgm_read_byte(&pTable->letter);
+                break;
             }
             pTable++;
         }
     } else if (!isJapanese && currentCode == 256) {
-        return '\b';
+        ret = '\b';
     }
-    return '\0';
+
+    return ret;
 }

@@ -18,7 +18,7 @@ public:
     char        getCandidate(void);
 
 private:
-    uint16_t    currentCode;
     uint8_t     unitFrames, stateCounter;
+    uint16_t    currentCode;
     bool        isLastSignalOn, isJapanese, isParenthesisOpen;
 };

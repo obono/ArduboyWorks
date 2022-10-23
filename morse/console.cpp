@@ -18,10 +18,19 @@ static void lineFeed(void);
 static void setupMenu(void);
 static void onContinue(void);
 static void onClear(void);
+static void onList(void);
 static void onSettings(void);
 static void onCredit(void);
 
 static void drawConsoleLetters(void);
+static void drawDottedLine(uint8_t x, uint8_t y, uint8_t w);
+
+/*  Local Constants  */
+
+PROGMEM static const char welcomeEN[] = APP_TITLE "\0(A) MENU\0(B) SIGNAL ON";
+PROGMEM static const char welcomeJP[] =
+        "\x8C\x92\x6A\x8E \x7F\x80\x90\x77 \x70\x8F\x89\x86\x77\x85\0"
+        "(A) \x87\x63\x86\x92\0(B) \x89\x8F\x80\x90\x77 \x7A\x8F";
 
 /*  Local Variables  */
 
@@ -40,9 +49,12 @@ void initConsole(void)
 {
     if (isFirst) {
         clearConsole();
-        strcpy_P(letters[0], (const char *)F(APP_TITLE));
-        strcpy_P(letters[1], (const char *)F("(A):MENU"));
-        strcpy_P(letters[2], (const char *)F("(B):SIGNAL ON"));
+        const char *p = (record.decodeMode == DECODE_MODE_JA) ? welcomeJP : welcomeEN;
+        for (uint8_t i = 0; i < 3; i++) {
+            size_t len = strnlen_P(p, CONSOLE_W);
+            memcpy_P(letters[i], p, len);
+            p += len + 1;
+        }
         consoleY = 4;
         isFirst = false;
     }
@@ -56,13 +68,13 @@ void initConsole(void)
 MODE_T updateConsole(void)
 {
     nextMode = MODE_CONSOLE;
+    handleDPad();
     if (isIgnoreButton) {
         isIgnoreButton = (arduboy.buttonsState() > 0);
     } else if (isMenuActive) {
         if (arduboy.buttonDown(A_BUTTON)) {
             onContinue();
         } else {
-            handleDPad();
             handleMenu();
         }
     } else {
@@ -105,7 +117,7 @@ static void handleSignal(void)
     char decodedChar = decoder.appendSignal(isSignalOn);
 
     if (!isSignalOn && decoder.getCurrentCode() == CODE_INITIAL) {
-        if (arduboy.buttonDown(UP_BUTTON)) {
+        if (padY < 0) { // arduboy.buttonDown(UP_BUTTON)
             decoder.forceStable();
             decodedChar = '\b';
             playSoundTick();
@@ -134,7 +146,6 @@ static void handleSignal(void)
         } else {
             appendLetter(decodedChar);
         }
-        isInvalid = true;
     }
 }
 
@@ -164,6 +175,7 @@ static void lineFeed(void)
     if (consoleY == CONSOLE_H - 1) {
         memcpy(letters[0], letters[1], sizeof(letters[0]) * (CONSOLE_H - 1));
         memset(letters[CONSOLE_H - 1], 0, sizeof(letters[0]));
+        isInvalid = true;
     } else {
         consoleY++;
     }
@@ -174,9 +186,10 @@ static void setupMenu(void)
     clearMenuItems();
     addMenuItem(F("CONTINUE"), onContinue);
     addMenuItem(F("CLEAR"), onClear);
+    addMenuItem(F("CODE LIST"), onList);
     addMenuItem(F("SETTINGS"), onSettings);
     addMenuItem(F("CREDIT"), onCredit);
-    setMenuCoords(19, 20, 89, 23, true);
+    setMenuCoords(19, 17, 89, 29, true);
     setMenuItemPos(0);
     playSoundClick();
     isMenuActive = true;
@@ -200,6 +213,12 @@ static void onClear(void)
     isInvalid = true;
 }
 
+static void onList(void)
+{
+    playSoundClick();
+    nextMode = MODE_LIST;
+}
+
 static void onSettings(void)
 {
     playSoundClick();
@@ -218,18 +237,40 @@ static void onCredit(void)
 
 static void drawConsoleLetters(void)
 {
+    static uint8_t lastConsoleX, lastConsoleY;
     if (isInvalid) {
         arduboy.clear();
+        drawDottedLine(0, 0, WIDTH);
+        drawDottedLine(64, 62, WIDTH - 64);
         for (int i = 0; i < CONSOLE_H; i++) {
-            arduboy.printEx(0, i * 6, letters[i]);
+            arduboy.printEx(0, i * 6 + 2, letters[i]);
         }
-        isInvalid = false;
     } else {
-        arduboy.fillRect(0, 61, 62, 2, BLACK);
+        char c = letters[lastConsoleY][lastConsoleX];
+        if (c >= '\0' && c < ' ') c = ' ';
+        arduboy.printEx(lastConsoleX * 6, lastConsoleY * 6 + 2, c);
+        arduboy.fillRect(0, 62, 64, 2, BLACK);
     }
 
     char c = (counter & 1) ? decoder.getCandidate() : '_';
     if (c >= '\0' && c < ' ') c = ' ';
-    arduboy.printEx(consoleX * 6, consoleY * 6, c);
-    drawMorseCode(0, 61, decoder.getCurrentCode());
+    arduboy.printEx(consoleX * 6, consoleY * 6 + 2, c);
+    lastConsoleX = consoleX;
+    lastConsoleY = consoleY;
+
+    uint8_t w = drawMorseCode(0, 62, decoder.getCurrentCode());
+    drawDottedLine(w, 62, 64 - w);
+}
+
+static void drawDottedLine(uint8_t x, uint8_t y, uint8_t w)
+{
+    if (w == 0) return;
+    x++; // assumed that x is even number
+    w--;
+    uint8_t yOdd = y & 7;
+    uint8_t d = 1 << yOdd;
+    uint8_t *p = arduboy.getBuffer() + x + (y / 8) * WIDTH;
+    for (uint8_t i = 0; i < w; i += 2, p += 2) {
+        *p |= d;
+    }
 }

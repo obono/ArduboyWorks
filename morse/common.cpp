@@ -14,7 +14,7 @@
 #define TONE_DURATION       1000
 #define TONE_PRIORITY       1
 
-enum RECORD_STATE_T {
+enum RECORD_STATE_T : uint8_t {
     RECORD_NOT_READ = 0,
     RECORD_INITIAL,
     RECORD_STORED,
@@ -173,8 +173,9 @@ void drawButtonIcon(int16_t x, int16_t y, bool isB)
             IMG_BUTTONS_W, IMG_BUTTONS_H, arduboy.getTextColor());
 }
 
-void drawMorseCode(int16_t x, int16_t y, uint16_t code)
+uint8_t drawMorseCode(int16_t x, int16_t y, uint16_t code)
 {
+    uint16_t left = x;
     bool isAvailable = false;
     for (uint16_t mask = 0x100; mask > 0; mask >>= 1) {
         if (isAvailable) {
@@ -185,6 +186,7 @@ void drawMorseCode(int16_t x, int16_t y, uint16_t code)
             isAvailable = true;
         }
     }
+    return x - left;
 }
 
 static uint8_t calcLEDPower(int8_t a)
@@ -211,7 +213,7 @@ void indicateSignalOn(void)
 void indicateSignalOff(void)
 {
     arduboy.setRGBled(0, 0, 0);
-    arduboy.playTone(400, 0, TONE_PRIORITY);
+    arduboy.stopTone();
 }
 
 /*---------------------------------------------------------------------------*/

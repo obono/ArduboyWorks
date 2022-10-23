@@ -249,6 +249,17 @@ void MyArduboy2::playTone(uint16_t frequency, uint16_t duration,
     setupTimer(getTimerNum(chan), frequency, dutyCycle);
 }
 
+void MyArduboy2::stopTone(void)
+{
+    if (numChans == 0) return;
+    if (numChans == 1) {
+        if (!isScorePlaying) stopNote(0);
+    } else {
+        stopTimer(1);
+        isTonePlaying = isMuteScore = false;
+    }
+}
+
 void MyArduboy2::playScore(const byte *score, uint8_t priority = 0, int8_t pitch = 0)
 {
     if (isScorePlaying) {
