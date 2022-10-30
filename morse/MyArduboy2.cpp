@@ -77,7 +77,7 @@ size_t MyArduboy2::write(uint8_t c)
     if (c == '\n') {
         cursor_y += textSize * 6;
         cursor_x = 0;
-    } else if (c >= ' ' && c <= 0x9F) {
+    } else if (c >= ' ' && c <= 0x93) {
         drawChar(cursor_x, cursor_y, c, textColor, textBackground, textSize);
         cursor_x += textSize * 6;
         if (textWrap && (cursor_x > (WIDTH - textSize * 6))) write('\n');

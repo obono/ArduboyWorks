@@ -2,7 +2,7 @@
 
 /*  Defines  */
 
-#define EEPROM_ADDR_BASE    608
+#define EEPROM_ADDR_BASE    624
 #define EEPROM_SIGNATURE    0x154E424FUL // "OBN\x15"
 
 #define PAD_REPEAT_DELAY    (FPS / 4)
@@ -18,6 +18,13 @@ enum RECORD_STATE_T : uint8_t {
     RECORD_NOT_READ = 0,
     RECORD_INITIAL,
     RECORD_STORED,
+};
+
+enum USB_STATE_T : uint8_t {
+    USB_DISCONNECTED = 0,
+    USB_POWERED,
+    USB_ADDRESSING,
+    USB_CONFIGURED,
 };
 
 /*  Global Variables  */
@@ -51,8 +58,12 @@ PROGMEM static const uint8_t imgButtons[][7] = { // 7x7 x2
 };
 
 PROGMEM static const RECORD_T recordInitial = {
+    0,  // Play frames
+    0,  // Made letters
     3, // 14 WPM
     DECODE_MODE_EN,
+    KEYBOARD_NONE,
+    IME_MODE_ROMAN,
     LED_LOW,
     8,  // Blue
     40, // 800Hz
@@ -61,6 +72,7 @@ PROGMEM static const RECORD_T recordInitial = {
 /*  Local Variables  */
 
 static RECORD_STATE_T   recordState = RECORD_NOT_READ;
+static USB_STATE_T      usbState = USB_DISCONNECTED;
 static int16_t          eepAddr;
 
 /*---------------------------------------------------------------------------*/
@@ -214,6 +226,23 @@ void indicateSignalOff(void)
 {
     arduboy.setRGBled(0, 0, 0);
     arduboy.stopTone();
+}
+
+void checkUSBStatus(void)
+{
+    if (USBSTA & _BV(VBUS)) { // whether VBUS is supplied
+        bool isConfigured = USBDevice.configured();
+        if (usbState == USB_DISCONNECTED) usbState = USB_POWERED;
+        if (usbState == USB_POWERED && !isConfigured) usbState = USB_ADDRESSING;
+        if (usbState == USB_ADDRESSING && isConfigured) usbState = USB_CONFIGURED;
+    } else {
+        usbState = USB_DISCONNECTED;
+    }
+}
+
+bool isUSBConfigured(void)
+{
+    return (usbState == USB_CONFIGURED);
 }
 
 /*---------------------------------------------------------------------------*/

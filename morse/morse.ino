@@ -77,6 +77,7 @@ void loop()
     dbgCheckSerialRecv();
 #endif
     if (!(arduboy.nextFrame())) return;
+    checkUSBStatus();
     MODE_T nextMode = callUpdateFunc(mode);
     callDrawFunc(mode);
 #ifdef DEBUG

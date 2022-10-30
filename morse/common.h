@@ -8,7 +8,7 @@
 #define FPS             60
 #define APP_TITLE       "MORSE CODE TRAINER"
 #define APP_CODE        "OBN-Y15"
-#define APP_VERSION     "0.02"
+#define APP_VERSION     "0.03"
 #define APP_RELEASED    "OCTOBER 2022"
 
 #define UNIT_FRAMES_MAX 13
@@ -36,15 +36,31 @@ enum : uint8_t {
     LED_MAX,
 };
 
+enum : uint8_t {
+    KEYBOARD_NONE = 0,
+    KEYBOARD_US,
+    KEYBOARD_JP,
+    KEYBOARD_MAX,
+};
+
+enum : uint8_t {
+    IME_MODE_ROMAN = 0,
+    IME_MODE_KANA,
+    IME_MODE_MAX,
+};
+
 /*  Typedefs  */
 
 typedef struct {
-    uint8_t unitFrames:4;
-    uint8_t decodeMode:1;
-    uint8_t led:2;
-    uint8_t ledColor:4;
-    uint8_t toneFreq:7;
-    uint8_t dummy[7];
+    uint32_t    playFrames;
+    uint32_t    madeLetters:24;
+    uint32_t    unitFrames:4;
+    uint32_t    decodeMode:1;
+    uint32_t    keyboard:2;
+    uint32_t    imeMode:1;
+    uint8_t     led:2;
+    uint8_t     ledColor:4;
+    uint8_t     toneFreq;
 } RECORD_T; // sizeof(RECORD_T) is 10 bytes
 
 /*  Global Functions (Common)  */
@@ -58,20 +74,12 @@ void    drawButtonIcon(int16_t x, int16_t y, bool isB);
 uint8_t drawMorseCode(int16_t x, int16_t y, uint16_t code);
 void    indicateSignalOn(void);
 void    indicateSignalOff(void);
+void    checkUSBStatus(void);
+bool    isUSBConfigured(void);
 
 void    setSound(bool on);
 void    playSoundTick(void);
 void    playSoundClick(void);
-
-void    eepSeek(int addr);
-uint8_t eepRead8(void);
-uint16_t eepRead16(void);
-uint32_t eepRead32(void);
-void    eepReadBlock(void *p, size_t n);
-void    eepWrite8(uint8_t val);
-void    eepWrite16(uint16_t val);
-void    eepWrite32(uint32_t val);
-void    eepWriteBlock(const void *p, size_t n);
 
 /*  Global Functions (Menu)  */
 
@@ -110,6 +118,14 @@ void    drawCredit(void);
 /*  Global Functions (macros)  */
 
 #define circulate(n, v, m)  (((n) + (v) + (m)) % (m))
+
+#define isDigit(letter)     ((letter) >= '0' && letter <= '9')
+#define isAlpha(letter)     ((letter) >= 'A' && letter <= 'Z')
+#define isAlnum(letter)     (isDigit(letter) || isAlpha(letter))
+#define isKana(letter)      ((uint8_t)(letter) >= 0x60 && (uint8_t)(letter) <= 0x93)
+#define isPrint(letter)     ((letter) >= ' ' && (letter) <= '_')
+#define isGraph(letter)     ((letter) > ' ' && (letter) <= '_')
+#define isNonGraph(letter)  ((letter) >= '\0' && (letter) <= ' ')
 
 /*  Global Variables  */
 

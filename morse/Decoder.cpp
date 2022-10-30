@@ -111,8 +111,7 @@ char Decoder::getCandidate(void)
     if (currentCode < 64) {
         const char *pTable = (isJapanese && !isParenthesisOpen) ? basicTableJA : basicTableEN;
         ret = pgm_read_byte(pTable + currentCode);
-        if (isJapanese && isParenthesisOpen &&
-                !(ret >= '0' && ret <= '9' || ret >= 'A' && ret <= 'Z')) ret = '\0';
+        if (isJapanese && isParenthesisOpen && !isAlnum(ret)) ret = '\0';
     } else if (currentCode < 128) {
         const CODE_T *pTable = (isJapanese) ? extendedTableJA : extendedTableEN;
         uint8_t code;

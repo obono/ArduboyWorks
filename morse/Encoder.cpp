@@ -43,11 +43,9 @@ void Encoder::setLetter(char letter)
 uint16_t Encoder::getMorseCode(char letter)
 {
     uint16_t ret = 0;
-    uint8_t idx = letter - 0x20;
-
+    uint8_t idx = letter - ' ';
     if (isJapanese) {
-        if (letter >= '0' && letter <= '9' || letter >= 'A' && letter <= 'Z' ||
-                idx >= 0x40 && idx <= 0x73) {
+        if (isAlnum(letter) || isKana(letter)) {
             ret = pgm_read_byte(&encodeTable[idx]);
         } else if (letter == '(') {
             ret = 109;
@@ -55,11 +53,8 @@ uint16_t Encoder::getMorseCode(char letter)
             ret = 82;
         }
     } else {
-        if (letter >= ' ' && letter <= '_') {
-            ret = pgm_read_byte(&encodeTable[idx]);
-        }
+        if (isPrint(letter)) ret = pgm_read_byte(&encodeTable[idx]);
     }
-
     return ret;
 }
 
