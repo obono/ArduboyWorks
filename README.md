@@ -63,6 +63,10 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * Control the runing guy and evade pillars.
   * Depends on Arduboy2 Library 5.2.1\
     ![title](docs/img/evasion1.gif) ![playing](docs/img/evasion2.gif)
+* OBN-Y15 [Morse Code Trainer](https://community.arduboy.com/t/morse-code-trainer/10702)
+  * Decode Morse code to Alphabet or Japanese letters.
+  * Depends on Arduboy2 Library 5.2.1\
+    ![title](docs/img/morse1.gif) ![playing](docs/img/morse2.gif)
 
 ## License
 

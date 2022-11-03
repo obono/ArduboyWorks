@@ -440,6 +440,37 @@
 			"arduboy": "",
 			"codeName": "OBN-Y14",
 			"nickName": "evasion"
+		},
+		{
+			"title": "Morse Code Trainer",
+			"description": "Decode Morse code to Alphabet or Japanese letters.",
+			"genre": "Education",
+			"url": "https://community.arduboy.com/t/morse-code-trainer/10702",
+			"dependence": "Arduboy2 Library 5.2.1",
+			"version": "0.10",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/morse",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Morse Code Trainer",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/morse_v0.10.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/morse2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/morse1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": "",
+			"codeName": "OBN-Y15",
+			"nickName": "morse"
 		}
 	]
 }
