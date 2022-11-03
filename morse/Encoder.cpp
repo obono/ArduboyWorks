@@ -1,9 +1,5 @@
 #include "Encoder.h"
 
-/*  Defines  */
-
-#define CODE_INITIAL    1
-
 /*  Local Functions (macros)  */
 
 #define getSignalFrames(frames, isLong) ((frames) * ((isLong) ? 4 : 2))
@@ -11,7 +7,7 @@
 /*  Local Constants  */
 
 PROGMEM static const uint8_t encodeTable[] = {
-    0,   0,   82,  0,   0,   0,   0,   94,  54,  109, 0,   42,  115, 97,  85,  50,
+    1,   0,   82,  0,   0,   0,   0,   94,  54,  109, 0,   42,  115, 97,  85,  50,
     63,  47,  39,  35,  33,  32,  48,  56,  60,  62,  120, 0,   0,   49,  0,   76,
     90,  5,   24,  26,  12,  2,   18,  14,  16,  4,   23,  13,  20,  7,   6,   15,
     22,  29,  10,  8,   3,   9,   17,  11,  25,  27,  28,  0,   0,   0,   64,  77,
@@ -33,10 +29,10 @@ void Encoder::reset(uint8_t frames, uint8_t mode)
 void Encoder::setLetter(char letter)
 {
     currentCode = getMorseCode(letter);
-    if (currentCode > CODE_INITIAL) {
+    if (currentCode > 0) {
         for (codeMask = 0x100; !(currentCode & codeMask); codeMask >>= 1) { ; }
         codeMask >>= 1;
-        stateCounter = getSignalFrames(unitFrames, currentCode & codeMask);
+        stateCounter = getSignalFrames(unitFrames, (currentCode & codeMask) || currentCode == 1);
     }
 }
 
@@ -60,14 +56,14 @@ uint16_t Encoder::getMorseCode(char letter)
 
 bool Encoder::forwardFrame(void)
 {
-    if (currentCode <= CODE_INITIAL) return false;
+    if (currentCode == 0) return false;
 
-    bool ret = (stateCounter > unitFrames);
+    bool ret = (codeMask > 0 && stateCounter > unitFrames);
     if (--stateCounter == 0) {
-        codeMask >>= 1;
         if (codeMask == 0) {
             currentCode = 0;
         } else {
+            codeMask >>= 1;
             stateCounter = getSignalFrames(unitFrames, currentCode & codeMask);
         }
     }
@@ -76,5 +72,5 @@ bool Encoder::forwardFrame(void)
 
 bool Encoder::isEncoding(void)
 {
-    return (currentCode > CODE_INITIAL);
+    return (currentCode > 0);
 }

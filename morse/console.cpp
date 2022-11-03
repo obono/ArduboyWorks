@@ -1,6 +1,8 @@
 #include "common.h"
+#include "fortune.h"
 #include "Iambic.h"
 #include "Decoder.h"
+#include "Encoder.h"
 #include "FakeKeyboard.h"
 
 /*  Defines  */
@@ -19,12 +21,22 @@
 
 static void applySettings(void);
 static void clearConsole(void);
+
 static void handleSignal(void);
-static void appendLetter(char c);
+static bool handleSignalByButtons(void);
+static bool handleSignalByFortune(void);
+static void handleExtraButtons(void);
+
+static void dealDecodedLetter(char letter);
+static void flushFortuneLetters(void);
+static void appendLetter(char letter);
 static void backSpace(void);
 static void lineFeed(void);
+
 static void setupMenu(void);
 static void onContinue(void);
+static void onFortune(void);
+static void onConfirmClear(void);
 static void onClear(void);
 static void onList(void);
 static void onSettings(void);
@@ -47,21 +59,23 @@ PROGMEM static const uint8_t imgComputer[120] = { // 40x24
     0x56, 0x72, 0x28, 0x14, 0x0A, 0x05, 0x03, 0x00
 };
 
-PROGMEM static const char welcomeEN[] = APP_TITLE "\0(A) MENU\0(B) SIGNAL ON";
+PROGMEM static const char welcomeEN[] = APP_TITLE "\0(A) MENU\0(B) SIGNAL ON\0";
 PROGMEM static const char welcomeJP[] =
         "\x8C\x92\x6A\x8E \x7F\x80\x90\x77 \x70\x8F\x89\x86\x77\x85\0"
-        "(A) \x87\x63\x86\x92\0(B) \x89\x8F\x80\x90\x77 \x7A\x8F";
+        "(A) \x87\x63\x86\x92\0(B) \x89\x8F\x80\x90\x77 \x7A\x8F\0";
 
 /*  Local Variables  */
 
 static Iambic       iambic;
 static Decoder      decoder;
+static Encoder      encoder;
 static FakeKeyboard fakeKeyboard;
 
 static MODE_T   nextMode;
 static uint16_t recentFrames;
 static uint8_t  consoleX, consoleY, recentLetters;
-static char     letters[CONSOLE_H][CONSOLE_W + 1];
+static char     letters[CONSOLE_H][CONSOLE_W + 1], lastLetter;
+static const char *pFortune;
 static bool     isFirst = true, isKeyboardActive, isIgnoreButton, isLastSignalOn, isMenuActive;
 
 /*---------------------------------------------------------------------------*/
@@ -73,17 +87,19 @@ void initConsole(void)
     if (isFirst) {
         clearConsole();
         const char *p = (record.decodeMode == DECODE_MODE_JA) ? welcomeJP : welcomeEN;
-        for (uint8_t i = 0; i < 3; i++) {
-            size_t len = strnlen_P(p, CONSOLE_W);
-            memcpy_P(letters[i], p, len);
+        size_t len;
+        do {
+            len = strnlen_P(p, CONSOLE_W);
+            memcpy_P(letters[consoleY], p, len);
             p += len + 1;
-        }
-        consoleY = 4;
+            consoleY++;
+        } while (len > 0);
         recentLetters = 0;
         recentFrames = 0;
         isFirst = false;
     }
     applySettings();
+    pFortune = NULL;
     isKeyboardActive = false;
     isIgnoreButton = true;
     isLastSignalOn = false;
@@ -96,9 +112,8 @@ MODE_T updateConsole(void)
     bool isKeyboardActiveNow = (record.keyboard != KEYBOARD_NONE && isUSBConfigured());
     if (isKeyboardActiveNow != isKeyboardActive) {
         isKeyboardActive = isKeyboardActiveNow;
-        if (isKeyboardActive) {
-            fakeKeyboard.activated();
-        }
+        if (isKeyboardActive) fakeKeyboard.activated();
+        lastLetter = ' ';
         isInvalid = true;
     }
 
@@ -115,11 +130,14 @@ MODE_T updateConsole(void)
             isIgnoreButton = (arduboy.buttonsState() != 0);
         } else {
             handleSignal();
+            handleExtraButtons();
         }
+        if (recentLetters > 0) recentFrames++;
         record.playFrames++;
         isRecordDirty = true;
         counter++;
     }
+    randomSeed(rand() ^ micros()); // Shuffle random
     return nextMode;
 }
 
@@ -138,6 +156,7 @@ static void applySettings(void)
     uint8_t unitFrames = record.unitFrames + 2;
     iambic.reset(unitFrames);
     decoder.reset(unitFrames, record.decodeMode);
+    encoder.reset(unitFrames, record.decodeMode);
     fakeKeyboard.reset(record.decodeMode, record.keyboard, record.imeMode);
 }
 
@@ -146,71 +165,131 @@ static void clearConsole(void)
     memset(letters, 0, sizeof(letters));
     consoleX = 0;
     consoleY = 0;
+    decoder.forceStable(true);
 }
+
+/*---------------------------------------------------------------------------*/
 
 static void handleSignal(void)
 {
-    bool isIambicShortOn = arduboy.buttonPressed(LEFT_BUTTON);
-    bool isIambicLongOn = arduboy.buttonPressed(RIGHT_BUTTON);
-    bool isSignalOn = iambic.isSignalOn(isIambicShortOn, isIambicLongOn) ||
-            arduboy.buttonPressed(B_BUTTON);
-    char decodedChar = decoder.appendSignal(isSignalOn);
-
-    if (!isSignalOn && decoder.getCurrentCode() == CODE_INITIAL) {
-        if (padY < 0) { // arduboy.buttonDown(UP_BUTTON)
-            decoder.forceStable();
-            decodedChar = '\b';
-            playSoundTick();
-        }
-        if (arduboy.buttonDown(DOWN_BUTTON)) {
-            decoder.forceStable();
-            decodedChar = '\n';
-            playSoundTick();
-        }
-        if (arduboy.buttonDown(A_BUTTON)) {
-            decoder.forceStable();
-            if (recentFrames >= RECENT_FRAMES_SOME) {
-                writeRecord();
-                recentLetters = 0;
-                recentFrames = 0;
-            }
-            setupMenu();
-        }
-    }
-
+    bool isSignalOn = (pFortune == NULL) ? handleSignalByButtons() : handleSignalByFortune();
     if (isSignalOn != isLastSignalOn) {
         (isSignalOn) ? indicateSignalOn() : indicateSignalOff();
         isLastSignalOn = isSignalOn;
     }
 
-    if (decodedChar != '\0') {
-        if (isKeyboardActive) {
-            fakeKeyboard.sendLetter(decodedChar);
-        } else {
-            if (decodedChar == '\b') {
-                backSpace();
-            } else if (decodedChar == '\n') {
-                lineFeed();
-            } else {
-                appendLetter(decodedChar);
-            }
-        }
-        if (!isNonGraph(decodedChar)) {
-            record.madeLetters++;
-            recentLetters++;
-            if (recentLetters >= RECENT_LETTERS_MAX || recentFrames > RECENT_FRAMES_MAX) {
-                writeRecord();
-                recentLetters = 0;
-                recentFrames = 0;
-            }
-        }
+    char letter = decoder.appendSignal(isSignalOn);
+    if (letter != '\0') {
+        dealDecodedLetter(letter);
+        if (letter != ' ') lastLetter = (isNonGraph(letter)) ? ' ' : letter;
     }
-    if (recentLetters > 0) recentFrames++;
+
 }
 
-static void appendLetter(char c)
+static bool handleSignalByButtons(void)
 {
-    letters[consoleY][consoleX] = c;
+    bool isIambicShortOn = arduboy.buttonPressed(LEFT_BUTTON);
+    bool isIambicLongOn = arduboy.buttonPressed(RIGHT_BUTTON);
+    return iambic.isSignalOn(isIambicShortOn, isIambicLongOn) || arduboy.buttonPressed(B_BUTTON);
+}
+
+static bool handleSignalByFortune(void)
+{
+    bool ret = false;
+    if (encoder.isEncoding()) {
+        ret = encoder.forwardFrame();
+    } else {
+        char letter = pgm_read_byte(++pFortune);
+        if (letter != '\0') {
+            encoder.setLetter(letter);
+        } else {
+            decoder.forceStable();
+            dealDecodedLetter('\n');
+            pFortune = NULL;
+        }
+    }
+    return ret;
+}
+
+static void handleExtraButtons(void)
+{
+    if (pFortune != NULL) {
+        if (arduboy.buttonsState() != 0) {
+            if (isLastSignalOn) {
+                indicateSignalOff();
+                isLastSignalOn = false;
+            }
+            if (arduboy.buttonDown(B_BUTTON)) {
+                if (!isKeyboardActive) flushFortuneLetters();
+                playSoundClick();
+                isIgnoreButton = true;
+            } else {
+                playSoundTick();
+            }
+            decoder.forceStable();
+            pFortune = NULL;
+            isIgnoreButton = true;
+        }
+    } else if (decoder.getCurrentCode() == CODE_INITIAL) {
+        if (padY < 0) { // arduboy.buttonDown(UP_BUTTON)
+            decoder.forceStable();
+            dealDecodedLetter('\b');
+            playSoundTick();
+        }
+        if (arduboy.buttonDown(DOWN_BUTTON)) {
+            decoder.forceStable();
+            dealDecodedLetter('\n');
+            playSoundTick();
+        }
+        if (arduboy.buttonDown(A_BUTTON)) setupMenu();
+    }
+}
+
+/*---------------------------------------------------------------------------*/
+
+static void dealDecodedLetter(char letter)
+{
+    if (isKeyboardActive) {
+        fakeKeyboard.sendLetter(letter);
+    } else {
+        if (letter == '\b') {
+            backSpace();
+        } else if (letter == '\n') {
+            lineFeed();
+        } else {
+            appendLetter(letter);
+        }
+    }
+
+    if (!isNonGraph(letter) && pFortune == NULL) {
+        record.madeLetters++;
+        recentLetters++;
+        if (recentLetters >= RECENT_LETTERS_MAX || recentFrames > RECENT_FRAMES_MAX) {
+            writeRecord();
+            recentLetters = 0;
+            recentFrames = 0;
+        }
+    }
+}
+
+static void flushFortuneLetters(void)
+{
+    if (decoder.getCurrentCode() == CODE_INITIAL) {
+        pFortune++;
+    }
+    decoder.forceStable();
+    char letter;
+    while ((letter = pgm_read_byte(pFortune++)) != '\0') {
+        appendLetter(letter);
+    }
+    lineFeed();
+    pFortune = NULL;
+    isInvalid = true;
+}
+
+static void appendLetter(char letter)
+{
+    letters[consoleY][consoleX] = letter;
     if (++consoleX == CONSOLE_W) lineFeed();
 }
 
@@ -218,14 +297,15 @@ static void backSpace(void)
 {
     if (consoleX > 0) {
         consoleX--;
-        letters[consoleY][consoleX] = '\0';
     } else if (consoleY > 0) {
         consoleY--;
         for (consoleX = CONSOLE_W - 1; consoleX > 0; consoleX--) {
             if (letters[consoleY][consoleX] != '\0') break;
         }
-        letters[consoleY][consoleX] = '\0';
     }
+    char *p = &letters[consoleY][consoleX];
+    if (*p == '(') decoder.forceStable(true);
+    *p = '\0';
 }
 
 static void lineFeed(void)
@@ -240,15 +320,24 @@ static void lineFeed(void)
     }
 }
 
+/*---------------------------------------------------------------------------*/
+
 static void setupMenu(void)
 {
+    decoder.forceStable();
+    if (recentFrames >= RECENT_FRAMES_SOME) {
+        writeRecord();
+        recentLetters = 0;
+        recentFrames = 0;
+    }
     clearMenuItems();
     addMenuItem(F("CONTINUE"), onContinue);
-    addMenuItem(F("CLEAR"), onClear);
+    addMenuItem(F("FORTUNE WORDS"), onFortune);
+    addMenuItem(F("CLEAR CONSOLE"), onConfirmClear);
     addMenuItem(F("CODE LIST"), onList);
     addMenuItem(F("SETTINGS"), onSettings);
     addMenuItem(F("CREDIT"), onCredit);
-    setMenuCoords(19, 17, 89, 29, true);
+    setMenuCoords(18, 14, 91, 35, true);
     setMenuItemPos(0);
     playSoundClick();
     isMenuActive = true;
@@ -263,13 +352,30 @@ static void onContinue(void)
     isInvalid = true;
 }
 
+static void onFortune(void)
+{
+    uint8_t idx = random(FORTUNE_IDX_MAX);
+    pFortune = (const char *)pgm_read_ptr(
+            (record.decodeMode == DECODE_MODE_JA) ? &fortuneTableJP[idx] : &fortuneTableEN[idx]);
+#ifdef TEST_FORTUNE
+    if (arduboy.buttonPressed(LEFT_BUTTON|RIGHT_BUTTON)) {
+        pFortune = (record.decodeMode == DECODE_MODE_JA) ? testFortuneJP : testFortuneEN;
+    } 
+#endif
+    encoder.setLetter(pgm_read_byte(pFortune));
+    decoder.forceStable(true);
+    onContinue();
+}
+
+static void onConfirmClear(void)
+{
+    setConfirmMenu(34, onClear, onContinue);
+}
+
 static void onClear(void)
 {
     clearConsole();
-    playSoundClick();
-    isIgnoreButton = true;
-    isMenuActive = false;
-    isInvalid = true;
+    onContinue();
 }
 
 static void onList(void)
@@ -296,7 +402,6 @@ static void onCredit(void)
 
 static void drawConsoleLetters(void)
 {
-    static char lastLetter = ' ';
     static uint8_t lastConsoleX, lastConsoleY;
     if (isInvalid) {
         arduboy.clear();
@@ -328,14 +433,12 @@ static void drawConsoleLetters(void)
         if (decoder.getCurrentCode() == CODE_INITIAL) {
             c = lastLetter;
         } else {
-            lastLetter = c;
             if (counter & 1) c = ' ';
         }
         arduboy.setTextSize(2);
         arduboy.printEx(68, 23, c);
         arduboy.setTextSize(1);
     } else {
-        lastLetter = ' ';
         if (counter & 1) c = '_';
         arduboy.printEx(consoleX * 6, consoleY * 6 + 2, c);
         lastConsoleX = consoleX;

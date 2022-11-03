@@ -60,13 +60,13 @@ PROGMEM static const uint8_t imgButtons[][7] = { // 7x7 x2
 PROGMEM static const RECORD_T recordInitial = {
     0,  // Play frames
     0,  // Made letters
-    3, // 14 WPM
+    3,  // 14 WPM
     DECODE_MODE_EN,
     KEYBOARD_NONE,
     IME_MODE_ROMAN,
     LED_LOW,
     8,  // Blue
-    40, // 800Hz
+    80, // 800Hz
 };
 
 /*  Local Variables  */
@@ -219,7 +219,7 @@ void indicateSignalOn(void)
         b = calcLEDPower((record.ledColor - 2) % 12);
     }
     arduboy.setRGBled(r * record.led * 32, g * record.led * 16, b * record.led * 48);
-    arduboy.playTone(record.toneFreq * 10 + 400, TONE_DURATION, TONE_PRIORITY);
+    arduboy.playTone(record.toneFreq * 5 + 400, TONE_DURATION, TONE_PRIORITY);
 }
 
 void indicateSignalOff(void)

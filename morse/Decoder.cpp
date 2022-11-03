@@ -59,9 +59,10 @@ void Decoder::reset(uint8_t frames, uint8_t mode)
     forceStable();
 }
 
-void Decoder::forceStable(void)
+void Decoder::forceStable(bool isResetParenthesis)
 {
     isLastSignalOn = false;
+    if (isResetParenthesis) isParenthesisOpen = false;
     stateCounter = COUNTER_MAX;
     currentCode = CODE_INITIAL;
 }
@@ -86,7 +87,7 @@ char Decoder::appendSignal(bool isSignalOn)
     } else {
         if (stateCounter == thresholdLong(unitFrames)) {
             ret = getCandidate();
-            if (ret >= '\0' && ret < ' ') stateCounter = COUNTER_MAX;
+            if (isNonGraph(ret)) stateCounter = COUNTER_MAX;
             if (ret == '(') isParenthesisOpen = true;
             if (ret == ')') isParenthesisOpen = false;
             currentCode = CODE_INITIAL;

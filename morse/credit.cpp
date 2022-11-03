@@ -5,6 +5,9 @@
 #define IMG_TITLE_W 128
 #define IMG_TITLE_H 16
 
+#define TOP_WITH_RECORD     -5
+#define TOP_WITHOUT_RECORD  7
+
 /*  Local Constants  */
 
 PROGMEM static const uint8_t imgTitle[256] = { // 128x16
@@ -32,7 +35,8 @@ PROGMEM static const char creditText[] = \
 
 /*  Local Variables  */
 
-bool isShowRecord;
+int8_t  cy;
+bool    isShowRecord;
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -41,21 +45,24 @@ bool isShowRecord;
 void initCredit(void)
 {
     isShowRecord = false;
+    cy = TOP_WITHOUT_RECORD;
     isInvalid = true;
 }
 
 MODE_T updateCredit(void)
 {
     MODE_T ret = MODE_CREDIT;
-    if (!isShowRecord &&
-            arduboy.buttonDown(UP_BUTTON | DOWN_BUTTON | LEFT_BUTTON | RIGHT_BUTTON)) {
+    if (!isShowRecord && arduboy.buttonDown(DOWN_BUTTON) ||
+            isShowRecord && arduboy.buttonDown(UP_BUTTON)) {
         playSoundTick();
-        isShowRecord = true;
-        isInvalid = true;
-    }
-    if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
+        isShowRecord = !isShowRecord;
+    } else if (arduboy.buttonDown(A_BUTTON | B_BUTTON)) {
         playSoundClick();
         ret = MODE_CONSOLE;
+    }
+    if (cy != ((isShowRecord) ? TOP_WITH_RECORD : TOP_WITHOUT_RECORD)) {
+        cy += 2 - isShowRecord * 4;
+        isInvalid = true;
     }
     return ret;
 }
@@ -64,7 +71,7 @@ void drawCredit(void)
 {
     if (isInvalid) {
         arduboy.clear();
-        int16_t y = (isShowRecord) ? 0 : 7;
+        int16_t y = cy;
         arduboy.drawBitmap(0, y, imgTitle, IMG_TITLE_W, IMG_TITLE_H);
         y += IMG_TITLE_H + 3;
         const char *p = creditText;
@@ -76,6 +83,8 @@ void drawCredit(void)
         }
         if (isShowRecord) {
             y += 2;
+            arduboy.drawFastHLine(0, y, WIDTH, WHITE);
+            y += 4;
             arduboy.printEx(10, y, F("MADE CHARS "));
             arduboy.print(record.madeLetters);
             y += 6;

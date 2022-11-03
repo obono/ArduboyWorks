@@ -8,12 +8,12 @@
 #define FPS             60
 #define APP_TITLE       "MORSE CODE TRAINER"
 #define APP_CODE        "OBN-Y15"
-#define APP_VERSION     "0.03"
-#define APP_RELEASED    "OCTOBER 2022"
+#define APP_VERSION     "0.10"
+#define APP_RELEASED    "NOVEMBER 2022"
 
 #define UNIT_FRAMES_MAX 13
 #define LED_COLOR_MAX   13
-#define TONE_FREQ_MAX   121
+#define TONE_FREQ_MAX   241
 
 enum MODE_T : uint8_t {
     MODE_LOGO = 0,

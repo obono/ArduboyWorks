@@ -125,8 +125,11 @@ static void changeSetting(int8_t pos, int8_t v, bool isDown)
             break;
         case 4: // Tone Freq
             if (arduboy.isAudioEnabled() && v != 0) {
+                if (!isDown) {
+                    uint8_t freq = record.toneFreq;
+                    v *= 3 + ((freq >= 27) + (freq >= 80) + (freq >= 133)) * 2;
+                }
                 record.toneFreq = circulate(record.toneFreq, v, TONE_FREQ_MAX);
-                if (record.toneFreq > 40 && (record.toneFreq & 1)) record.toneFreq += v;
                 changeSettingCommon();
             }
             break;
@@ -224,7 +227,7 @@ static void drawSettingParams(int8_t pos)
                 break;
             case 4: // Tone Freq
                 if (arduboy.isAudioEnabled()) {
-                    arduboy.print(record.toneFreq * 10 + 400);
+                    arduboy.print(record.toneFreq * 5 + 400);
                     p = (const char*)F(" HZ");
                 } else {
                     p = notAvailableLabel;

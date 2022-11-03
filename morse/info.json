@@ -2,6 +2,6 @@
 	"title": "Morse Code Trainer",
 	"description": "Decode Morse code to Alphabet or Japanese letters.",
 	"genre": "Education",
-	"url": "T.B.D.",
+	"url": "https://community.arduboy.com/t/morse-code-trainer/10702",
 	"dependence": "Arduboy2 Library 5.2.1"
 }
