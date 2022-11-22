@@ -1,6 +1,6 @@
 #include "common.h"
 
-#if ARDUBOY_LIB_VER != ARDUBOY_LIB_VER_TGT
+#if ARDUBOY_LIB_VER < ARDUBOY_LIB_VER_TGT
 #error Unexpected version of Arduboy Library
 #endif // It may work even if you use other version. So comment out the above line.
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Arduboy2.h>
-#if ARDUBOY_LIB_VER != 50201
+#if ARDUBOY_LIB_VER < 50201
 #error Unexpected version of Arduboy Library
 #endif // It may work even if you use other version. So comment out the above line.
 

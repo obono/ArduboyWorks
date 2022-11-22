@@ -1,6 +1,6 @@
 #include "common.h"
 
-#if ARDUBOY_LIB_VER != 10101
+#if ARDUBOY_LIB_VER < 10101
 #error
 #endif // It may work even if you use other version.
 
