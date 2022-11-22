@@ -61,7 +61,7 @@ PROGMEM static const uint8_t imgTitle2[264] = { // 87x19
 };
 
 PROGMEM static const char creditText[] = "- " APP_TITLE " -\0\0" APP_RELEASED \
-        "\0PROGREMMED BY OBONO\0\0THIS PROGRAM IS\0RELEASED UNDER\0THE MIT LICENSE.";
+        "\0PROGRAMMED BY OBONO\0\0THIS PROGRAM IS\0RELEASED UNDER\0THE MIT LICENSE.";
 
 static STATE_T  state = STATE_INIT;
 static bool     isSettingsChanged;

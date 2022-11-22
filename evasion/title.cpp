@@ -125,7 +125,7 @@ PROGMEM static const uint8_t imgButton[2][7] = { // 7x7 x2
 };
 
 PROGMEM static const char creditText[] = \
-        "- " APP_TITLE " -\0\0\0" APP_RELEASED "\0PROGREMMED BY OBONO\0\0" \
+        "- " APP_TITLE " -\0\0\0" APP_RELEASED "\0PROGRAMMED BY OBONO\0\0" \
         "THIS PROGRAM IS\0RELEASED UNDER\0THE MIT LICENSE.\0\e";
 PROGMEM static const char accelText[] = "OFF \0SLOW\0FAST";
 PROGMEM static const char noticeText[] = \

@@ -113,7 +113,7 @@ PROGMEM static const char * const menusTable[] = {
 
 PROGMEM static const char credit0[] = "- " APP_TITLE " -";
 PROGMEM static const char credit1[] = APP_RELEASED;
-PROGMEM static const char credit2[] = "PROGREMMED BY OBONO";
+PROGMEM static const char credit2[] = "PROGRAMMED BY OBONO";
 PROGMEM static const char credit3[] = "THIS PROGRAM IS";
 PROGMEM static const char credit4[] = "RELEASED UNDER";
 PROGMEM static const char credit5[] = "THE MIT LICENSE.";

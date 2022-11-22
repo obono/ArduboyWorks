@@ -31,7 +31,7 @@ static void drawCredit(void);
 /*  Local Variables  */
 
 PROGMEM static const char creditText[] = \
-        APP_RELEASED "\0PROGREMMED BY OBONO\0\0" \
+        APP_RELEASED "\0PROGRAMMED BY OBONO\0\0" \
         "THIS PROGRAM IS\0RELEASED UNDER\0THE MIT LICENSE.\0\e";
 
 int16_t keta, ketaMax, padRepeatCount;

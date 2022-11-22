@@ -65,7 +65,7 @@ PROGMEM static const uint8_t imgSubTitle[] = { // 72x8
 
 
 PROGMEM static const char creditText[] = \
-        "- " APP_TITLE " -\0\0\0" APP_RELEASED "\0PROGREMMED BY OBONO\0\0" \
+        "- " APP_TITLE " -\0\0\0" APP_RELEASED "\0PROGRAMMED BY OBONO\0\0" \
         "THIS PROGRAM IS\0RELEASED UNDER\0THE MIT LICENSE.\0\e";
 
 static STATE_T  state = STATE_INIT;

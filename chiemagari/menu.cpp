@@ -78,7 +78,7 @@ PROGMEM static const uint8_t imgTitle[512] = { // 128x32
 };
 
 PROGMEM static const char creditText[] = "- " APP_TITLE " -\0\0" APP_RELEASED \
-        "\0PROGREMMED BY OBONO\0\0THIS PROGRAM IS\0" "RELEASED UNDER\0" "THE MIT LICENSE.";
+        "\0PROGRAMMED BY OBONO\0\0THIS PROGRAM IS\0" "RELEASED UNDER\0" "THE MIT LICENSE.";
 
 PROGMEM static const byte soundStart[] = {
     0x90, 72, 0, 100, 0x80, 0, 25,

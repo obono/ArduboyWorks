@@ -138,7 +138,7 @@ PROGMEM static const byte sound2[] = {
 
 PROGMEM static const char menuText[] = "START GAME\0SOUND \0RECORD\0CREDIT";
 PROGMEM static const char creditText[] = "- " APP_TITLE " -\0\0" APP_RELEASED \
-        "\0PROGREMMED BY OBONO\0\0THIS PROGRAM IS\0" "RELEASED UNDER\0" "THE MIT LICENSE.";
+        "\0PROGRAMMED BY OBONO\0\0THIS PROGRAM IS\0" "RELEASED UNDER\0" "THE MIT LICENSE.";
 
 static uint8_t  state;
 static bool     toDraw;
