@@ -1,6 +1,5 @@
 var elmHeader;
 var elmDivResult;
-var elmInputUrl;
 var elmItemTemplate;
 var elmStyleList;
 var elmDivEmulatorBase;
@@ -13,7 +12,6 @@ function $(id) {
 function setElements() {
 	elmHeader = $("header");
 	elmDivResult = $("result");
-	elmInputUrl = $("text_url");
 	elmItemTemplate = $("item_template");
 	elmStyleList = $("style_list");
 	elmDivEmulatorBase = $("emulator_base");
@@ -27,21 +25,11 @@ function switchStyle(isForce = false) {
 	}
 }
 
-function checkQueryParams() {
-	if (window.location.search == "") return;
-	elmInputUrl.value = window.location.search.split("?")[1];
-	executeProcedure();
-}
-
 function executeProcedure() {
 	cleanItems();
 	setHeaderText("Loading...");
-	var url = elmInputUrl.value;
-	history.replaceState("", "", "?" + url);
-	if (url.startsWith("http://") || url.startsWith("https://")) {
-		url = "https://cors-anywhere.herokuapp.com/" + url;
-	}
-	fetch(url).then(function(response) {
+	var repo_file = "repo.json";
+	fetch(repo_file).then(function(response) {
 		return response.json();
 	}).then(function(json) {
 		var text = json.repository;
