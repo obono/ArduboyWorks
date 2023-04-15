@@ -1,9 +1,13 @@
 #include "common.h"
-#include "fortune.h"
 #include "Iambic.h"
 #include "Decoder.h"
 #include "Encoder.h"
 #include "FakeKeyboard.h"
+
+IMPORT_BIN_FILE("fortuneDataEN.bin", fortuneDataEN);
+IMPORT_BIN_FILE("fortuneDataJP.bin", fortuneDataJP);
+IMPORT_BIN_FILE("fortuneOffsetEN.bin", fortuneOffsetEN);
+IMPORT_BIN_FILE("fortuneOffsetJP.bin", fortuneOffsetJP);
 
 /*  Defines  */
 
@@ -17,6 +21,9 @@
 #define RECENT_FRAMES_SOME  (FPS * 60 * 3)
 #define RECENT_LETTERS_MAX  200
 
+#define FORTUNE_EN_IDX_MAX  250
+#define FORTUNE_JP_IDX_MAX  100
+
 /*  Local Functions  */
 
 static void applySettings(void);
@@ -28,6 +35,7 @@ static bool handleSignalByFortune(void);
 static void handleExtraButtons(void);
 
 static void dealDecodedLetter(char letter);
+static void updateFortuneLetter(void);
 static void flushFortuneLetters(void);
 static void appendLetter(char letter);
 static void backSpace(void);
@@ -64,6 +72,12 @@ PROGMEM static const char welcomeJP[] =
         "\x8C\x92\x6A\x8E \x7F\x80\x90\x77 \x70\x8F\x89\x86\x77\x85\0"
         "(A) \x87\x63\x86\x92\0(B) \x89\x8F\x80\x90\x77 \x7A\x8F\0";
 
+extern const uint8_t fortuneDataEN[];
+extern const uint8_t fortuneDataJP[];
+extern const uint16_t fortuneOffsetEN[];
+extern const uint16_t fortuneOffsetJP[];
+PROGMEM static const char fortuneGraphsEN[] = { ' ', '\'', ',', '-', '?', '.' };
+
 /*  Local Variables  */
 
 static Iambic       iambic;
@@ -72,10 +86,10 @@ static Encoder      encoder;
 static FakeKeyboard fakeKeyboard;
 
 static MODE_T   nextMode;
-static uint16_t recentFrames;
-static uint8_t  consoleX, consoleY, recentLetters;
-static char     letters[CONSOLE_H][CONSOLE_W + 1], lastLetter;
-static const char *pFortune;
+static uint16_t recentFrames, fortuneData;
+static uint8_t  consoleX, consoleY, recentLetters, fortuneDataBits;
+static const uint8_t *pFortune;
+static char     letters[CONSOLE_H][CONSOLE_W + 1], lastLetter, fortuneLetter;
 static bool     isFirst = true, isKeyboardActive, isIgnoreButton, isLastSignalOn, isMenuActive;
 
 /*---------------------------------------------------------------------------*/
@@ -99,7 +113,7 @@ void initConsole(void)
         isFirst = false;
     }
     applySettings();
-    pFortune = NULL;
+    fortuneLetter = '\0';
     isKeyboardActive = false;
     isIgnoreButton = true;
     isLastSignalOn = false;
@@ -172,7 +186,7 @@ static void clearConsole(void)
 
 static void handleSignal(void)
 {
-    bool isSignalOn = (pFortune == NULL) ? handleSignalByButtons() : handleSignalByFortune();
+    bool isSignalOn = (fortuneLetter) ? handleSignalByFortune() : handleSignalByButtons();
     if (isSignalOn != isLastSignalOn) {
         (isSignalOn) ? indicateSignalOn() : indicateSignalOff();
         isLastSignalOn = isSignalOn;
@@ -199,13 +213,12 @@ static bool handleSignalByFortune(void)
     if (encoder.isEncoding()) {
         ret = encoder.forwardFrame();
     } else {
-        char letter = pgm_read_byte(++pFortune);
-        if (letter != '\0') {
-            encoder.setLetter(letter);
+        updateFortuneLetter();
+        if (fortuneLetter) {
+            encoder.setLetter(fortuneLetter);
         } else {
             decoder.forceStable();
             dealDecodedLetter('\n');
-            pFortune = NULL;
         }
     }
     return ret;
@@ -213,7 +226,7 @@ static bool handleSignalByFortune(void)
 
 static void handleExtraButtons(void)
 {
-    if (pFortune != NULL) {
+    if (fortuneLetter) {
         if (arduboy.buttonsState() != 0) {
             if (isLastSignalOn) {
                 indicateSignalOff();
@@ -227,7 +240,7 @@ static void handleExtraButtons(void)
                 playSoundTick();
             }
             decoder.forceStable();
-            pFortune = NULL;
+            fortuneLetter = '\0';
             isIgnoreButton = true;
         }
     } else if (decoder.getCurrentCode() == CODE_INITIAL) {
@@ -261,7 +274,7 @@ static void dealDecodedLetter(char letter)
         }
     }
 
-    if (!isNonGraph(letter) && pFortune == NULL) {
+    if (!isNonGraph(letter) && !fortuneLetter) {
         record.madeLetters++;
         recentLetters++;
         if (recentLetters >= RECENT_LETTERS_MAX || recentFrames > RECENT_FRAMES_MAX) {
@@ -272,18 +285,40 @@ static void dealDecodedLetter(char letter)
     }
 }
 
+static void updateFortuneLetter(void)
+{
+    uint8_t bits = (record.decodeMode == DECODE_MODE_JA) ? 6 : 5;
+    if (fortuneDataBits < bits) {
+        fortuneData |= pgm_read_byte(pFortune++) << fortuneDataBits;
+        fortuneDataBits += 8;
+    }
+    uint8_t data = fortuneData & (1 << bits) - 1;
+    if (record.decodeMode == DECODE_MODE_JA) {
+        fortuneLetter = (data == 0x3F) ? '\0' : data + 0x60;
+    } else {
+        if (fortuneLetter == '.') {
+            fortuneLetter = '\0';
+        } else if (data < 26) {
+            fortuneLetter = data + 'A';
+        } else {
+            fortuneLetter = pgm_read_byte(&fortuneGraphsEN[data - 26]);
+        }
+    }
+    fortuneData >>= bits;
+    fortuneDataBits -= bits;
+}
+
 static void flushFortuneLetters(void)
 {
-    if (decoder.getCurrentCode() == CODE_INITIAL) {
-        pFortune++;
+    if (decoder.getCurrentCode() == CODE_INITIAL && fortuneLetter != ' ') {
+        updateFortuneLetter();
     }
     decoder.forceStable();
-    char letter;
-    while ((letter = pgm_read_byte(pFortune++)) != '\0') {
-        appendLetter(letter);
+    while (fortuneLetter) {
+        appendLetter(fortuneLetter);
+        updateFortuneLetter();
     }
     lineFeed();
-    pFortune = NULL;
     isInvalid = true;
 }
 
@@ -354,15 +389,20 @@ static void onContinue(void)
 
 static void onFortune(void)
 {
-    uint8_t idx = random(FORTUNE_IDX_MAX);
-    pFortune = (const char *)pgm_read_ptr(
-            (record.decodeMode == DECODE_MODE_JA) ? &fortuneTableJP[idx] : &fortuneTableEN[idx]);
-#ifdef TEST_FORTUNE
-    if (arduboy.buttonPressed(LEFT_BUTTON|RIGHT_BUTTON)) {
-        pFortune = (record.decodeMode == DECODE_MODE_JA) ? testFortuneJP : testFortuneEN;
-    } 
-#endif
-    encoder.setLetter(pgm_read_byte(pFortune));
+    uint16_t bitOffset;
+    if (record.decodeMode == DECODE_MODE_JA) {
+        bitOffset = pgm_read_word(&fortuneOffsetJP[random(FORTUNE_JP_IDX_MAX)]) * 6;
+        pFortune = fortuneDataJP;
+    } else {
+        bitOffset = pgm_read_word(&fortuneOffsetEN[random(FORTUNE_EN_IDX_MAX)]) * 5;
+        pFortune = fortuneDataEN;
+    }
+    pFortune += bitOffset >> 3;   // bitOffset / 8
+    uint8_t bits = bitOffset & 7; // bitOffset % 8
+    fortuneData = pgm_read_byte(pFortune++) >> bits;
+    fortuneDataBits = 8 - bits;
+    updateFortuneLetter();
+    encoder.setLetter(fortuneLetter);
     decoder.forceStable(true);
     onContinue();
 }

@@ -8,7 +8,7 @@
 #define FPS             60
 #define APP_TITLE       "MORSE CODE TRAINER"
 #define APP_CODE        "OBN-Y15"
-#define APP_VERSION     "0.10"
+#define APP_VERSION     "0.11"
 #define APP_RELEASED    "NOVEMBER 2022"
 
 #define UNIT_FRAMES_MAX 13
@@ -116,6 +116,12 @@ MODE_T  updateCredit(void);
 void    drawCredit(void);
 
 /*  Global Functions (macros)  */
+
+#define IMPORT_BIN_FILE(file, sym) asm (    \
+    ".global " #sym "\n"                    \
+    #sym ":\n"                              \
+    ".incbin \"" file "\"\n"                \
+    ".set _sizeof_" #sym ", . - " #sym "\n")
 
 #define circulate(n, v, m)  (((n) + (v) + (m)) % (m))
 
