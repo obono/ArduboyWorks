@@ -25,7 +25,9 @@ do
 		exit 1
 	fi
 	echo "--- Building \"${project}\"..."
-	arduino-cli compile --fqbn arduboy:avr:arduboy ${project} -o ${OUT_DIR}/${project}_v${version}.hex || exit 1
+	cd ${project}
+	arduino-cli compile --fqbn arduboy:avr:arduboy -o ../${OUT_DIR}/${project}_v${version}.hex || exit 1
+	cd ..
 	echo "--- Completed!"
 	echo
 done
