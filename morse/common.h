@@ -8,7 +8,7 @@
 #define FPS             60
 #define APP_TITLE       "MORSE CODE TRAINER"
 #define APP_CODE        "OBN-Y15"
-#define APP_VERSION     "0.11"
+#define APP_VERSION     "0.12"
 #define APP_RELEASED    "NOVEMBER 2022"
 
 #define UNIT_FRAMES_MAX 13
