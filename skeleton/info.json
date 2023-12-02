@@ -1,0 +1,8 @@
+{
+	"title": "title",
+	"extraNote": "extra note",
+	"description": "This is a skeleton project.",
+	"genre": "Action",
+	"url": "https://community.arduboy.com/t/title-something/nnnnn",
+	"dependence": "Arduboy2 Library 5.2.1"
+}
