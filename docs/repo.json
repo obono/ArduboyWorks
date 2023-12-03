@@ -471,6 +471,38 @@
 			"arduboy": "",
 			"codeName": "OBN-Y15",
 			"nickName": "morse"
+		},
+		{
+			"title": "I want 5 quadrillion yen!",
+			"extraNote": "for Meme Jam",
+			"description": "I want 5 quadrillion yen!",
+			"genre": "Joke",
+			"url": "https://community.arduboy.com/t/i-want-5-quadrillion-yen/11608",
+			"dependence": "Arduboy2 Library 5.2.1",
+			"version": "0.01",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/gosencho",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "I want 5 quadrillion yen!",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/gosencho_v0.01.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/gosencho2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/gosencho1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": "",
+			"codeName": "OBN-Y16",
+			"nickName": "gosencho"
 		}
 	]
 }

@@ -67,6 +67,10 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * Decode Morse code to Alphabet or Japanese letters.
   * Depends on Arduboy2 Library 5.2.1\
     ![title](docs/img/morse1.gif) ![playing](docs/img/morse2.gif)
+* OBN-Y16 [I want 5 quadrillion yen!](https://community.arduboy.com/t/i-want-5-quadrillion-yen/11608) (for Meme Jam)
+  * I want 5 quadrillion yen!
+  * Depends on Arduboy2 Library 5.2.1\
+    ![title](docs/img/gosencho1.gif) ![playing](docs/img/gosencho2.gif)
 
 ## License
 
