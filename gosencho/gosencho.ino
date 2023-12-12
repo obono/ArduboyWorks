@@ -32,7 +32,6 @@ void setup()
 {
     ab.beginNoLogo();
     ab.setFrameRate(FPS);
-    //ab.setTextColors(WHITE, WHITE);
     ab.initAudio(1);
     readRecord();
     callInitFunc(mode);

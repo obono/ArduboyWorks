@@ -82,8 +82,6 @@ static void setupTimer(uint8_t timer, uint16_t frequency, uint8_t dutyCycle);
             setLowTimerPin(t); \
         } while (false)
 
-int a =WGM12 | CS10;
-
 /*  Local Variables  */
 
 static uint8_t numChans = 0;

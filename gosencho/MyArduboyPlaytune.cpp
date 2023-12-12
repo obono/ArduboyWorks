@@ -82,8 +82,6 @@ static void setupTimer(uint8_t timer, uint16_t frequency, uint8_t dutyCycle);
             setLowTimerPin(t); \
         } while (false)
 
-int a =WGM12 | CS10;
-
 /*  Local Variables  */
 
 static uint8_t numChans = 0;
@@ -117,6 +115,8 @@ static volatile const byte *scoreCursor = 0;
 static volatile int8_t scorePitchDefault, scorePitch;
 static volatile uint8_t scoreRepeat;
 
+/*  Local Constants  */
+
 // Table of midi note frequencies
 // The lowest notes might not work, depending on the Arduino clock frequency
 // Ref: http://www.phy.mtu.edu/~suits/notefreqs.html
@@ -125,6 +125,7 @@ PROGMEM static const uint8_t midiByteNoteFrequencies[] = {
     36,39,41,43,46,49,52,55,58,61,65,69,73,78,82,87,92,98,104,110,116,123,131,
     138,147,155,165,174,185,196,207,220,233,247
 };
+
 PROGMEM static const uint16_t midiWordNoteFrequencies[(NOTE_MAX + 1) - NOTE_MIDDLE] = {
     261,277,293,311,329,349,370,392,415,440,466,494,523,554,587,622,659,698,
     740,784,830,880,932,988,1046,1108,1174,1244,1318,1397,1480,1568,1661,
@@ -132,6 +133,7 @@ PROGMEM static const uint16_t midiWordNoteFrequencies[(NOTE_MAX + 1) - NOTE_MIDD
     3951,4186,4435,4698,4978,5274,5587,5920,6272,6645,7040,7458,7902,8372,
     8870,9397,9956,10548,11175,11840,12544
 };
+
 PROGMEM static const int8_t tuneNoteTable[] = {
     0, 1, 2, 3, 4, 6, 8, 12, 0, -12, -8, -6, -4, -3, -2, -1
 };

@@ -1,6 +1,6 @@
 #include "MyArduboy2.h"
 
-/*  Local Variables  */
+/*  Local Constants  */
 
 PROGMEM static const uint32_t imgFont[] = {
     0x00000000, 0x00017000, 0x000C00C0, 0x0A7CA7CA, 0x0A2DE2CA, 0x19484253, 0x1251F55E, 0x00003000,

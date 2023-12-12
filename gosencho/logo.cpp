@@ -5,7 +5,7 @@
 #define COUNTER_MAX     (FPS * 2)  // 2 secs
 #define SIGNAL_PTN      0xEEE3AA3AU  // "OBN" in Morse code
 
-/*  Local Variables  */
+/*  Local Constants  */
 
 PROGMEM static const uint8_t imgOBN[][96] = { // 24x32 x3
     {

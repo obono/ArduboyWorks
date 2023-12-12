@@ -8,20 +8,21 @@
 
 /*  Typedefs  */
 
-typedef struct
-{
+typedef struct {
     void(*initFunc)(void);
     MODE_T(*updateFunc)(void);
     void(*drawFunc)(void);
 } MODULE_FUNCS;
 
-/*  Local Variables  */
+/*  Local Constants  */
 
 PROGMEM static const MODULE_FUNCS moduleTable[] = {
     { initLogo,     updateLogo,     drawLogo },
     { initTitle,    updateTitle,    drawTitle },
     { initGame,     updateGame,     drawGame },
 };
+
+/*  Local Variables  */
 
 static MODE_T mode;
 

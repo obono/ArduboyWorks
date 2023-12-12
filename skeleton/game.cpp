@@ -33,7 +33,7 @@ static void     drawMenu(void);
 #define callHandlerFunc(n)  ((void (*)(void)) pgm_read_ptr(handlerFuncTable - 1 + n))()
 #define callDrawerFunc(n)   ((void (*)(void)) pgm_read_ptr(drawerFuncTable - 1 + n))()
 
-/*  Local Variables  */
+/*  Local Constants  */
 
 PROGMEM static void(*const handlerFuncTable[])(void) = {
     handleStart, handlePlaying, handleMenu
@@ -42,6 +42,8 @@ PROGMEM static void(*const handlerFuncTable[])(void) = {
 PROGMEM static void(*const drawerFuncTable[])(void) = {
     drawStart, drawPlaying, drawMenu
 };
+
+/*  Local Variables  */
 
 static STATE_T  state = STATE_INIT;
 static int8_t   playerX, playerY, score;
