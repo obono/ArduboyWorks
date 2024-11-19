@@ -200,8 +200,8 @@ bool updateGame(void)
         }
         if (vx != 0) {
             int nextCol = mod(playerColumn + vx, 18);
-            int nextGap = min(caveColumn[playerColumn].bottom - caveColumn[nextCol].top,
-                    caveColumn[nextCol].bottom - caveColumn[playerColumn].top);
+            int nextGap = min(caveColumn[playerColumn].bottom, caveColumn[nextCol].bottom) -
+                    max(caveColumn[playerColumn].top, caveColumn[nextCol].top);
             if (nextGap + caveGap >= 8) {
                 playerJump = caveColumn[playerColumn].bottom - caveColumn[nextCol].bottom;
                 playerColumn = nextCol;

@@ -7,7 +7,7 @@
 
 #define APP_TITLE       "HOLLOW SEEKER"
 #define APP_CODE        "OBN-Y01"
-#define APP_VERSION     "0.32"
+#define APP_VERSION     "0.33"
 #define APP_RELEASED    "DECEMBER 2016"
 
 #define rnd(val)        (rand() % (val))
