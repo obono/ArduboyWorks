@@ -1,11 +1,5 @@
 #include "common.h"
 
-/*  Defines  */
-
-#define callInitFunc(idx)   ((void (*)(void)) pgm_read_word((uint16_t) &moduleTable[idx].initFunc))()
-#define callUpdateFunc(idx) ((MODE_T (*)(void)) pgm_read_word((uint16_t) &moduleTable[idx].updateFunc))()
-#define callDrawFunc(idx)   ((void (*)(void)) pgm_read_word((uint16_t) &moduleTable[idx].drawFunc))()
-
 /*  Typedefs  */
 
 typedef struct {
@@ -21,6 +15,12 @@ PROGMEM static const MODULE_FUNCS moduleTable[] = {
     { initTitle,    updateTitle,    drawTitle },
     { initGame,     updateGame,     drawGame },
 };
+
+/*  Local Functions (macros)  */
+
+#define callInitFunc(idx)   ((void (*)(void)) pgm_read_word((uint16_t) &moduleTable[idx].initFunc))()
+#define callUpdateFunc(idx) ((MODE_T (*)(void)) pgm_read_word((uint16_t) &moduleTable[idx].updateFunc))()
+#define callDrawFunc(idx)   ((void (*)(void)) pgm_read_word((uint16_t) &moduleTable[idx].drawFunc))()
 
 /*  Local Variables  */
 
