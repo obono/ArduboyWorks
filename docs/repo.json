@@ -10,13 +10,13 @@
 			"genre": "Action",
 			"url": "https://community.arduboy.com/t/hollow-seeker-a-simple-action-game/2594",
 			"dependence": "Arduboy Library 1.1.1",
-			"version": "0.32",
+			"version": "0.33",
 			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/hollow",
 			"author": "OBONO",
 			"binaries": [
 				{
 					"title": "Hollow Seeker",
-					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/hollow_v0.32.hex",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/hollow_v0.33.hex",
 					"device": "Arduboy"
 				}
 			],
