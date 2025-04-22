@@ -7,7 +7,7 @@
 #define FPS             60
 #define APP_TITLE       "BANANONSENSE"
 #define APP_CODE        "OBN-Y17"
-#define APP_VERSION     "0.01"
+#define APP_VERSION     "0.02"
 #define APP_RELEASED    "APRIL 2025"
 
 enum MODE_T : uint8_t {
@@ -75,6 +75,7 @@ void    drawGame(void);
 #define circulate(n, v, m)      (((n) + (v) + (m)) % (m))
 #define circulateOne(n, v, m)   (((n) + (v) + (m) - 1) % (m) + 1)
 #define roundup(n, div)         (((n) + (div) - 1) / (div))
+#define maskbits(bits)          ((1 << (bits)) - 1)
 
 /*  Global Variables  */
 

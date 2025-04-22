@@ -33,6 +33,7 @@ enum LETTER_T : uint8_t {
 #define BITS_PER_LETTER 2
 #define TARGET_PATTERN  0x998 // "BANANA" = 0b100110011000
 #define TIMER_MAX       (FPS * 30) // 30 seconds
+#define BITS_PER_SAYING 5
 
 /*  Typedefs  */
 
@@ -49,6 +50,7 @@ static void handleInterlude(void);
 static void handleGameOver(void);
 
 static void setupWave(void);
+static void setupMessage(uint8_t idx);
 static void setupField(void);
 static void updateField(void);
 static bool isTarget(int8_t x, int8_t y);
@@ -60,6 +62,7 @@ static void drawStart(void);
 static void drawPlaying(void);
 static void drawInterlude(void);
 static void drawGameOver(void);
+static void drawMessage(int16_t y, char *p);
 static void drawField(bool isInterlude);
 static int8_t calcDrawLetterGap(int8_t offset, int8_t size);
 static bool isInside(int8_t x, int8_t y, int8_t focusX, int8_t focusY);
@@ -88,6 +91,7 @@ static UNIT_T field[FIELD_H][FIELD_W];
 static int16_t timer;
 static uint8_t score;
 static int8_t targetX, targetY, cursorX, cursorY, offsetX, offsetY;
+static char message[80];
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -199,7 +203,7 @@ static void handleInterlude(void)
         } else {
             ab.playScore(soundOver, SND_PRIO_OVER);
             state = STATE_GAME_OVER;
-            counter = 0;
+            timer = FPS * 10;
         }
     }
     isInvalid = true;
@@ -207,28 +211,60 @@ static void handleInterlude(void)
 
 static void handleGameOver(void)
 {
+    if ((++counter & 3) == 0) {
+        updateField();
+    }
+    if (--offsetY <= -IMG_LETTERS_H) {
+        cursorY = (cursorY + 1) % FIELD_H;
+        offsetY += IMG_LETTERS_H;
+    }
     if (ab.buttonDown(B_BUTTON)) {
         initGame();
     } else if (ab.buttonDown(A_BUTTON)) {
         playSoundClick();
         state = STATE_LEAVE;
-    } else if (++counter == FPS * 4) {
+    } else if (--timer == 0) {
         state = STATE_LEAVE;
     } 
+    isInvalid = true;
 }
 
 static void setupWave(void)
 {
     if (score == 0) {
         ab.playScore(soundStart, SND_PRIO_START);
+        strcpy_P(message, PSTR("MOVE THE CURSOR AND FIND \"BANANA\"."));
     } else {
         ab.playWave(WAVE_BANANA_FREQ, waveBanana, WAVE_BANANA_LENGTH, SND_PRIO_BANANA);
+        setupMessage(random(SAYINGS_MAX));
     }
     setupField();
     state = STATE_START;
     counter = 0;
     isInvalid = true;
 } 
+
+static void setupMessage(uint8_t idx)
+{
+    uint16_t bitOffset = pgm_read_word(&sayingsOffset[idx]) * BITS_PER_SAYING;
+    const uint8_t *pSrc = &sayingsData[bitOffset >> 3]; // bitOffset / 8
+    uint8_t bits = bitOffset & 7; // bitOffset % 8
+    uint16_t data = pgm_read_byte(pSrc++) >> bits;
+    bits = 8 - bits;
+    char *pDest = message;
+    while (true) {
+        if (bits < BITS_PER_SAYING) {
+            data |= pgm_read_byte(pSrc++) << bits;
+            bits += 8;
+        }
+        uint8_t a = data & maskbits(BITS_PER_SAYING);
+        *pDest++ = (a < 26) ? a + 'A' : pgm_read_byte(&sayingGraphs[a - 26]);
+        data >>= BITS_PER_SAYING;
+        bits -= BITS_PER_SAYING;
+        if (a == maskbits(BITS_PER_SAYING)) break;
+    }
+    *pDest = '\0';
+}
 
 static void setupField(void)
 {
@@ -265,7 +301,7 @@ static void setupField(void)
     targetX = random(FIELD_W);
     targetY = random(FIELD_H);
     for (uint8_t i = 0; i < TARGET_SIZE; i++) {
-        uint8_t letter = TARGET_PATTERN >> i * BITS_PER_LETTER & ((1 << BITS_PER_LETTER) - 1);
+        uint8_t letter = TARGET_PATTERN >> i * BITS_PER_LETTER & maskbits(BITS_PER_LETTER);
         field[targetY][(targetX + i) % FIELD_W] = { letter, 0 };
     }
     cursorX = cursorY = offsetX = offsetY = 0;
@@ -324,8 +360,7 @@ static void drawStart(void)
 {
     ab.printEx(43, 24, F("WAVE"));
     ab.printEx(73 + (score < 9) * IMG_LETTERS_W, 24, score + 1);
-    ab.printEx(7, 36, F("MOVE THE CURSOR AND"));
-    ab.printEx(25, 42, F("FIND \"BANANA\""));
+    drawMessage(36, message);
 }
 
 static void drawPlaying(void)
@@ -342,7 +377,33 @@ static void drawInterlude(void)
 
 static void drawGameOver(void)
 {
-    ab.printEx(0, 0, F("GAME OVER!"));
+    drawField(true);
+    for (int8_t i = -3; i <= 3; i += 2) {
+        int16_t x = 16 + i % 3, y = 24 + i / 3;
+        ab.drawBitmap(x, y, imgGameOver, IMG_GAME_OVER_W, IMG_GAME_OVER_H, BLACK);
+    }
+    ab.drawBitmap(16, 24, imgGameOver, IMG_GAME_OVER_W, IMG_GAME_OVER_H);
+    ab.printEx(1 + (score < 10) * 3, 58, F("YOU FOUND "));
+    ab.print(score);
+    ab.print(F(" BANANAS!"));
+}
+
+static void drawMessage(int16_t y, char *p)
+{
+    uint8_t n = 0;
+    char *pStart = p, *pMark, c;
+    do {
+        c = *++p;
+        if (c == ' ' || c == '\0') pMark = p;
+        if (++n >= 21 || c == '\0') {
+            uint8_t len = pMark - pStart;
+            *pMark = '\0';
+            ab.printEx(64 - len * 3, y, pStart);
+            y += 6;
+            n -= len + 1;
+            pStart = pMark + 1;
+        }
+    } while (c != '\0');
 }
 
 static void drawField(bool isInterlude)
