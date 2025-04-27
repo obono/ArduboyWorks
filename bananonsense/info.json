@@ -3,6 +3,6 @@
 	"extraNote": "for Banana Jam",
 	"description": "Find the word 'BANANA'. Bananas are delicious.",
 	"genre": "Joke",
-	"url": "T.B.D.",
-	"dependence": "Arduboy2 Library 5.2.1"
+	"url": "https://community.arduboy.com/t/bananonsense-a-simple-finding-puzzle-game/12706",
+	"dependence": "Arduboy2 Library 6.0.0"
 }
