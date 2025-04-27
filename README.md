@@ -71,6 +71,10 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * I want 5 quadrillion yen!
   * Depends on Arduboy2 Library 5.2.1\
     ![title](docs/img/gosencho1.gif) ![playing](docs/img/gosencho2.gif)
+* OBN-Y17 [Bananonsense](https://community.arduboy.com/t/bananonsense-a-simple-finding-puzzle-game/12706) (for Banana Jam)
+  * Find the word 'BANANA'. Bananas are delicious.
+  * Depends on Arduboy2 Library 6.0.0\
+    ![title](docs/img/bananonsense1.gif) ![playing](docs/img/bananonsense2.gif)
 
 ## License
 

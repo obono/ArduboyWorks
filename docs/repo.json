@@ -503,6 +503,38 @@
 			"arduboy": "",
 			"codeName": "OBN-Y16",
 			"nickName": "gosencho"
+		},
+		{
+			"title": "Bananonsense",
+			"extraNote": "for Banana Jam",
+			"description": "Find the word 'BANANA'. Bananas are delicious.",
+			"genre": "Joke",
+			"url": "https://community.arduboy.com/t/bananonsense-a-simple-finding-puzzle-game/12706",
+			"dependence": "Arduboy2 Library 6.0.0",
+			"version": "0.02",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/bananonsense",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Bananonsense",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/bananonsense_v0.02.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/bananonsense2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/bananonsense1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": "",
+			"codeName": "OBN-Y17",
+			"nickName": "bananonsense"
 		}
 	]
 }
