@@ -26,9 +26,10 @@ do
 	fi
 	echo "--- Building \"${project}\"..."
 	cd ${project}
-	arduino-cli compile --fqbn arduboy:avr:arduboy -o ../${OUT_DIR}/${project}_v${version}.hex || exit 1
+	arduino-cli compile --fqbn arduboy-homemade:avr:arduboy --build-properties "core=arduboy-core,boot=org" --output-dir . || exit 1
+	mv ${project}.ino.hex ../${OUT_DIR}/${project}_v${version}.hex
+	rm *.eep *.elf *.with_bootloader.*
 	cd ..
 	echo "--- Completed!"
 	echo
 done
-rm -f ${OUT_DIR}/*.elf

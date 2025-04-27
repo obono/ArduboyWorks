@@ -3,7 +3,7 @@ version: 2
 jobs:
   single_build:
     docker:
-      - image: obono/arduboy-env
+      - image: obono/arduboy-env:2.0
     working_directory: /home/circleci/working
     steps:
       - checkout
