@@ -78,4 +78,4 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
 
 ## License
 
-These codes are licensed under [MIT-License](LICENSE).
+These codes are licensed under [MIT License](LICENSE).
