@@ -1,0 +1,8 @@
+{
+	"title": "Toyokumono",
+	"extraNote": "for Cloud Jam",
+	"description": "Summon rain clouds to enrich the earth and bring forth abundant harvests.",
+	"genre": "Action",
+	"url": "T.B.D.",
+	"dependence": "Arduboy2 Library 6.0.0"
+}
