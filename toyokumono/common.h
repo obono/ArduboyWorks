@@ -7,7 +7,7 @@
 #define FPS             60
 #define APP_TITLE       "TOYOKUMONO"
 #define APP_CODE        "OBN-Y18"
-#define APP_VERSION     "0.01"
+#define APP_VERSION     "0.02"
 #define APP_RELEASED    "APRIL 2026"
 
 enum MODE_T : uint8_t {
@@ -78,6 +78,8 @@ void    drawGame(void);
 
 #define clamp(n, nMin, nMax)    max(min((n), (nMax)), (nMin))      
 #define circulate(n, v, m)      (((n) + (v) + (m)) % (m))
+#define addWithLimit(n, v, lim) (n = (n < (lim) - (v)) ? n + (v) : (lim))
+#define subWithLimit(n, v, lim) (n = (n > (lim) + (v)) ? n - (v) : (lim))
 
 /*  Global Variables  */
 
