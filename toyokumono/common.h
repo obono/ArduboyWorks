@@ -7,7 +7,7 @@
 #define FPS             60
 #define APP_TITLE       "TOYOKUMONO"
 #define APP_CODE        "OBN-Y18"
-#define APP_VERSION     "0.02"
+#define APP_VERSION     "0.03"
 #define APP_RELEASED    "APRIL 2026"
 
 enum MODE_T : uint8_t {
@@ -32,6 +32,7 @@ void    clearRecord(void);
 bool    enterScore(uint16_t score);
 void    handleDPad(void);
 void    drawTime(int16_t x, int16_t y, uint32_t frames);
+void    drawText(const char *p, int16_t y);
 
 void    setSound(bool on);
 void    playSoundTick(void);
@@ -88,4 +89,4 @@ extern RECORD_T     record;
 extern uint16_t     lastScore;
 extern uint8_t      counter;
 extern int8_t       padX, padY, padRepeatCount;
-extern bool         isInvalid, isRecordDirty;
+extern bool         isInvalid, isRecordDirty, isInstruction;

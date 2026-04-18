@@ -9,13 +9,14 @@ enum STATE_T : uint8_t {
     STATE_PLAYING,
     STATE_OVER,
     STATE_MENU,
+    STATE_INSTRUCTION,
     STATE_LEAVE,
 };
 
-#define CLOUDS_MAX      16
-#define GROUNDS_MAX     16
-#define FLOWERS_MAX     32
-#define DOTS_MAX        32
+#define CLOUDS_MAX          16
+#define GROUNDS_MAX         16
+#define FLOWERS_MAX         32
+#define DOTS_MAX            32
 
 #define DECIMAL_BITS        6
 #define PLAYER_Y_MAX        24
@@ -32,6 +33,7 @@ enum STATE_T : uint8_t {
 #define PLANT_HEIGHT_SHIFT  8
 #define CALM_FRAMES         1800 // 30 seconds
 #define ENDURE_FRAMES_MAX   180  // 3 seconds
+#define INSTRUCTION_FRAMES  600  // 10 seconds
 
 /*  Typedefs  */
 
@@ -65,8 +67,10 @@ typedef struct {
 static void     handleStart(void);
 static void     handlePlaying(void);
 static void     handleOver(void);
+static void     handleInstruction(void);
 static uint8_t  updateClouds(void);
 static uint8_t  updateGrounds(void);
+static void     newCloud(int16_t x, int8_t y);
 static void     wetGround(uint8_t groundIndex, uint8_t n);
 static void     updateFlowers(void);
 static void     newFlower(int8_t x, int8_t y);
@@ -74,6 +78,7 @@ static void     updateDots(void);
 static void     newDot(int8_t x, int8_t y, int8_t vx, int8_t vy);
 static void     updatePlayer(void);
 static void     updateWind(void);
+static void     setupInstruction(void);
 static void     flashLed(uint8_t r, uint8_t g, uint8_t b);
 
 static void     onContinue(void);
@@ -85,6 +90,7 @@ static void     onQuit(void);
 static void     drawStart(void);
 static void     drawPlaying(void);
 static void     drawOver(void);
+static void     drawInstruction(void);
 static void     drawScore(void);
 static void     drawPlayer(void);
 static void     drawClouds(void);
@@ -101,11 +107,23 @@ static void     drawDots(void);
 /*  Local Constants  */
 
 PROGMEM static void(*const handlerFuncTable[])(void) = {
-    handleStart, handlePlaying, handleOver, handleMenu
+    handleStart, handlePlaying, handleOver, handleMenu, handleInstruction
 };
 
 PROGMEM static void(*const drawerFuncTable[])(void) = {
-    drawStart, drawPlaying, drawOver, drawPlaying
+    drawStart, drawPlaying, drawOver, drawPlaying, drawInstruction
+};
+
+PROGMEM static const char instructionText1[] =
+        "YOU MOVE BY D-PAD\0AND SUMMON CLOUDS\0BY PRESSING B OR\0AUTOMATICALLY.\0\e";
+PROGMEM static const char instructionText2[] =
+    "RAIN WETS GROUND.\0PLANTS SPROUT IF\0GROUND IS IN BEST\0CONDITION.\0\e";
+PROGMEM static const char instructionText3[] =
+    "PLANTS GROW WHILE\0GROUND IS IN GOOD\0CONDITION. FINALLY\0THEY BLOOM FLOWERS.\0\e";
+PROGMEM static const char instructionText4[] =
+    "FLOWERS RESTORE\0CLOUD SUMMON USES.\0GOOD LUCK!\0\e";
+PROGMEM static const char * const instructionTextList[] = {
+    instructionText1, instructionText2, instructionText3, instructionText4
 };
 
 /*  Local Variables  */
@@ -115,12 +133,11 @@ static CLOUD_T  clouds[CLOUDS_MAX];
 static GROUND_T grounds[GROUNDS_MAX];
 static FLYING_T flowers[FLOWERS_MAX], dots[DOTS_MAX];
 static LED_T    led;
-static uint32_t gameFrames;
-static int16_t  playerX, playerY, playerVx, playerVy;
-static uint16_t score, elements, windKeepFrames, overFrames;
+static int16_t  playerX, playerY, playerVx, playerVy, windKeepFrames;
+static uint16_t score, elements, gameFrames, overFrames;
 static int8_t   currentWind, targetWind, currentWindGap, targetWindGap, scoreY;
-static uint8_t  endureFrames, cloudIndex, flowerIndex, dotIndex, playerImgIndex;
-static bool     isHiscore;
+static uint8_t  endureFrames, cloudIndex, flowerIndex, dotIndex, playerImgIndex, instructionPage;
+static bool     isFast, isHiscore;
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -132,14 +149,14 @@ void initGame(void)
     lastScore = 0;
     score = 0;
     scoreY = 0;
-    elements = 100;
-    endureFrames = ENDURE_FRAMES_MAX;
 
     if (state != STATE_OVER) {
         playerX = (WIDTH / 2) << DECIMAL_BITS;
         playerY = 12 << DECIMAL_BITS;
         playerVx = playerVy = 0;
     }
+    elements = 100;
+    endureFrames = ENDURE_FRAMES_MAX;
     currentWind = targetWind = currentWindGap = targetWindGap = 0;
     windKeepFrames = CALM_FRAMES;
 
@@ -151,10 +168,15 @@ void initGame(void)
     flowerIndex = 0;
     dotIndex = 0;
 
+    if (isInstruction) {
+        instructionPage = 0;
+        state = STATE_INSTRUCTION;
+    } else {
+        counter = 2 * FPS;
+        state = STATE_START;
+        ab.playScore(soundStart, SND_PRIO_START);
+    }
     led.v = 0;
-    counter = 2 * FPS;
-    state = STATE_START;
-    ab.playScore(soundStart, SND_PRIO_START);
     isInvalid = true;
 }
 
@@ -211,14 +233,20 @@ static void handlePlaying(void)
     gameFrames++;
     record.playFrames++;
     isRecordDirty = true;
-    uint8_t coundsCount = updateClouds();
-    uint8_t plantsCount = updateGrounds();
+    uint8_t cloudsCount = updateClouds();
+    uint8_t plantsCount;
+    isFast = false;
+    for (uint8_t i = 0; i < 8; i++) {
+        plantsCount = updateGrounds();
+        if (elements > 0 || cloudsCount > 0) break;
+        isFast = true;
+    }
     updateFlowers();
     updateDots();
     updatePlayer();
     updateWind();
 
-    if (elements == 0 && coundsCount == 0 && plantsCount == 0) {
+    if (elements == 0 && cloudsCount == 0 && plantsCount == 0) {
         /*  Game over  */
         isHiscore = enterScore(score);
         writeRecord();
@@ -261,6 +289,42 @@ static void handleOver(void)
     isInvalid = true;
 }
 
+static void handleInstruction(void)
+{
+    if (gameFrames == 0) setupInstruction();
+    if (instructionPage == 0) {
+        updateClouds();
+    } else {
+        updateGrounds();
+    }
+    updateFlowers();
+    updateDots();
+    if (instructionPage == 0 && gameFrames % 45 == 30) {
+        newCloud(random(WIDTH << DECIMAL_BITS), random(32) + 28);
+    }
+    if (++gameFrames == INSTRUCTION_FRAMES) gameFrames = 0;
+    if (ab.buttonDown(A_BUTTON)) {
+        onQuit();
+    } else if (ab.buttonDown(B_BUTTON)) {
+        if (++instructionPage >= 4) {
+            onQuit();
+        } else {
+            playSoundTick();
+            gameFrames = 0;
+        }
+    } else {
+        int8_t v = ab.buttonDown(RIGHT_BUTTON) - ab.buttonDown(LEFT_BUTTON);
+        if (v != 0 && instructionPage + v >= 0 && instructionPage + v < 4) {
+            playSoundTick();
+            instructionPage += v;
+            gameFrames = 0;
+        }
+    }
+    isInvalid = true;
+}
+
+/*---------------------------------------------------------------------------*/
+
 static uint8_t updateClouds(void)
 {
     uint8_t ret = 0;
@@ -280,6 +344,16 @@ static uint8_t updateClouds(void)
     return ret;
 }
 
+static void newCloud(int16_t x, int8_t y)
+{
+    CLOUD_T *p = &clouds[cloudIndex];
+    p->x = loopWithinWidth(x - (IMG_CLOUD_W / 2 << DECIMAL_BITS));
+    p->y = y - IMG_CLOUD_H / 2;
+    p->life = CLOUD_LIFE_MAX;
+    cloudIndex = (cloudIndex + 1) % CLOUDS_MAX;
+    ab.playScore(soundCloud, SND_PRIO_CLOUD);
+}
+
 static void wetGround(uint8_t groundIndex, uint8_t n)
 {
     GROUND_T *p = &grounds[groundIndex];
@@ -289,9 +363,10 @@ static void wetGround(uint8_t groundIndex, uint8_t n)
 static uint8_t updateGrounds(void)
 {
     uint8_t ret = 0;
+    uint8_t dry = (gameFrames >= 18000) ? gameFrames / 3600 - 2 : 2; 
     for (uint8_t i = 0; i < GROUNDS_MAX; i++) {
         GROUND_T *p = &grounds[i];
-        subWithLimit(p->wet, 2, 0);
+        if (!isInstruction) subWithLimit(p->wet, dry, 0);
         uint8_t wetLevel = p->wet / 512; // 0~7
         if (p->growth == 0) {
             if (wetLevel == 3 || wetLevel == 4) {
@@ -432,15 +507,10 @@ static void updatePlayer(void)
     /*  Summon a cloud  */
     if (endureFrames > 0) endureFrames--;
     if (elements > 0 && (ab.buttonDown(B_BUTTON) || endureFrames == 0) && clouds[cloudIndex].life == 0) {
-        CLOUD_T *p = &clouds[cloudIndex];
-        p->x = loopWithinWidth(playerX - (IMG_CLOUD_W / 2 << DECIMAL_BITS));
-        p->y = (playerY >> DECIMAL_BITS) - IMG_CLOUD_H / 2;
-        p->life = CLOUD_LIFE_MAX;
+        newCloud(playerX, playerY >> DECIMAL_BITS);
         elements--;
-        uint8_t endureNext = max(120 - elements / 2, 10);
+        uint8_t endureNext = (elements < 220) ? 120 - elements / 2 : 10;
         addWithLimit(endureFrames, endureNext, ENDURE_FRAMES_MAX);
-        cloudIndex = (cloudIndex + 1) % CLOUDS_MAX;
-        ab.playScore(soundCloud, SND_PRIO_CLOUD);
     }
     if (elements <= 10 && gameFrames % (FPS / 2) == 0 || elements <= 20 && gameFrames % FPS == 0) {
         ab.playScore(soundWarn, SND_PRIO_WARN);
@@ -453,7 +523,7 @@ static void updateWind(void)
     if (diff != 0) currentWind += (diff > 0) ? 1 : -1;
     diff = targetWindGap - currentWindGap;
     if (diff != 0) currentWindGap += (diff > 0) ? 1 : -1;
-    if (--windKeepFrames == 0) {
+    if (--windKeepFrames <= 0) {
         int8_t range = min((gameFrames - 1500) >> 8, 120);
         targetWind = random(range * 2 + 1) - range;
         if (range > 16) {
@@ -464,6 +534,42 @@ static void updateWind(void)
         }
         uint16_t minFrames = max(360 - (gameFrames >> 6), 60);
         windKeepFrames = random(600 - minFrames) + minFrames;
+    }
+}
+
+static void setupInstruction(void)
+{
+    if (instructionPage == 0) {
+        memset(clouds, 0, sizeof(clouds));
+    } else {
+        for (uint8_t i = 0; i < GROUNDS_MAX; i++) {
+            GROUND_T *p = &grounds[i];
+            if (i % 3 == 0) {
+                memset(p, 0, sizeof(GROUND_T));
+                continue;
+            }
+            p->wet = (i % 3 == 0) ? 0 : (i / 3) * 1023;
+            switch (instructionPage) {
+                case 1:
+                    p->growth = p->life = 0;
+                    p->power = random(60);
+                    break;
+                case 2:
+                    p->growth = 1024 + random(512);
+                    p->life = PLANT_LIFE_MAX;
+                    p->power = PLANT_POWER_MAX - random(60); 
+                    break;
+                case 3:
+                    if (i >= 5 && i <= 10) {
+                        p->growth = ((i == 7 || i == 8) ? 3072 : 1024) + random(1024);
+                        p->life = 420 + random(120);
+                        p->power = PLANT_POWER_MAX; 
+                    } else {
+                        p->growth = p->life = p->power = 0;
+                    }
+                    break;
+            }
+        }
     }
 }
 
@@ -519,7 +625,8 @@ static void drawStart(void)
     drawPlayer();
     drawGrounds();
     drawDots();
-    ab.printEx(46, 29, F("READY?"));
+    ab.drawBitmap(39, 24, imgReady, IMG_READY_W, IMG_READY_H);
+    ab.drawBitmap(80, 40, imgReadyExtra, 4, 2);
 }
 
 static void drawPlaying(void)
@@ -530,6 +637,7 @@ static void drawPlaying(void)
     drawGrounds();
     drawFlowers();
     drawDots();
+    if (isFast && (gameFrames & 4)) ab.drawBitmap(56, 0, imgFast, IMG_FAST_W, IMG_FAST_H);
 }
 
 static void drawOver(void)
@@ -539,9 +647,36 @@ static void drawOver(void)
     drawFlowers();
     drawScore();
     drawDots();
-    ab.printEx(37, 29, F("GAME OVER"));
-    if (isHiscore && (gameFrames & 8)) ab.printEx(31, 40, F("NEW RECORD!"));
+    ab.drawBitmap(18, 24, imgGameOver, IMG_GAMEOVER_W, IMG_GAMEOVER_H);
+    ab.drawBitmap(53, 40, imgGameOverExtra, 2, 3);
+    if (isHiscore && (gameFrames & 8)) ab.printEx(31, 44, F("NEW RECORD!"));
 }
+
+static void drawInstruction(void)
+{
+    const char *p = pgm_read_ptr(&instructionTextList[instructionPage]);
+    drawText(p, 0);
+    ab.printEx(110, 24, instructionPage + 1);
+    ab.print(F("/4"));
+    if (gameFrames >= 20) {
+        if (instructionPage == 0) {
+            drawClouds();
+        } else {
+            if (instructionPage == 1) {
+                ab.printEx(7, 33, F("TOO"));
+                ab.printEx(7, 39, F("DRY"));
+                ab.printEx(52, 36, F("BEST"));
+                ab.printEx(103, 33, F("TOO"));
+                ab.printEx(103, 39, F("WET"));
+            }
+            drawGrounds();
+            drawDots();
+        }
+    }
+    drawFlowers();
+}
+
+/*---------------------------------------------------------------------------*/
 
 static void drawScore(void)
 {
@@ -589,6 +724,7 @@ static void drawClouds(void)
 static void drawGrounds(void)
 {
     for (uint8_t i = 0; i < GROUNDS_MAX; i++) {
+        if (isInstruction && i % 3 == 0) continue;
         GROUND_T *p = &grounds[i];
         uint8_t x = i * IMG_GROUND_W;
         if (p->growth > 0) {
@@ -609,6 +745,7 @@ static void drawGrounds(void)
     }
     ab.fillRect(0, 60, WIDTH, 4, BLACK);
     for (uint8_t i = 0; i < GROUNDS_MAX; i++) {
+        if (isInstruction && i % 3 == 0) continue;
         uint8_t imgIndex = (grounds[i].wet + 512) >> 10;
         ab.drawBitmap(i * IMG_GROUND_W, HEIGHT - IMG_GROUND_H, imgGround[imgIndex], IMG_GROUND_W, IMG_GROUND_H, WHITE);
     }

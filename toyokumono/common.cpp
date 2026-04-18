@@ -21,7 +21,7 @@ RECORD_T    record;
 uint16_t    lastScore;
 uint8_t     counter;
 int8_t      padX, padY, padRepeatCount;
-bool        isInvalid, isRecordDirty;
+bool        isInvalid, isRecordDirty, isInstruction;
 
 /*  Local Functions  */
 
@@ -41,7 +41,6 @@ static void     eepWriteBlock(const void *p, size_t n);
 
 static RECORD_STATE_T   recordState = RECORD_NOT_READ;
 static int16_t          eepAddr;
-static bool             isInvalidInst;
 
 /*---------------------------------------------------------------------------*/
 /*                             Common Functions                              */
@@ -153,6 +152,16 @@ void drawTime(int16_t x, int16_t y, uint32_t frames)
         ab.print(':');
         if (s < 10) ab.print('0');
         ab.print(s);
+    }
+}
+
+void drawText(const char *p, int16_t y)
+{
+    while (pgm_read_byte(p) != '\e') {
+        uint8_t len = strnlen_P(p, 21);
+        ab.printEx(64 - len * 3, y, (const __FlashStringHelper *) p);
+        p += len + 1;
+        y += (len == 0) ? 2 : 6;
     }
 }
 
