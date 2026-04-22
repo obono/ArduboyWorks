@@ -535,6 +535,38 @@
 			"arduboy": "",
 			"codeName": "OBN-Y17",
 			"nickName": "bananonsense"
+		},
+		{
+			"title": "Toyokumono",
+			"extraNote": "for Cloud Jam",
+			"description": "Summon rain clouds to enrich the earth and bring forth abundant harvests.",
+			"genre": "Action",
+			"url": "https://community.arduboy.com/t/toyokumono-an-action-game-to-enrich-the-earth/13375",
+			"dependence": "Arduboy2 Library 6.0.0",
+			"version": "0.10",
+			"sourceUrl": "https://github.com/obono/ArduboyWorks/tree/master/toyokumono",
+			"author": "OBONO",
+			"binaries": [
+				{
+					"title": "Toyokumono",
+					"filename": "https://raw.githubusercontent.com/obono/ArduboyWorks/master/_hexs/toyokumono_v0.10.hex",
+					"device": "Arduboy"
+				}
+			],
+			"screenshots": [
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/toyokumono2.gif",
+					"title": "Game screen"
+				},
+				{
+					"filename": "https://obono.github.io/ArduboyWorks/img/toyokumono1.gif",
+					"title": "Title screen"
+				}
+			],
+			"license": "MIT",
+			"arduboy": "",
+			"codeName": "OBN-Y18",
+			"nickName": "toyokumono"
 		}
 	]
 }

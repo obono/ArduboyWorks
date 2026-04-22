@@ -75,6 +75,10 @@ Making mini games for [Arduboy](https://www.arduboy.com/).
   * Find the word 'BANANA'. Bananas are delicious.
   * Depends on Arduboy2 Library 6.0.0\
     ![title](docs/img/bananonsense1.gif) ![playing](docs/img/bananonsense2.gif)
+* OBN-Y18 [Toyokumono](https://community.arduboy.com/t/toyokumono-an-action-game-to-enrich-the-earth/13375) (for Cloud Jam)
+  * Summon rain clouds to enrich the earth and bring forth abundant harvests.
+  * Depends on Arduboy2 Library 6.0.0\
+    ![title](docs/img/toyokumono1.gif) ![playing](docs/img/toyokumono2.gif)
 
 ## License
 
