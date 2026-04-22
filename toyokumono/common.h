@@ -7,8 +7,11 @@
 #define FPS             60
 #define APP_TITLE       "TOYOKUMONO"
 #define APP_CODE        "OBN-Y18"
-#define APP_VERSION     "0.03"
+#define APP_VERSION     "0.10"
 #define APP_RELEASED    "APRIL 2026"
+
+#define DECIMAL_BITS    6
+#define DOTS_MAX        32
 
 enum MODE_T : uint8_t {
     MODE_LOGO = 0,
@@ -24,6 +27,11 @@ typedef struct {
     uint16_t    playCount;
 } RECORD_T; // sizeof(RECORD_T) is 26
 
+typedef struct {
+    int16_t     x, y;
+    int8_t      vx, vy;
+} FLYING_T;
+
 /*  Global Functions (Common)  */
 
 void    readRecord(void);
@@ -33,6 +41,7 @@ bool    enterScore(uint16_t score);
 void    handleDPad(void);
 void    drawTime(int16_t x, int16_t y, uint32_t frames);
 void    drawText(const char *p, int16_t y);
+void    drawDots(void);
 
 void    setSound(bool on);
 void    playSoundTick(void);
@@ -86,7 +95,8 @@ void    drawGame(void);
 
 extern MyArduboy2   ab;
 extern RECORD_T     record;
+extern FLYING_T     dots[DOTS_MAX];
 extern uint16_t     lastScore;
-extern uint8_t      counter;
+extern uint8_t      counter, dotIndex;
 extern int8_t       padX, padY, padRepeatCount;
-extern bool         isInvalid, isRecordDirty, isInstruction;
+extern bool         isInvalid, isRecordDirty, isTitleAnimation, isInstruction;

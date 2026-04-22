@@ -26,6 +26,8 @@ enum STATE_T : uint8_t {
 static void handleInit(void);
 static void handleTop(void);
 static void handleAnyButton(void);
+static void updateTitleDots(void);
+static void newTitleDot(int8_t x, int8_t y);
 
 static void onTop(void);
 static void onInstruction(void);
@@ -123,7 +125,9 @@ PROGMEM static void(*const drawerFuncTable[])(void) = {
 
 /*  Local Variables  */
 
-static STATE_T  state = STATE_INIT;
+static STATE_T  state;
+static uint16_t titleFrames;
+static uint8_t  dotsIndex;
 
 /*---------------------------------------------------------------------------*/
 /*                              Main Functions                               */
@@ -137,7 +141,8 @@ void initTitle(void)
     addMenuItem(F("RECORD"), onRecord);
     addMenuItem(F("CREDIT"), onCredit);
     setMenuCoords(50, 40, 78, 23, false, true);
-    if (state == STATE_INIT) {
+    if (isTitleAnimation) {
+        state = STATE_INIT;
         setMenuItemPos((record.hiscore[0] == 0) ? 0 : 1);
         counter = FPS;
     } else {
@@ -177,6 +182,12 @@ static void handleInit(void)
 static void handleTop(void)
 {
     handleMenu();
+    titleFrames++;
+    updateTitleDots();
+    if (random(16) == 0) {
+        newTitleDot(28 + random(16), 40 + random(8));
+    }
+    isInvalid = true;
 }
 
 static void handleAnyButton(void)
@@ -189,12 +200,34 @@ static void handleAnyButton(void)
 }
 
 /*---------------------------------------------------------------------------*/
+
+static void updateTitleDots(void)
+{
+    for (FLYING_T *p = dots; p < &dots[DOTS_MAX]; p++) {
+        if (p->y > 0) p->y += p->vy;
+    }
+}
+
+static void newTitleDot(int8_t x, int8_t y)
+{
+    FLYING_T *p = &dots[dotIndex];
+    p->x = x << DECIMAL_BITS;
+    p->y = y << DECIMAL_BITS;
+    p->vx = 0;
+    p->vy = -random(17) - 16;
+    dotIndex = (dotIndex + 1) % DOTS_MAX;
+}
+
+/*---------------------------------------------------------------------------*/
 /*                               Menu Handlers                               */
 /*---------------------------------------------------------------------------*/
 
 static void onTop(void)
 {
     state = STATE_TOP;
+    isTitleAnimation = false;
+    memset(dots, 0, sizeof(dots));
+    titleFrames = 0;
     isInvalid = true;
 }
 
@@ -231,14 +264,26 @@ static void onCredit(void)
 
 static void drawTop(void)
 {
-    uint8_t offset = (state == STATE_INIT) ? counter : 0;
-    ab.drawBitmap(-32 + offset * 2, 0, imgGoddess1, IMG_GODDESS1_W, IMG_GODDESS1_H, WHITE);
-    ab.drawBitmap(-22 + offset * 2, 40, imgGoddess2, IMG_GODDESS2_W, IMG_GODDESS2_H, WHITE);
-    ab.drawBitmap(24 + offset * 5 / 2, 40 + offset / 2, imgHand, IMG_HAND_W, IMG_HAND_H, WHITE);
-    ab.drawBitmap(56, -offset, imgTitle, IMG_TITLE_W, IMG_TITLE_H, WHITE);
+    int8_t goddessX, handX, handY, titleY;
+    if (state == STATE_INIT) {
+        goddessX = -32 + counter * 2;
+        handX = 24 + counter * 5 / 2;
+        handY = 40 + counter / 2;
+        titleY = -counter;
+    } else {
+        goddessX = -32;
+        handX = 20 + cos(titleFrames * 0.013f) * 4.0f;
+        handY = 42 - cos(titleFrames * 0.007f) * 2.0f;
+        titleY = 0;
+    }
+    ab.drawBitmap(goddessX, 0, imgGoddess1, IMG_GODDESS1_W, IMG_GODDESS1_H, WHITE);
+    ab.drawBitmap(goddessX + 10, 40, imgGoddess2, IMG_GODDESS2_W, IMG_GODDESS2_H, WHITE);
+    ab.drawBitmap(handX, handY, imgHand, IMG_HAND_W, IMG_HAND_H, WHITE);
+    ab.drawBitmap(56, titleY, imgTitle, IMG_TITLE_W, IMG_TITLE_H, WHITE);
     if (state == STATE_TOP) {
         ab.printEx(62, IMG_TITLE_H, F(APP_TITLE));
         if (lastScore > 0) ab.printEx(0, 0, lastScore);
+        drawDots();
     }
 }
 

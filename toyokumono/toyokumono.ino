@@ -35,6 +35,7 @@ void setup()
     //ab.setTextColors(WHITE, WHITE);
     ab.initAudio(1);
     readRecord();
+    isTitleAnimation = true;
     callInitFunc(mode);
 }
 

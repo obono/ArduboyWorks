@@ -18,10 +18,11 @@ enum RECORD_STATE_T : uint8_t {
 
 MyArduboy2  ab;
 RECORD_T    record;
+FLYING_T    dots[DOTS_MAX];
 uint16_t    lastScore;
-uint8_t     counter;
+uint8_t     counter, dotIndex;
 int8_t      padX, padY, padRepeatCount;
-bool        isInvalid, isRecordDirty, isInstruction;
+bool        isInvalid, isRecordDirty, isTitleAnimation, isInstruction;
 
 /*  Local Functions  */
 
@@ -162,6 +163,14 @@ void drawText(const char *p, int16_t y)
         ab.printEx(64 - len * 3, y, (const __FlashStringHelper *) p);
         p += len + 1;
         y += (len == 0) ? 2 : 6;
+    }
+}
+
+void drawDots(void)
+{
+    for (FLYING_T *p = dots; p < &dots[DOTS_MAX]; p++) {
+        if (p->y <= 0 || (p->y >> DECIMAL_BITS) >= HEIGHT) continue;
+        ab.drawPixel(p->x >> DECIMAL_BITS, p->y >> DECIMAL_BITS, WHITE);
     }
 }
 

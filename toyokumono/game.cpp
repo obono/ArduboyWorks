@@ -16,9 +16,7 @@ enum STATE_T : uint8_t {
 #define CLOUDS_MAX          16
 #define GROUNDS_MAX         16
 #define FLOWERS_MAX         32
-#define DOTS_MAX            32
 
-#define DECIMAL_BITS        6
 #define PLAYER_Y_MAX        24
 #define PLAYER_ACCEL        (1 << (DECIMAL_BITS - 2))
 #define ELEMENT_INITIAL     100
@@ -49,11 +47,6 @@ typedef struct {
     uint16_t    growth; // 0~7200
     uint16_t    power;  // 0~360
 } GROUND_T;
-
-typedef struct {
-    int16_t     x, y;
-    int8_t      vx, vy;
-} FLYING_T;
 
 typedef struct {
     uint8_t     r : 4;
@@ -131,12 +124,12 @@ PROGMEM static const char * const instructionTextList[] = {
 static STATE_T  state = STATE_INIT;
 static CLOUD_T  clouds[CLOUDS_MAX];
 static GROUND_T grounds[GROUNDS_MAX];
-static FLYING_T flowers[FLOWERS_MAX], dots[DOTS_MAX];
+static FLYING_T flowers[FLOWERS_MAX];
 static LED_T    led;
 static int16_t  playerX, playerY, playerVx, playerVy, windKeepFrames;
 static uint16_t score, elements, gameFrames, overFrames;
 static int8_t   currentWind, targetWind, currentWindGap, targetWindGap, scoreY;
-static uint8_t  endureFrames, cloudIndex, flowerIndex, dotIndex, playerImgIndex, instructionPage;
+static uint8_t  endureFrames, cloudIndex, flowerIndex, playerImgIndex, instructionPage;
 static bool     isFast, isHiscore;
 
 /*---------------------------------------------------------------------------*/
@@ -146,32 +139,29 @@ static bool     isFast, isHiscore;
 void initGame(void)
 {
     gameFrames = 0;
-    lastScore = 0;
-    score = 0;
-    scoreY = 0;
-
-    if (state != STATE_OVER) {
-        playerX = (WIDTH / 2) << DECIMAL_BITS;
-        playerY = 12 << DECIMAL_BITS;
-        playerVx = playerVy = 0;
-    }
-    elements = 100;
-    endureFrames = ENDURE_FRAMES_MAX;
-    currentWind = targetWind = currentWindGap = targetWindGap = 0;
-    windKeepFrames = CALM_FRAMES;
-
     memset(clouds, 0, sizeof(clouds));
     memset(grounds, 0, sizeof(grounds));
     memset(flowers, 0, sizeof(flowers));
-    memset(dots, 0x10, sizeof(dots)); // Trick!!
+    memset(dots, 0, sizeof(dots));
     cloudIndex = 0;
     flowerIndex = 0;
-    dotIndex = 0;
+    currentWind = targetWind = currentWindGap = targetWindGap = 0;
+    windKeepFrames = CALM_FRAMES;
 
     if (isInstruction) {
         instructionPage = 0;
         state = STATE_INSTRUCTION;
     } else {
+        lastScore = 0;
+        score = 0;
+        scoreY = 0;
+        if (state != STATE_OVER) {
+            playerX = (WIDTH / 2) << DECIMAL_BITS;
+            playerY = 12 << DECIMAL_BITS;
+            playerVx = playerVy = 0;
+        }
+        elements = 100;
+        endureFrames = ENDURE_FRAMES_MAX;
         counter = 2 * FPS;
         state = STATE_START;
         ab.playScore(soundStart, SND_PRIO_START);
@@ -278,6 +268,7 @@ static void handleOver(void)
     updatePlayer();
     overFrames++;
     if (overFrames >= FPS * 8) {
+        isTitleAnimation = true;
         state = STATE_LEAVE;
     } else if (overFrames >= FPS) {
         if (ab.buttonDown(A_BUTTON)) {
@@ -466,7 +457,7 @@ static void newFlower(int8_t x, int8_t y)
 static void updateDots(void)
 {
     for (FLYING_T *p = dots; p < &dots[DOTS_MAX]; p++) {
-        if ((p->y >> DECIMAL_BITS) >= HEIGHT) continue;
+        if (p->y <= 0 || (p->y >> DECIMAL_BITS) >= HEIGHT) continue;
         p->x = loopWithinWidth(p->x + p->vx);
         p->y += p->vy;
         addWithLimit(p->vy, 3, 127);
@@ -498,7 +489,7 @@ static void updatePlayer(void)
     playerY = clamp(playerY, 0, ((PLAYER_Y_MAX + 1) << DECIMAL_BITS) - 1);
     playerImgIndex = 4 - (playerVy < -PLAYER_ACCEL) * 3 - (playerVx < -PLAYER_ACCEL)
                        + (playerVy >  PLAYER_ACCEL) * 3 + (playerVx >  PLAYER_ACCEL);
-    if (elements > 0 && !random(16)) {
+    if (elements > 0 && random(16) == 0) {
         newDot((playerX >> DECIMAL_BITS) + random(6) - 3,
                (playerY >> DECIMAL_BITS) + random(3) + 1, 90, currentWind);
     }
@@ -654,7 +645,7 @@ static void drawOver(void)
 
 static void drawInstruction(void)
 {
-    const char *p = pgm_read_ptr(&instructionTextList[instructionPage]);
+    const char *p = (const char *)pgm_read_ptr(&instructionTextList[instructionPage]);
     drawText(p, 0);
     ab.printEx(110, 24, instructionPage + 1);
     ab.print(F("/4"));
@@ -759,13 +750,5 @@ static void drawFlowers(void)
         int16_t dx = (p->x >> DECIMAL_BITS) - IMG_FLOWER_W / 2;
         int16_t dy = (p->y >> DECIMAL_BITS) - IMG_FLOWER_H;
         ab.drawBitmap(dx, dy, imgFlower[imgIndex], IMG_FLOWER_W, IMG_FLOWER_H, WHITE);
-    }
-}
-
-static void drawDots(void)
-{
-    for (FLYING_T *p = dots; p < &dots[DOTS_MAX]; p++) {
-        if ((p->y >> DECIMAL_BITS) >= HEIGHT) continue;
-        ab.drawPixel(p->x >> DECIMAL_BITS, p->y >> DECIMAL_BITS, WHITE);
     }
 }
